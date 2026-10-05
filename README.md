@@ -1,4 +1,6 @@
-# Motor QA Web
+# Motor QA
+
+Plataforma web para centralização, planejamento, acompanhamento e auditoria de processos de QA, integrada a ferramentas.
 
 Ambiente web que espelha a planilha **Status Report QA Fase 3** (abas Home PORT., Planejamento, Status por frente, Controle de Execuções e Controle de falhas), com a mesma lógica de agregação (`COUNTIFS` / `SUMIF`) aplicada no backend sobre dados importados da planilha.
 
