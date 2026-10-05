@@ -1,0 +1,903 @@
+{
+  "workbook_sheets": [
+    "Defeitos",
+    "Home Inglês.",
+    "BACK",
+    "Regras",
+    "Status Parcial - GEFEA",
+    "Azure_Conect_v2",
+    "OOLDControle de falhas",
+    "Mapa de Cobertura Requisitos",
+    "Graficos Apoio",
+    "Evolucao QA",
+    "Planilha1",
+    "Procedência Massa",
+    "Graficos",
+    "Plano Execuçao",
+    "apoio",
+    "Home PORT.",
+    "2) Planejamento",
+    "Status por frente",
+    "Controle_Execusoes",
+    "Controle_Falhas",
+    "Config_Teste",
+    "UAT",
+    "Regras de Calculo",
+    "qry_Validar_Conexao_Azure",
+    "Divisão TIme",
+    "rastreablidade Bugs",
+    "Atalhos Liberados",
+    "Planilha2"
+  ],
+  "Home PORT.": {
+    "sheet_name": "Home PORT.",
+    "max_row": 106,
+    "max_col": 23,
+    "tables": [],
+    "headers": {},
+    "key_cells": {
+      "A2": "STATUS REPORT QA:  CVP- SIAS - End-to-End - Fase 3\n",
+      "E3": "=TODAY()",
+      "H3": "=NOW()",
+      "C6": "='Regras de Calculo'!F8",
+      "D6": "='Regras de Calculo'!G8",
+      "E6": "='Regras de Calculo'!E8",
+      "F6": "=SUM('2) Planejamento'!G8:G32)",
+      "H6": "=IFERROR(I44/H44,0)",
+      "I6": "=IFERROR(J44/H44,0)",
+      "A10": "=H44",
+      "H10": "=R44",
+      "I10": "=S44",
+      "J10": "=T44",
+      "P10": null
+    },
+    "formula_count_in_scan": 432,
+    "plankey_or_table_formulas": [
+      {
+        "cell": "A14",
+        "formula": "=COUNTIFS(\n    tbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\n    tbControle_ExecucoesScript[TestPointState],\"Failed\"\n)\n+\nCOUNTIFS(\n    tbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\n    tbControle_ExecucoesScript[TestPointState],\"Blocked\"\n)"
+      },
+      {
+        "cell": "D16",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Criação],\"\"\n)"
+      },
+      {
+        "cell": "B79",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "B82",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Fechamento],\"<>\"\n)"
+      },
+      {
+        "cell": "B88",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Fechamento],\"\",\ntbControle_FalhasScript[Status],\"Resolved\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "B91",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Fechamento],\"\",\ntbControle_FalhasScript[Status],\"<>Resolved\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "B94",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Fechamento],\"\",\ntbControle_FalhasScript[Status],\"<>Resolved\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "B97",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Fechamento],\"\",\ntbControle_FalhasScript[Status],\"<>Resolved\",\ntbControle_FalhasScript[Responsavel],\"Outros\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      }
+    ],
+    "formula_samples": [
+      {
+        "cell": "P2",
+        "formula": "='2) Planejamento'!D3"
+      },
+      {
+        "cell": "E3",
+        "formula": "=TODAY()"
+      },
+      {
+        "cell": "H3",
+        "formula": "=NOW()"
+      },
+      {
+        "cell": "P3",
+        "formula": "='2) Planejamento'!F3"
+      },
+      {
+        "cell": "C6",
+        "formula": "='Regras de Calculo'!F8"
+      },
+      {
+        "cell": "D6",
+        "formula": "='Regras de Calculo'!G8"
+      },
+      {
+        "cell": "E6",
+        "formula": "='Regras de Calculo'!E8"
+      },
+      {
+        "cell": "F6",
+        "formula": "=SUM('2) Planejamento'!G8:G32)"
+      },
+      {
+        "cell": "H6",
+        "formula": "=IFERROR(I44/H44,0)"
+      },
+      {
+        "cell": "I6",
+        "formula": "=IFERROR(J44/H44,0)"
+      },
+      {
+        "cell": "J6",
+        "formula": "='2) Planejamento'!T32"
+      },
+      {
+        "cell": "A10",
+        "formula": "=H44"
+      },
+      {
+        "cell": "C10",
+        "formula": "=I44"
+      },
+      {
+        "cell": "D10",
+        "formula": "=J44"
+      },
+      {
+        "cell": "E10",
+        "formula": "=P44"
+      },
+      {
+        "cell": "F10",
+        "formula": "=Q44"
+      },
+      {
+        "cell": "H10",
+        "formula": "=R44"
+      },
+      {
+        "cell": "I10",
+        "formula": "=S44"
+      },
+      {
+        "cell": "J10",
+        "formula": "=T44"
+      },
+      {
+        "cell": "A14",
+        "formula": "=COUNTIFS(\n    tbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\n    tbControle_ExecucoesScript[TestPointState],\"Failed\"\n)\n+\nCOUNTIFS(\n    tbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\n    tbControle_ExecucoesScript[TestPointState],\"Blocked\"\n)"
+      },
+      {
+        "cell": "C16",
+        "formula": "='Mapa de Cobertura Requisitos'!D3"
+      },
+      {
+        "cell": "D16",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Criação],\"\"\n)"
+      },
+      {
+        "cell": "H16",
+        "formula": "='2) Planejamento'!G4"
+      },
+      {
+        "cell": "M19",
+        "formula": "='2) Planejamento'!L7"
+      },
+      {
+        "cell": "N19",
+        "formula": "='2) Planejamento'!M7"
+      },
+      {
+        "cell": "O19",
+        "formula": "='2) Planejamento'!N7"
+      },
+      {
+        "cell": "P19",
+        "formula": "='2) Planejamento'!O7"
+      },
+      {
+        "cell": "Q19",
+        "formula": "='2) Planejamento'!P7"
+      },
+      {
+        "cell": "A20",
+        "formula": "= '2) Planejamento'!C8"
+      },
+      {
+        "cell": "B20",
+        "formula": "='2) Planejamento'!D8"
+      },
+      {
+        "cell": "E20",
+        "formula": "='2) Planejamento'!E8"
+      },
+      {
+        "cell": "F20",
+        "formula": "='2) Planejamento'!F8"
+      },
+      {
+        "cell": "H20",
+        "formula": "='2) Planejamento'!H8"
+      },
+      {
+        "cell": "I20",
+        "formula": "='2) Planejamento'!I8"
+      },
+      {
+        "cell": "J20",
+        "formula": "=M20+N20+O20"
+      }
+    ],
+    "top_functions": [
+      [
+        "SUM",
+        13
+      ],
+      [
+        "COUNTIFS",
+        9
+      ],
+      [
+        "IFERROR",
+        2
+      ],
+      [
+        "TODAY",
+        1
+      ],
+      [
+        "NOW",
+        1
+      ]
+    ]
+  },
+  "2) Planejamento": {
+    "sheet_name": "2) Planejamento",
+    "max_row": 65,
+    "max_col": 732,
+    "tables": [],
+    "headers": {
+      "row7": [
+        "QA",
+        "Prioridades",
+        "Frente",
+        "Processo",
+        "*Data Inicio",
+        "*Data Fim",
+        "*REPLANEJAMENTO",
+        "* QTD CTS PLAN",
+        "CTS PLAN DIA",
+        "Verificação",
+        "TOTAL REALIZADO",
+        "CTS Passeds",
+        "CTS N/A",
+        "CTS CANCELADOS",
+        "CTS FALHADOS",
+        "CTS BLOQUEADOS",
+        "CTS LIBERADOS",
+        "CTS DESIGN",
+        "CTS NÃO LIBERADOS",
+        "BACKLOG",
+        "Verificação",
+        "TOTAL PLANEJADO",
+        "=D3",
+        "=W7+(MOD(W7,7)=6)*2+1",
+        "=X7+(MOD(X7,7)=6)*2+1"
+      ]
+    },
+    "key_cells": {},
+    "formula_count_in_scan": 456,
+    "plankey_or_table_formulas": [
+      {
+        "cell": "L8",
+        "formula": "=IF($D8=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Passed\",\ntbControle_ExecucoesScript[TestCaseState],\"Closed\"\n))"
+      },
+      {
+        "cell": "M8",
+        "formula": "=IF($D8=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestCaseState],\"NotApplicable\",\ntbControle_ExecucoesScript[TestPointState],\"Closed\"\n))"
+      },
+      {
+        "cell": "O8",
+        "formula": "=IF($D8=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "P8",
+        "formula": "=IF($D8=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "Q8",
+        "formula": "=IF($D8=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Ready\",\ntbControle_ExecucoesScript[TestCaseState],\"QA\"\n))"
+      },
+      {
+        "cell": "R8",
+        "formula": "=IF($D8=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[Outcome],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Design\"\n))"
+      },
+      {
+        "cell": "S8",
+        "formula": "=IF($D8=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D8,\ntbControle_ExecucoesScript[TestPointState],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Não atribuído\"\n))"
+      },
+      {
+        "cell": "L9",
+        "formula": "=IF($D9=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Passed\",\ntbControle_ExecucoesScript[TestCaseState],\"Closed\"\n))"
+      },
+      {
+        "cell": "M9",
+        "formula": "=IF($D9=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestCaseState],\"NotApplicable\",\ntbControle_ExecucoesScript[TestPointState],\"Closed\"\n))"
+      },
+      {
+        "cell": "O9",
+        "formula": "=IF($D9=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "P9",
+        "formula": "=IF($D9=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "Q9",
+        "formula": "=IF($D9=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Ready\",\ntbControle_ExecucoesScript[TestCaseState],\"QA\"\n))"
+      },
+      {
+        "cell": "R9",
+        "formula": "=IF($D9=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[Outcome],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Design\"\n))"
+      },
+      {
+        "cell": "S9",
+        "formula": "=IF($D9=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D9,\ntbControle_ExecucoesScript[TestPointState],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Não atribuído\"\n))"
+      },
+      {
+        "cell": "L10",
+        "formula": "=IF($D10=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Passed\",\ntbControle_ExecucoesScript[TestCaseState],\"Closed\"\n))"
+      },
+      {
+        "cell": "M10",
+        "formula": "=IF($D10=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestCaseState],\"NotApplicable\",\ntbControle_ExecucoesScript[TestPointState],\"Closed\"\n))"
+      },
+      {
+        "cell": "O10",
+        "formula": "=IF($D10=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "P10",
+        "formula": "=IF($D10=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "Q10",
+        "formula": "=IF($D10=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Ready\",\ntbControle_ExecucoesScript[TestCaseState],\"QA\"\n))"
+      },
+      {
+        "cell": "R10",
+        "formula": "=IF($D10=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[Outcome],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Design\"\n))"
+      },
+      {
+        "cell": "S10",
+        "formula": "=IF($D10=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D10,\ntbControle_ExecucoesScript[TestPointState],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Não atribuído\"\n))"
+      },
+      {
+        "cell": "L11",
+        "formula": "=IF($D11=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Passed\",\ntbControle_ExecucoesScript[TestCaseState],\"Closed\"\n))"
+      },
+      {
+        "cell": "M11",
+        "formula": "=IF($D11=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestCaseState],\"NotApplicable\",\ntbControle_ExecucoesScript[TestPointState],\"Closed\"\n))"
+      },
+      {
+        "cell": "O11",
+        "formula": "=IF($D11=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Failed\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "P11",
+        "formula": "=IF($D11=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[TestCaseState],\"BUG\"\n)+\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteId],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Blocked\",\ntbControle_ExecucoesScript[Responsabilidade],\"Pendências\"))"
+      },
+      {
+        "cell": "Q11",
+        "formula": "=IF($D11=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Ready\",\ntbControle_ExecucoesScript[TestCaseState],\"QA\"\n))"
+      },
+      {
+        "cell": "R11",
+        "formula": "=IF($D11=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[Outcome],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Design\"\n))"
+      },
+      {
+        "cell": "S11",
+        "formula": "=IF($D11=\"\",\"\",\nCOUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D11,\ntbControle_ExecucoesScript[TestPointState],\"Unspecified\",\ntbControle_ExecucoesScript[TestCaseState],\"Não atribuído\"\n))"
+      },
+      {
+        "cell": "L12",
+        "formula": "=IF($D12=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D12,\ntbControle_ExecucoesScript[TestPointState],\"Passed\",\ntbControle_ExecucoesScript[TestCaseState],\"Closed\"\n))"
+      },
+      {
+        "cell": "M12",
+        "formula": "=IF($D12=\"\",\"\",COUNTIFS(\ntbControle_ExecucoesScript[PlanKey],\"EndToEnd\",\ntbControle_ExecucoesScript[SuiteName],$D12,\ntbControle_ExecucoesScript[TestCaseState],\"NotApplicable\",\ntbControle_ExecucoesScript[TestPointState],\"Closed\"\n))"
+      }
+    ],
+    "formula_samples": [
+      {
+        "cell": "E6",
+        "formula": "=TODAY()"
+      },
+      {
+        "cell": "W6",
+        "formula": "=TEXT(W7,\"DDD\")"
+      },
+      {
+        "cell": "X6",
+        "formula": "=TEXT(X7,\"DDD\")"
+      },
+      {
+        "cell": "Y6",
+        "formula": "=TEXT(Y7,\"DDD\")"
+      },
+      {
+        "cell": "Z6",
+        "formula": "=TEXT(Z7,\"DDD\")"
+      },
+      {
+        "cell": "AA6",
+        "formula": "=TEXT(AA7,\"DDD\")"
+      },
+      {
+        "cell": "AB6",
+        "formula": "=TEXT(AB7,\"DDD\")"
+      },
+      {
+        "cell": "AC6",
+        "formula": "=TEXT(AC7,\"DDD\")"
+      },
+      {
+        "cell": "AD6",
+        "formula": "=TEXT(AD7,\"DDD\")"
+      },
+      {
+        "cell": "AE6",
+        "formula": "=TEXT(AE7,\"DDD\")"
+      },
+      {
+        "cell": "AF6",
+        "formula": "=TEXT(AF7,\"DDD\")"
+      },
+      {
+        "cell": "AG6",
+        "formula": "=TEXT(AG7,\"DDD\")"
+      },
+      {
+        "cell": "AH6",
+        "formula": "=TEXT(AH7,\"DDD\")"
+      },
+      {
+        "cell": "AI6",
+        "formula": "=TEXT(AI7,\"DDD\")"
+      },
+      {
+        "cell": "AJ6",
+        "formula": "=TEXT(AJ7,\"DDD\")"
+      },
+      {
+        "cell": "AK6",
+        "formula": "=TEXT(AK7,\"DDD\")"
+      },
+      {
+        "cell": "AL6",
+        "formula": "=TEXT(AL7,\"DDD\")"
+      },
+      {
+        "cell": "AM6",
+        "formula": "=TEXT(AM7,\"DDD\")"
+      },
+      {
+        "cell": "AN6",
+        "formula": "=TEXT(AN7,\"DDD\")"
+      },
+      {
+        "cell": "W7",
+        "formula": "=D3"
+      },
+      {
+        "cell": "X7",
+        "formula": "=W7+(MOD(W7,7)=6)*2+1"
+      },
+      {
+        "cell": "Y7",
+        "formula": "=X7+(MOD(X7,7)=6)*2+1"
+      },
+      {
+        "cell": "Z7",
+        "formula": "=Y7+(MOD(Y7,7)=6)*2+1"
+      },
+      {
+        "cell": "AA7",
+        "formula": "=Z7+(MOD(Z7,7)=6)*2+1"
+      },
+      {
+        "cell": "AB7",
+        "formula": "=AA7+(MOD(AA7,7)=6)*2+1"
+      },
+      {
+        "cell": "AC7",
+        "formula": "=AB7+(MOD(AB7,7)=6)*2+1"
+      },
+      {
+        "cell": "AD7",
+        "formula": "=AC7+(MOD(AC7,7)=6)*2+1"
+      },
+      {
+        "cell": "AE7",
+        "formula": "=AD7+(MOD(AD7,7)=6)*2+1"
+      },
+      {
+        "cell": "AF7",
+        "formula": "=AE7+(MOD(AE7,7)=6)*2+1"
+      },
+      {
+        "cell": "AG7",
+        "formula": "=AF7+(MOD(AF7,7)=6)*2+1"
+      },
+      {
+        "cell": "AH7",
+        "formula": "=AG7+(MOD(AG7,7)=6)*2+1"
+      },
+      {
+        "cell": "AI7",
+        "formula": "=AH7+(MOD(AH7,7)=6)*2+1"
+      },
+      {
+        "cell": "AJ7",
+        "formula": "=AI7+(MOD(AI7,7)=6)*2+1"
+      },
+      {
+        "cell": "AK7",
+        "formula": "=AJ7+(MOD(AJ7,7)=6)*2+1"
+      },
+      {
+        "cell": "AL7",
+        "formula": "=AK7+(MOD(AK7,7)=6)*2+1"
+      }
+    ],
+    "top_functions": [
+      [
+        "COUNTIFS",
+        216
+      ],
+      [
+        "SUM",
+        105
+      ],
+      [
+        "SUMIFS",
+        24
+      ],
+      [
+        "TEXT",
+        18
+      ],
+      [
+        "MOD",
+        17
+      ],
+      [
+        "TODAY",
+        1
+      ]
+    ]
+  },
+  "Status por frente": {
+    "sheet_name": "Status por frente",
+    "max_row": 27,
+    "max_col": 20,
+    "tables": [],
+    "headers": {},
+    "key_cells": {
+      "A2": null,
+      "K2": null,
+      "U2": null,
+      "A6": null,
+      "K6": null,
+      "U6": null
+    },
+    "formula_count_in_scan": 69,
+    "plankey_or_table_formulas": [
+      {
+        "cell": "B11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "C11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "D11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "E11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "F11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "G11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "I11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Status],\"Resolved\"\n)"
+      },
+      {
+        "cell": "J11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"UAT\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Outros\",\ntbControle_FalhasScript[Fechamento],\"<>\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "L11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "M11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "N11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "O11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "P11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "Q11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "S11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Status],\"Resolved\"\n)"
+      },
+      {
+        "cell": "T11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"UAT\",\ntbControle_FalhasScript[Frente],\"*\"&L1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Outros\",\ntbControle_FalhasScript[Fechamento],\"<>\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      }
+    ],
+    "formula_samples": [
+      {
+        "cell": "C3",
+        "formula": "=IFERROR(D11/B7,0)"
+      },
+      {
+        "cell": "D3",
+        "formula": "=IFERROR(F11/B7,0)"
+      },
+      {
+        "cell": "F3",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$G$8:$G$31)"
+      },
+      {
+        "cell": "H3",
+        "formula": "=IFERROR(C7/B7,0)"
+      },
+      {
+        "cell": "I3",
+        "formula": "=IFERROR(D7/B7,0)"
+      },
+      {
+        "cell": "J3",
+        "formula": "=C7-D7"
+      },
+      {
+        "cell": "M3",
+        "formula": "=IFERROR(N11/L7,0)"
+      },
+      {
+        "cell": "N3",
+        "formula": "=IFERROR(P11/L7,0)"
+      },
+      {
+        "cell": "P3",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$G$8:$G$31)"
+      },
+      {
+        "cell": "R3",
+        "formula": "=IFERROR(M7/L7,0)"
+      },
+      {
+        "cell": "S3",
+        "formula": "=IFERROR(N7/L7,0)"
+      },
+      {
+        "cell": "T3",
+        "formula": "=M7-N7"
+      },
+      {
+        "cell": "B7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$H$8:$H$31)"
+      },
+      {
+        "cell": "C7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$I$8:$I$31)"
+      },
+      {
+        "cell": "D7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$K$8:$K$31)"
+      },
+      {
+        "cell": "E7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$O$8:$O$31)"
+      },
+      {
+        "cell": "F7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$P$8:$P$31)"
+      },
+      {
+        "cell": "H7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$Q$8:$Q$31)"
+      },
+      {
+        "cell": "I7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$R$8:$R$31)"
+      },
+      {
+        "cell": "J7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&B1&\"*\",'2) Planejamento'!$S$8:$S$31)"
+      },
+      {
+        "cell": "L7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&L1&\"*\",'2) Planejamento'!$H$8:$H$31)"
+      },
+      {
+        "cell": "M7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$I$8:$I$31)"
+      },
+      {
+        "cell": "N7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$K$8:$K$31)"
+      },
+      {
+        "cell": "O7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$O$8:$O$31)"
+      },
+      {
+        "cell": "P7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$P$8:$P$31)"
+      },
+      {
+        "cell": "R7",
+        "formula": "=SUMIF('2) Planejamento'!C8:C31,\"*\"&L1&\"*\",'2) Planejamento'!$Q$8:$Q$31)"
+      },
+      {
+        "cell": "S7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$R$8:$R$31)"
+      },
+      {
+        "cell": "T7",
+        "formula": "=SUMIF('2) Planejamento'!C:C,\"*\"&L1&\"*\",'2) Planejamento'!$S$8:$S$31)"
+      },
+      {
+        "cell": "B11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[ID],\"<>\"\n)"
+      },
+      {
+        "cell": "C11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "D11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "E11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Desenvolvimento Foursys\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "F11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"New\"\n)\n+\nCOUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Active\"\n)"
+      },
+      {
+        "cell": "G11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Responsavel],\"Cliente CVP\",\ntbControle_FalhasScript[Status],\"Closed\"\n)"
+      },
+      {
+        "cell": "I11",
+        "formula": "=COUNTIFS(\ntbControle_FalhasScript[PlanKey],\"EndToEnd\",\ntbControle_FalhasScript[Frente],\"*\"&B1&\"*\",\ntbControle_FalhasScript[Status],\"Resolved\"\n)"
+      }
+    ],
+    "top_functions": [
+      [
+        "COUNTIFS",
+        20
+      ],
+      [
+        "SUMIF",
+        19
+      ],
+      [
+        "SUM",
+        19
+      ],
+      [
+        "IFERROR",
+        12
+      ]
+    ]
+  },
+  "Controle_Execusoes": {
+    "sheet_name": "Controle_Execusoes",
+    "max_row": 93,
+    "max_col": 22,
+    "tables": [],
+    "headers": {
+      "row2": [
+        "PlanKey",
+        "PlanId",
+        "PlanName",
+        "Frente",
+        "Atalho",
+        "Processo",
+        "SuiteId",
+        "SuiteName",
+        "TestPointId",
+        "TestCaseId",
+        "TestCaseTitle",
+        "Responsabilidade",
+        "TestCaseState",
+        "TestPointState",
+        "Outcome",
+        "DateCompleted",
+        "RunBy",
+        "LastUpdatedDate",
+        "LastTestRunId",
+        "LastResultId",
+        "TestCaseLink",
+        "TestCaseTags",
+        null,
+        null,
+        null
+      ]
+    },
+    "key_cells": {},
+    "formula_count_in_scan": 0,
+    "plankey_or_table_formulas": [],
+    "formula_samples": [],
+    "top_functions": []
+  },
+  "Controle_Falhas": {
+    "sheet_name": "Controle_Falhas",
+    "max_row": 1259,
+    "max_col": 15,
+    "tables": [],
+    "headers": {
+      "row2": [
+        "PlanKey",
+        "Responsavel",
+        "Ambiente",
+        "Categoria",
+        "ID",
+        "Impacto",
+        "Frente",
+        "Título",
+        "Status",
+        "Criação",
+        "Fechamento",
+        "Links",
+        "Tags",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "key_cells": {},
+    "formula_count_in_scan": 0,
+    "plankey_or_table_formulas": [],
+    "formula_samples": [],
+    "top_functions": []
+  }
+}

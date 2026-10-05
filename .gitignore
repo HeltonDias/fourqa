@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+data/
+.env
+.env.*
+*.log
+.DS_Store
+
+# Planilha pode conter PAT/credenciais (Config_Teste)
+fonte/**/*.xlsx
+fonte/**/*.xlsm
