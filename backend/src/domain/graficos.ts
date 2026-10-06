@@ -4,6 +4,7 @@ import type {
   GraficoPontoDia,
   PlanejamentoLinha,
 } from "../types.js";
+import { statusCenario } from "./formulas.js";
 
 /**
  * Releitura dos gráficos da aba Home da planilha:
@@ -13,7 +14,7 @@ import type {
  * Planejado segue o calendário da aba Planejamento: cada suite distribui
  * QTD CTS PLAN igualmente pelos dias úteis entre Data início e Data fim
  * (CTS PLAN DIA), pulando sábado/domingo. Realizado conta execuções
- * finalizadas (Passed/Closed ou NotApplicable/Closed) pela DateCompleted.
+ * finalizadas (Passed ou N/A) pela DateCompleted.
  */
 
 function toDateOnly(v: string | null | undefined): Date | null {
@@ -52,9 +53,28 @@ export function businessDays(inicio: Date, fim: Date): Date[] {
 
 function isRealizado(e: ExecucaoRow, planKey: string): boolean {
   if ((e.plan_key ?? "").trim() !== planKey) return false;
-  const tp = (e.test_point_state ?? "").trim();
-  const tc = (e.test_case_state ?? "").trim();
-  return (tp === "Passed" && tc === "Closed") || (tp === "Closed" && tc === "NotApplicable");
+  const s = statusCenario(e);
+  return s === "passed" || s === "na";
+}
+
+/**
+ * CTS PLAN DIA da aba Planejamento (=SUMIFS da distribuição diária até HOJE()): a QTD planejada da
+ * suíte dividida igualmente pelos dias úteis entre início e fim, acumulada até a data de hoje.
+ */
+export function planejadoAteHoje(
+  qtd: number,
+  inicio: string | null,
+  fim: string | null,
+  hoje: Date = new Date(),
+): number {
+  const ini = toDateOnly(inicio);
+  const end = toDateOnly(fim);
+  if (!qtd || !ini || !end) return 0;
+  const hojeUtc = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+  const dias = businessDays(ini, end);
+  if (dias.length === 0) return hojeUtc.getTime() >= ini.getTime() ? qtd : 0;
+  const decorridos = dias.filter((d) => d.getTime() <= hojeUtc.getTime()).length;
+  return Math.round((qtd * decorridos) / dias.length);
 }
 
 export function planejadoVsRealizado(

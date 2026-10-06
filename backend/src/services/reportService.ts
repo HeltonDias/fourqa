@@ -1,22 +1,29 @@
 import {
   getMeta,
-  listExecucoes,
-  listFalhas,
+  listExecucoesAll,
+  listFalhasAll,
   listPlanejamentoBase,
+  setMeta,
 } from "../db.js";
+import { inferDimensions, type DetectedDimension } from "../domain/dimensions.js";
 import {
   classificarImpactosKpi,
   countFalhas,
   DEFAULT_PLAN_KEY,
   impactoTotalTestPoint,
-  metricasPorProcesso,
+  metricasDosPontos,
   sumifFrente,
   totalRealizadoLinha,
 } from "../domain/formulas.js";
-import { planejadoVsRealizado, statusExecucoes } from "../domain/graficos.js";
+import { statusEvolucao, statusGeralDe } from "../domain/evolucaoStatus.js";
+import { planejadoAteHoje, planejadoVsRealizado, statusExecucoes } from "../domain/graficos.js";
 import type {
+  GraficoFatia,
   HomeBugsPainel,
   HomeDto,
+  HomeGestaoImpactos,
+  ExecucaoRow,
+  FalhaRow,
   PlanejamentoLinha,
   ReportSuiteRow,
   StatusFrenteBloco,
@@ -28,57 +35,116 @@ function suiteLabel(processo: string): string {
   return `${p.slice(0, 33)}…`;
 }
 
-function suiteStatus(row: PlanejamentoLinha): ReportSuiteRow["status"] {
-  if (row.cts_falhados > 0 || row.cts_bloqueados > 0) return "risk";
-  if (row.cts_nao_liberados > 0 || row.cts_design > 0) return "warn";
-  return "ok";
-}
-
-function buildReportSuites(
-  linhas: PlanejamentoLinha[],
-  execRows: ReturnType<typeof listExecucoes>,
-): ReportSuiteRow[] {
+function buildReportSuites(linhas: ReturnType<typeof buildPlanejamento>): ReportSuiteRow[] {
   return linhas.map((row) => {
     const processo = row.processo ?? "";
-    const ttlCts = execRows.filter(
-      (e) => (e.suite_name ?? "") === processo || (e.processo ?? "") === processo,
-    ).length;
-    const plan = Number(row.qtd_cts_plan) || 0;
+    const ttlCts = Number(row.qtd_cts_plan) || 0;
     const fin = row.total_realizado;
-    const denom = plan || ttlCts || 1;
+    // Home K20 = Planejamento T8 (BACKLOG) = CTS PLAN DIA − (Passed + N/A + Cancelados)
+    const gap = (Number(row.cts_plan_dia) || 0) - fin;
+    const denom = ttlCts || 1;
     return {
       ...row,
       suiteLabel: suiteLabel(processo),
-      ttlCts: ttlCts || plan,
-      gap: plan - fin,
+      ttlCts,
+      gap,
       aprovUatPct: fin / denom,
       conclusaoE2ePct: row.cts_passeds / denom,
-      status: suiteStatus(row),
+      status: statusEvolucao({
+        gap,
+        ttlCts,
+        finalizados: fin,
+        na: Number(row.cts_na) || 0,
+      }),
     };
   });
 }
-
-const FRENTES_STATUS = ["GERORJ", "GESIN", "GEDEV", "GEFEA", "GEFIS", "GEMCO", "GERSA", "GEATE"];
 
 /** Linha "Valores Totais >>>>>>>" da planilha: é SOMA das demais, não entra nos cálculos. */
 function isLinhaTotais(row: { processo: string | null }): boolean {
   return /valores\s+totais/i.test(row.processo ?? "");
 }
 
-function buildPlanejamento(planKey: string): PlanejamentoLinha[] {
-  const execRows = listExecucoes(planKey, 50000);
-  const base = listPlanejamentoBase().filter((row) => !isLinhaTotais(row));
-  return base.map((row) => {
-    const m = metricasPorProcesso(execRows, planKey, row.processo ?? "");
-    const cts_cancelados = Number(row.cts_cancelados) || 0;
+function periodoGeral() {
+  return {
+    inicio: getMeta("data_inicio") ?? "",
+    fim: getMeta("data_fim") ?? "",
+    referencia: getMeta("data_fim_linha") ?? "",
+  };
+}
+
+/**
+ * Uma linha por suíte retornada pelo Azure (ordem da árvore do Test Plan).
+ * QTD CTS PLAN = Test Points da suíte no Azure; CTS PLAN DIA = planejado acumulado até hoje dentro
+ * da janela da suíte. Da aba Planejamento só entram dados que o Azure não tem (QA, prioridade,
+ * datas próprias da suíte, replanejamento, cancelados); sem eles vale o período geral do plano.
+ */
+function buildPlanejamento(planKey: string, execRows: ExecucaoRow[], dimensoes: DetectedDimension[]) {
+  const periodo = periodoGeral();
+  const key = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+  const porSuite = new Map<string, ExecucaoRow[]>();
+  for (const e of execRows) {
+    const nome = (e.suite_name ?? "").trim();
+    if (!nome) continue;
+    const list = porSuite.get(nome) ?? [];
+    list.push(e);
+    porSuite.set(nome, list);
+  }
+  const planejamento = new Map(
+    listPlanejamentoBase()
+      .filter((row) => !isLinhaTotais(row))
+      .map((row) => [key(row.processo), row] as const),
+  );
+
+  const suites = new Map<string, { frente: string | null; processo: string }>();
+  for (const [nome, rows] of porSuite) {
+    const e = rows[0];
+    if (e && !suites.has(key(nome))) suites.set(key(nome), { frente: e.frente, processo: nome });
+  }
+
+  return [...suites.values()].map((s, i) => {
+    const p = planejamento.get(key(s.processo));
+    const pontos = porSuite.get(s.processo) ?? [];
+    const m = metricasDosPontos(pontos);
+    const cts_cancelados = Number(p?.cts_cancelados) || 0;
+    const qtd = pontos.length;
+    const datasConfirmadas = Boolean(p?.data_inicio || p?.data_fim);
+    const data_inicio = p?.data_inicio || periodo.inicio || null;
+    const data_fim = p?.data_fim || periodo.fim || null;
+    const sample = pontos[0];
+    let classificacao: Record<string, string> = {};
+    if (sample?.dimensions_json) {
+      try {
+        const parsed = JSON.parse(sample.dimensions_json) as Record<string, unknown>;
+        classificacao = Object.fromEntries(
+          Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+        );
+      } catch {
+        classificacao = {};
+      }
+    } else if (dimensoes[0] && sample?.frente) {
+      classificacao = { [dimensoes[0].key]: sample.frente };
+    }
     return {
-      ...row,
-      replanejamento: Number(row.replanejamento) || 0,
-      qtd_cts_plan: row.qtd_cts_plan != null ? Number(row.qtd_cts_plan) : null,
-      cts_plan_dia: row.cts_plan_dia != null ? Number(row.cts_plan_dia) : null,
+      row_num: i + 1,
+      qa: p?.qa ?? null,
+      prioridades: p?.prioridades ?? null,
+      frente: s.frente,
+      processo: s.processo,
+      data_inicio,
+      data_fim,
+      replanejamento: Number(p?.replanejamento) || 0,
+      qtd_cts_plan: qtd,
+      cts_plan_dia: planejadoAteHoje(qtd, data_inicio, data_fim),
       cts_cancelados,
       ...m,
       total_realizado: totalRealizadoLinha(m, cts_cancelados),
+      classificacao,
+      planejamentoOrigem: datasConfirmadas
+        ? ("confirmado" as const)
+        : data_inicio || data_fim
+          ? ("periodo_plano" as const)
+          : ("ausente" as const),
     };
   });
 }
@@ -88,6 +154,7 @@ function sumTotals(linhas: PlanejamentoLinha[]) {
     linhas.reduce((a, r) => a + (Number(r[k]) || 0), 0);
   return {
     ctsPlan: sum("qtd_cts_plan"),
+    ctsPlanAteHoje: sum("cts_plan_dia"),
     totalRealizado: sum("total_realizado"),
     passeds: sum("cts_passeds"),
     na: sum("cts_na"),
@@ -100,8 +167,49 @@ function sumTotals(linhas: PlanejamentoLinha[]) {
   };
 }
 
-function bugsPainel(planKey: string): HomeBugsPainel {
-  const falhas = listFalhas(planKey, 50000);
+function contarPor(rows: { value: string }[]): GraficoFatia[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.value, (counts.get(r.value) ?? 0) + 1);
+  return [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+    .map(([label, value]) => ({ key: label, label, value }));
+}
+
+function gestaoImpactos(planKey: string, falhas: FalhaRow[]): HomeGestaoImpactos {
+  const bugs = falhas.filter((f) => (f.plan_key ?? "").trim() === planKey && f.bug_id != null);
+  const vazio = (v: string | null) => (v ?? "").trim() === "";
+  const abertos = bugs.filter((f) => vazio(f.fechamento));
+  const status = (f: (typeof bugs)[number]) => (f.status ?? "").trim();
+  const abertosPor = (responsavel: string) =>
+    abertos.filter((f) => status(f) !== "Resolved" && (f.responsavel ?? "").trim() === responsavel)
+      .length;
+  const fechados = bugs.filter((f) => !vazio(f.fechamento)).length;
+
+  return {
+    cards: {
+      total: bugs.length,
+      fechados,
+      pendentes: bugs.length - fechados,
+      emRetestes: abertos.filter((f) => status(f) === "Resolved").length,
+      abertosDev: abertosPor("Desenvolvimento Foursys"),
+      abertosCliente: abertosPor("Cliente CVP"),
+      abertosOutros: abertosPor("Outros"),
+    },
+    frentes: contarPor(
+      abertos.flatMap((f) =>
+        (f.frente ?? "")
+          .split("|")
+          .map((parte) => parte.trim())
+          .filter(Boolean)
+          .map((value) => ({ value })),
+      ),
+    ),
+    status: contarPor(abertos.map((f) => ({ value: status(f) || "(vazio)" }))),
+    categoria: contarPor(abertos.map((f) => ({ value: (f.categoria ?? "").trim() || "(vazio)" }))),
+  };
+}
+
+function bugsPainel(planKey: string, falhas: FalhaRow[]): HomeBugsPainel {
   return {
     total: countFalhas(falhas, { planKey, idNotEmpty: true }),
     fechados: countFalhas(falhas, { planKey, fechamentoNotEmpty: true }),
@@ -145,8 +253,7 @@ function bugsPainel(planKey: string): HomeBugsPainel {
   };
 }
 
-function bugsPorFrente(planKey: string, frente: string) {
-  const falhas = listFalhas(planKey, 50000);
+function bugsPorFrente(planKey: string, frente: string, falhas: FalhaRow[], falhasUat: FalhaRow[]) {
   const base = { planKey, frenteContains: frente, idNotEmpty: true as const };
   return {
     total: countFalhas(falhas, base),
@@ -184,7 +291,7 @@ function bugsPorFrente(planKey: string, frente: string) {
       status: "Closed",
     }),
     reteste: countFalhas(falhas, { ...base, status: "Resolved" }),
-    outrosUat: countFalhas(listFalhas("UAT", 50000), {
+    outrosUat: countFalhas(falhasUat, {
       planKey: "UAT",
       frenteContains: frente,
       responsavel: "Outros",
@@ -194,82 +301,115 @@ function bugsPorFrente(planKey: string, frente: string) {
   };
 }
 
-export function getPlanejamento(planKey = DEFAULT_PLAN_KEY) {
-  const linhas = buildPlanejamento(planKey);
+function catalogoDimensoes(planKey: string, execRows: ExecucaoRow[]): DetectedDimension[] {
+  const raw = getMeta(`dimensoes_catalog:${planKey}`);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as DetectedDimension[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.filter((d) => d.visible !== false);
+    } catch {
+      /* catálogo inválido: infere pelas linhas */
+    }
+  }
+  return inferDimensions(execRows);
+}
+
+function readStoredKpi(planKey: string): { foursys: number; cliente: number; reteste: number } | null {
+  const raw = getMeta(`kpi_impactos:${planKey}`);
+  if (!raw) return null;
+  try {
+    const k = JSON.parse(raw) as Record<string, unknown>;
+    const nums = [k.foursys, k.cliente, k.reteste];
+    if (!nums.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+    return { foursys: k.foursys as number, cliente: k.cliente as number, reteste: k.reteste as number };
+  } catch {
+    return null;
+  }
+}
+
+export function getCabecalho(): { title: string; subtitle: string } {
   return {
-    planKey,
-    periodo: {
-      inicio: getMeta("data_inicio") ?? "",
-      fim: getMeta("data_fim") ?? "",
-      referencia: getMeta("data_fim_linha") ?? "",
-    },
-    headers: [
-      "QA",
-      "Prioridades",
-      "Frente",
-      "Processo",
-      "Data início",
-      "Data fim",
-      "Replanejamento",
-      "QTD CTS PLAN",
-      "CTS PLAN DIA",
-      "Total realizado",
-      "CTS Passeds",
-      "CTS N/A",
-      "CTS Cancelados",
-      "CTS Falhados",
-      "CTS Bloqueados",
-      "CTS Liberados",
-      "CTS Design",
-      "CTS Não liberados",
-    ],
-    linhas,
-    totais: sumTotals(linhas),
+    title: (getMeta("cabecalho_titulo") ?? getMeta("title") ?? "STATUS REPORT QA").trim(),
+    subtitle: (
+      getMeta("cabecalho_subtitulo") ??
+      "FASE - Execução QA - Testes EndToEnd - Validacão da V1 para V3"
+    ).trim(),
   };
 }
 
+export function setCabecalho(title: string, subtitle: string): { title: string; subtitle: string } {
+  setMeta("cabecalho_titulo", title.trim());
+  setMeta("cabecalho_subtitulo", subtitle.trim());
+  return getCabecalho();
+}
+
+function normalizeIsoDay(value: string): string | null {
+  const trimmed = value.trim();
+  const iso = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return null;
+}
+
+export function setPeriodoPlano(inicio: string, fim: string): HomeDto["periodo"] {
+  const start = normalizeIsoDay(inicio);
+  const end = normalizeIsoDay(fim);
+  if (!start || !end) {
+    throw new Error("Informe início e fim válidos (aaaa-mm-dd).");
+  }
+  if (start > end) {
+    throw new Error("A data de início não pode ser posterior à data de fim.");
+  }
+  setMeta("data_inicio", start);
+  setMeta("data_fim", end);
+  return periodoGeral();
+}
+
 export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
-  const linhas = buildPlanejamento(planKey);
+  const execRows = listExecucoesAll(planKey);
+  const falhas = listFalhasAll(planKey);
+  const dimensoes = catalogoDimensoes(planKey, execRows);
+  const linhas = buildPlanejamento(planKey, execRows, dimensoes);
   const totais = sumTotals(linhas);
-  const execRows = listExecucoes(planKey, 50000);
-  const falhas = listFalhas(planKey, 50000);
-  const kpi = classificarImpactosKpi(execRows, falhas, planKey);
-  const bugs = bugsPainel(planKey);
+  // Prefere o KPI exato calculado na última sincronização com o Azure; senão, aproxima pelos dados locais.
+  const kpi = readStoredKpi(planKey) ?? classificarImpactosKpi(execRows, falhas, planKey);
+  const bugs = bugsPainel(planKey, falhas);
 
-  const ctsPlan = totais.ctsPlan || 1;
-  const ttlCts = execRows.length;
+  // Home H6 = I44/H44 e I6 = J44/H44: planejado até hoje e finalizados sobre a QTD CTS PLAN total.
+  const sobreTtl = (x: number) => (totais.ctsPlan > 0 ? x / totais.ctsPlan : 0);
+  const ttlCts = totais.ctsPlan;
+  // Regras de Calculo D8: CTs executados = Passed + Falhados + Bloqueados (Planejamento L32+O32+P32)
+  const executados = totais.passeds + totais.falhados + totais.bloqueados;
+  const sobreExecutados = (x: number) => (executados > 0 ? x / executados : 0);
+  const falhasPor = (responsavel: string) =>
+    falhas.filter((f) => (f.responsavel ?? "").trim() === responsavel).length;
   const impactoTotal = impactoTotalTestPoint(execRows, planKey);
-  const suites = buildReportSuites(linhas, execRows);
+  const suites = buildReportSuites(linhas);
+  const statusGeral = statusGeralDe(suites.map((s) => s.status));
+  const gapTotal = suites.reduce((a, s) => a + s.gap, 0);
 
-  let statusGeral: HomeDto["statusGeral"] = "ok";
-  if (totais.falhados > 0 || totais.bloqueados > 0 || impactoTotal > 0) statusGeral = "risk";
-  else if (totais.naoLiberados > 0 || totais.design > 0) statusGeral = "warn";
-
-  const bugDenom = Math.max(bugs.total, 1);
-  const periodo = {
-    inicio: getMeta("data_inicio") ?? "",
-    fim: getMeta("data_fim") ?? "",
-    referencia: getMeta("data_fim_linha") ?? "",
-  };
+  const periodo = periodoGeral();
   return {
-    title: (getMeta("title") ?? "STATUS REPORT QA").trim(),
-    subtitle:
-      "FASE - Execução QA - Testes EndToEnd - Validacão da V1 para V3",
+    ...getCabecalho(),
     planKey,
     periodo,
     atualizadoEm: new Date().toISOString(),
-    ultimaImportacao: getMeta("imported_at"),
+    ultimaImportacao: getMeta("ultima_sincronizacao_azure") ?? getMeta("imported_at"),
     replanejamentoTotal: linhas.reduce((a, r) => a + r.replanejamento, 0),
     ttlCts,
-    gap: totais.ctsPlan - totais.totalRealizado,
-    percentBugsDev: bugs.abertosDev / bugDenom,
-    percentBugsCliente: bugs.abertosCliente / bugDenom,
-    percentTotalImpactados: impactoTotal / Math.max(ttlCts, 1),
+    // Home J6 = Planejamento T32 (Σ BACKLOG)
+    gap: gapTotal,
+    statusTotais: statusGeral,
+    // Home C6/D6/E6 = Regras de Calculo F8/G8/E8: falhas do plano por responsável ÷ CTs executados
+    percentBugsDev: sobreExecutados(falhasPor("Desenvolvimento Foursys")),
+    percentBugsCliente: sobreExecutados(falhasPor("Cliente CVP")),
+    percentTotalImpactados: sobreExecutados(falhas.length),
     statusGeral,
     totais,
     percentuais: {
-      plan: totais.totalRealizado / ctsPlan,
-      real: totais.passeds / ctsPlan,
+      plan: sobreTtl(totais.ctsPlanAteHoje),
+      real: sobreTtl(totais.totalRealizado),
     },
     impactos: {
       totalTestPointFailedBlocked: impactoTotal,
@@ -278,11 +418,13 @@ export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
       reteste: kpi.reteste,
     },
     suites,
+    dimensoes,
     bugs,
     graficos: {
       planejadoVsRealizado: planejadoVsRealizado(linhas, execRows, planKey, periodo),
       statusExecucoes: statusExecucoes(totais),
     },
+    gestaoImpactos: gestaoImpactos(planKey, falhas),
   };
 }
 
@@ -291,15 +433,13 @@ export function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): {
   blocos: StatusFrenteBloco[];
   total: StatusFrenteBloco["cenarios"] & { bugs: StatusFrenteBloco["bugs"] };
 } {
-  const linhas = buildPlanejamento(planKey);
-  const frentesPresentes = [
-    ...new Set(linhas.map((l) => l.frente).filter(Boolean) as string[]),
-  ];
-  const frentes = frentesPresentes.length
-    ? frentesPresentes
-    : FRENTES_STATUS.filter((f) =>
-        linhas.some((l) => (l.frente ?? "").toUpperCase().includes(f)),
-      );
+  const execRows = listExecucoesAll(planKey);
+  const dimensoes = catalogoDimensoes(planKey, execRows);
+  const linhas = buildPlanejamento(planKey, execRows, dimensoes);
+  const frenteDim = dimensoes.find((d) => d.role === "front" && d.confidence >= 0.8);
+  const frentes = frenteDim?.values ?? [];
+  const falhas = listFalhasAll(planKey);
+  const falhasUat = planKey.toLowerCase() === "uat" ? falhas : listFalhasAll("UAT");
 
   const blocos: StatusFrenteBloco[] = frentes.map((frente) => ({
     frente,
@@ -313,7 +453,7 @@ export function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): {
       design: sumifFrente(linhas, frente, "cts_design"),
       naoLib: sumifFrente(linhas, frente, "cts_nao_liberados"),
     },
-    bugs: bugsPorFrente(planKey, frente),
+    bugs: bugsPorFrente(planKey, frente, falhas, falhasUat),
   }));
 
   const totalCenarios = blocos.reduce(

@@ -1,50 +1,46 @@
+import type { CSSProperties } from "react";
+
 type IconProps = { className?: string };
 
-export function IconHome({ className }: IconProps) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9.5z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+const sidebarIcons = import.meta.glob<string>("../../../fonte/util/barra_lateral/*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+
+function sidebarIconUrl(fileName: string): string | undefined {
+  const target = `/${fileName}`.toLowerCase();
+  return Object.entries(sidebarIcons).find(([p]) => p.toLowerCase().endsWith(target))?.[1];
 }
 
-export function IconCalendar({ className }: IconProps) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
+function SidebarIcon({ file }: { file: string }) {
+  const src = sidebarIconUrl(file);
+  if (!src) return null;
+  const style: CSSProperties = {
+    WebkitMaskImage: `url("${src}")`,
+    maskImage: `url("${src}")`,
+  };
+  return <span className="nav-icon-mask" style={style} aria-hidden />;
 }
 
-export function IconPie({ className }: IconProps) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 3v9l7.5 4.3A9 9 0 1112 3z" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
+export function IconHome() {
+  return <SidebarIcon file="Report.png" />;
 }
 
-export function IconCode({ className }: IconProps) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M8 8L4 12l4 4M16 8l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
+export function IconCalendar() {
+  return <SidebarIcon file="Planejamento.png" />;
 }
 
-export function IconBug({ className }: IconProps) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <ellipse cx="12" cy="14" rx="5" ry="6" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 8V4M8 6l-2-2M16 6l2-2M6 12H3M21 12h-3" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
+export function IconPie() {
+  return <SidebarIcon file="status.png" />;
+}
+
+export function IconCode() {
+  return <SidebarIcon file="execucoes.png" />;
+}
+
+export function IconBug() {
+  return <SidebarIcon file="falhas.png" />;
 }
 
 export function IconSettings({ className }: IconProps) {

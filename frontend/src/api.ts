@@ -1,5 +1,3 @@
-const PLAN_KEY = "EndToEnd";
-
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) {
@@ -9,23 +7,80 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem("motorqa_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function post<T>(path: string): Promise<T> {
+  const res = await fetch(path, { method: "POST", headers: authHeaders() });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? res.statusText);
+  return body as T;
+}
+
+async function postJson<T>(path: string, data: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? res.statusText);
+  return body as T;
+}
+
+async function put<T>(path: string, data: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? res.statusText);
+  return body as T;
+}
+
+export type SyncState = import("./types").SyncState;
 export type HomeDto = import("./types").HomeDto;
-export type PlanejamentoDto = import("./types").PlanejamentoDto;
+export type PlanningView = import("./types").PlanningView;
 export type StatusFrenteDto = import("./types").StatusFrenteDto;
 
+export type Page<T> = { total: number; limit: number; offset: number; rows: T[] };
+
+function pageQuery(params: { limit?: number; offset?: number; q?: string }): string {
+  const q = new URLSearchParams();
+  if (params.limit != null) q.set("limit", String(params.limit));
+  if (params.offset != null) q.set("offset", String(params.offset));
+  if (params.q) q.set("q", params.q);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export const api = {
-  health: () => get<{ ok: boolean; ready: boolean }>("/api/health"),
-  home: () => get<HomeDto>(`/api/home?planKey=${PLAN_KEY}`),
-  planejamento: () => get<PlanejamentoDto>(`/api/planejamento?planKey=${PLAN_KEY}`),
-  statusFrente: () => get<StatusFrenteDto>(`/api/status-frente?planKey=${PLAN_KEY}`),
-  execucoes: (limit = 500) =>
-    get<{ total: number; rows: import("./types").ExecucaoRow[] }>(
-      `/api/execucoes?planKey=${PLAN_KEY}&limit=${limit}`,
-    ),
-  falhas: (limit = 500) =>
-    get<{ total: number; rows: import("./types").FalhaRow[] }>(
-      `/api/falhas?planKey=${PLAN_KEY}&limit=${limit}`,
-    ),
+  health: () => get<{ ok: boolean; database: string }>("/api/health"),
+  home: () => get<HomeDto>("/api/home"),
+  startSync: () => post<{ started: boolean; state: SyncState }>("/api/sync"),
+  syncStatus: () => get<SyncState>("/api/sync/status"),
+  salvarCabecalho: (title: string, subtitle: string) =>
+    put<{ title: string; subtitle: string }>("/api/cabecalho", { title, subtitle }),
+  salvarPeriodoPlano: (inicio: string, fim: string) =>
+    put<HomeDto["periodo"]>("/api/periodo", { inicio, fim }),
+  planejamento: (version?: number) =>
+    get<PlanningView>(`/api/planejamento${version != null ? `?version=${version}` : ""}`),
+  confirmarPlanejamento: (body: { reason: string; adoptSource: boolean }) =>
+    postJson<PlanningView>("/api/planejamento/revisao", body),
+  salvarCelulaPlanejamento: (body: {
+    suiteId: number | null;
+    field: "start" | "end" | "day";
+    date?: string;
+    quantity?: number;
+  }) => put<PlanningView>("/api/planejamento/celula", body),
+  statusFrente: () => get<StatusFrenteDto>("/api/status-frente"),
+  execucoes: (params: { limit?: number; offset?: number; q?: string } = {}) =>
+    get<Page<import("./types").ExecucaoRow>>(`/api/execucoes${pageQuery(params)}`),
+  falhas: (params: { limit?: number; offset?: number; q?: string } = {}) =>
+    get<Page<import("./types").FalhaRow>>(`/api/falhas${pageQuery(params)}`),
 };
 
 export function pct(n: number): string {

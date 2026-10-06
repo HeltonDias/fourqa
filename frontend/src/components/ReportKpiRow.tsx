@@ -8,7 +8,7 @@ import {
   KpiIconRefresh,
   KpiIconWarning,
 } from "./KpiIcons";
-import { StatusFace } from "./StatusFace";
+import { StatusFace, type FaceStatus } from "./StatusFace";
 
 function MetricCard({
   icon,
@@ -31,7 +31,7 @@ function MetricCard({
 }
 
 type Props = {
-  statusGeral: "ok" | "warn" | "risk";
+  statusGeral: FaceStatus;
   percentBugsDev: string;
   percentBugsCliente: string;
   percentTotalImpactados: string;
@@ -53,7 +53,7 @@ export function ReportKpiRow({
 }: Props) {
   return (
     <section className="kpi-row" aria-label="Indicadores principais">
-      <div className="kpi-card kpi-card-status">
+      <div className={`kpi-card kpi-card-status tone-${statusGeral}`}>
         <span className="kpi-status-label">STATUS</span>
         <div className="kpi-status-center">
           <StatusFace status={statusGeral} hero />

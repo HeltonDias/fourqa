@@ -1,31 +1,21 @@
-import type { CSSProperties, ReactNode } from "react";
-const impactIcons = import.meta.glob<string>("../../../fonte/util/cenários_impactados/*.png", {
-  eager: true,
-  query: "?url",
-  import: "default",
-});
+import type { ReactNode } from "react";
+import tituloCenariosImpactados from "../../../fonte/util/cenários_impactados/Cenários Impactados Por Responsáveis.png";
+import retestePng from "../../../fonte/util/cenários_impactados/reteste.png";
+import { iconMaskStyle } from "../utils/iconMask";
 
-function impactIconUrl(fileName: string): string | undefined {
-  const norm = (s: string) => s.normalize("NFC").toLowerCase();
-  const target = norm(fileName);
-  return Object.entries(impactIcons).find(([p]) => {
-    const base = p.split(/[/\\]/).pop() ?? "";
-    return norm(base) === target;
-  })?.[1];
-}
-
-const retesteLoopIcon = impactIconUrl("reteste.png");
+const TITULO_ICON_URL = tituloCenariosImpactados;
+const RETESTE_ICON_URL = retestePng;
 
 type Variant = "total" | "foursys" | "cliente" | "reteste";
 
 function PanelTitleIcon() {
-  const src = impactIconUrl("Cenários Impactados Por Responsáveis.png");
-  if (!src) return null;
-  const mask: CSSProperties = {
-    WebkitMaskImage: `url("${src}")`,
-    maskImage: `url("${src}")`,
-  };
-  return <span className="panel-icon panel-icon-mask" style={mask} aria-hidden />;
+  return (
+    <span
+      className="panel-icon panel-icon-mask"
+      style={iconMaskStyle(TITULO_ICON_URL)}
+      aria-hidden
+    />
+  );
 }
 
 function CardIcon({ variant }: { variant: Variant }) {
@@ -34,16 +24,15 @@ function CardIcon({ variant }: { variant: Variant }) {
   );
 
   switch (variant) {
-    case "total": {
-      const src = impactIconUrl("Cenários Impactados Por Responsáveis.png");
-      const mask: CSSProperties | undefined = src
-        ? { WebkitMaskImage: `url("${src}")`, maskImage: `url("${src}")` }
-        : undefined;
+    case "total":
       return wrap(
-        <span className="impact-card-img impact-card-img-mask" style={mask} aria-hidden />,
+        <span
+          className="impact-card-img impact-card-img-mask"
+          style={iconMaskStyle(TITULO_ICON_URL)}
+          aria-hidden
+        />,
         "icon-total",
       );
-    }
     case "foursys":
       return wrap(
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -60,19 +49,15 @@ function CardIcon({ variant }: { variant: Variant }) {
         </svg>,
         "icon-cliente",
       );
-    case "reteste": {
-      const maskStyle: CSSProperties | undefined = retesteLoopIcon
-        ? { WebkitMaskImage: `url("${retesteLoopIcon}")`, maskImage: `url("${retesteLoopIcon}")` }
-        : undefined;
+    case "reteste":
       return wrap(
         <span
           className="impact-card-img impact-card-img-mask impact-card-img--reteste"
-          style={maskStyle}
+          style={iconMaskStyle(RETESTE_ICON_URL)}
           aria-hidden
         />,
         "icon-reteste",
       );
-    }
   }
 }
 

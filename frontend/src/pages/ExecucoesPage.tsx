@@ -1,56 +1,152 @@
-import { api } from "../api";
+import { useEffect, useState, type ReactNode } from "react";
+import { api, fmtDateTime } from "../api";
 import { LoadState } from "../components/LoadState";
-import { useFetch } from "../hooks/useFetch";
+import { useReportChrome } from "../context/ReportChromeContext";
+import type { ExecucaoRow } from "../types";
+
+/** Colunas na ordem de tbScriptExecucoesCampos (Config_Teste). */
+const COLUNAS: { campo: string; render: (r: ExecucaoRow) => ReactNode; texto: (r: ExecucaoRow) => string }[] = [
+  col("PlanKey", (r) => r.plan_key),
+  col("PlanId", (r) => r.plan_id),
+  col("PlanName", (r) => r.plan_name),
+  col("Frente", (r) => r.frente),
+  col("Atalho", (r) => r.atalho),
+  col("SuiteId", (r) => r.suite_id),
+  col("SuiteName", (r) => r.suite_name),
+  col("TestPointId", (r) => r.test_point_id),
+  col("TestCaseId", (r) => r.test_case_id),
+  col("TestCaseTitle", (r) => r.test_case_title),
+  col("Responsabilidade", (r) => r.responsabilidade),
+  col("TestCaseState", (r) => r.test_case_state),
+  col("TestPointState", (r) => r.test_point_state),
+  col("Outcome", (r) => r.outcome),
+  col("DateCompleted", (r) => (r.date_completed ? fmtDateTime(r.date_completed) : "")),
+  col("RunBy", (r) => r.run_by),
+  col("LastUpdatedDate", (r) => (r.last_updated_date ? fmtDateTime(r.last_updated_date) : "")),
+  col("LastTestRunId", (r) => r.last_test_run_id),
+  col("LastResultId", (r) => r.last_result_id),
+  {
+    campo: "TestCaseLink",
+    texto: (r) => r.test_case_link ?? "",
+    render: (r) =>
+      r.test_case_link ? (
+        <a href={r.test_case_link} target="_blank" rel="noreferrer">
+          Abrir
+        </a>
+      ) : null,
+  },
+  col("TestCaseTags", (r) => r.test_case_tags),
+];
+
+function col(campo: string, get: (r: ExecucaoRow) => string | number | null) {
+  const texto = (r: ExecucaoRow) => {
+    const v = get(r);
+    return v === null || v === undefined ? "" : String(v);
+  };
+  return { campo, texto, render: texto };
+}
+
+const PAGE = 50;
 
 export function ExecucoesPage() {
-  const { data, loading, error } = useFetch(() => api.execucoes(2000), []);
+  const { dataVersion } = useReportChrome();
+  const [busca, setBusca] = useState("");
+  const [q, setQ] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [data, setData] = useState<{ total: number; rows: ExecucaoRow[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setQ(busca.trim());
+      setOffset(0);
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [busca]);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+    api
+      .execucoes({ limit: PAGE, offset, q })
+      .then((d) => {
+        if (!cancel) setData(d);
+      })
+      .catch((e: Error) => {
+        if (!cancel) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancel) setLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [offset, q, dataVersion]);
+
+  const linhas = data?.rows ?? [];
+  const total = data?.total ?? 0;
 
   return (
-    <LoadState loading={loading} error={error}>
+    <LoadState loading={loading && !data} error={error}>
       {data && (
-        <div className="page">
-          <header className="page-head">
-            <h1>Controle de Execuções</h1>
-            <p>
-              Base <code>tbControle_ExecucoesScript</code> — {data.total} linhas (limite de exibição
-              2000).
-            </p>
+        <div className="exec-page">
+          <header className="exec-head">
+            <div>
+              <h1>Execuções</h1>
+              <p className="muted">
+                Test Points retornados pelo Azure DevOps na última atualização ·{" "}
+                <strong>{total}</strong> registros
+              </p>
+            </div>
+            <input
+              type="search"
+              className="exec-search"
+              placeholder="Filtrar no servidor…"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
           </header>
-          <div className="table-wrap wide">
-            <table>
+
+          <div className="card exec-table-wrap">
+            <table className="exec-table">
               <thead>
                 <tr>
-                  <th>Frente</th>
-                  <th>Processo</th>
-                  <th>Suite</th>
-                  <th>Caso</th>
-                  <th>TC State</th>
-                  <th>TP State</th>
-                  <th>Outcome</th>
-                  <th>Resp.</th>
+                  {COLUNAS.map((c) => (
+                    <th key={c.campo}>{c.campo}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {data.rows.map((r) => (
+                {linhas.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.frente}</td>
-                    <td className="truncate" title={r.processo ?? ""}>
-                      {r.processo}
-                    </td>
-                    <td className="truncate" title={r.suite_name ?? ""}>
-                      {r.suite_name}
-                    </td>
-                    <td className="truncate" title={r.test_case_title ?? ""}>
-                      {r.test_case_title}
-                    </td>
-                    <td>{r.test_case_state}</td>
-                    <td>{r.test_point_state}</td>
-                    <td>{r.outcome}</td>
-                    <td>{r.responsabilidade || "—"}</td>
+                    {COLUNAS.map((c) => (
+                      <td key={c.campo} title={c.texto(r)}>
+                        {c.render(r)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
+                {linhas.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUNAS.length} className="exec-empty">
+                      Nenhum registro.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+          <div className="table-pager">
+            <button type="button" className="title-edit-cancel" disabled={offset === 0} onClick={() => setOffset((n) => Math.max(0, n - PAGE))}>
+              Anterior
+            </button>
+            <span className="muted">
+              {total === 0 ? "0" : `${offset + 1}–${Math.min(offset + linhas.length, total)}`} de {total}
+            </span>
+            <button type="button" className="title-edit-cancel" disabled={offset + PAGE >= total} onClick={() => setOffset((n) => n + PAGE)}>
+              Próxima
+            </button>
           </div>
         </div>
       )}

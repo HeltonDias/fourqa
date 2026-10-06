@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { iconMaskStyle } from "../utils/iconMask";
 
 const icons = import.meta.glob<string>("../../../fonte/util/status_cenarios/*.png", {
   eager: true,
@@ -25,9 +26,7 @@ function StatusCard({
   value: number;
 }) {
   const src = iconUrl(iconFile);
-  const maskStyle: CSSProperties | undefined = src
-    ? { WebkitMaskImage: `url("${src}")`, maskImage: `url("${src}")` }
-    : undefined;
+  const maskStyle: CSSProperties | undefined = src ? iconMaskStyle(src) : undefined;
 
   return (
     <div className={`impact-card status-card--${variant}`}>
@@ -55,9 +54,7 @@ type Props = {
 
 export function ScenarioStatusPanel(p: Props) {
   const titleIcon = iconUrl("Status dos cenários.png");
-  const titleMask: CSSProperties | undefined = titleIcon
-    ? { WebkitMaskImage: `url("${titleIcon}")`, maskImage: `url("${titleIcon}")` }
-    : undefined;
+  const titleMask: CSSProperties | undefined = titleIcon ? iconMaskStyle(titleIcon) : undefined;
 
   return (
     <div className="card scenario-panel">

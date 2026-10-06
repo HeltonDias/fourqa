@@ -1,3 +1,5 @@
+import type { DetectedDimension } from "./domain/dimensions.js";
+
 export type ExecucaoRow = {
   id: number;
   plan_key: string | null;
@@ -8,6 +10,12 @@ export type ExecucaoRow = {
   processo: string | null;
   suite_id: number | null;
   suite_name: string | null;
+  parent_suite_id: number | null;
+  suite_depth: number | null;
+  /** JSON: ancestrais { suiteId, name, parentSuiteId, depth } */
+  suite_path: string | null;
+  /** JSON: chave da dimensão → valor naquele test point */
+  dimensions_json: string | null;
   test_point_id: number | null;
   test_case_id: number | null;
   test_case_title: string | null;
@@ -87,7 +95,11 @@ export type ReportSuiteRow = PlanejamentoLinha & {
   gap: number;
   aprovUatPct: number;
   conclusaoE2ePct: number;
-  status: "ok" | "warn" | "risk";
+  status: "done" | "ok" | "warn" | "risk" | "na";
+  /** Valores das dimensões detectadas (não assume Frente). */
+  classificacao: Record<string, string>;
+  /** confirmado = linha da planilha; periodo_plano = janela geral inferida; ausente = sem datas. */
+  planejamentoOrigem: "confirmado" | "periodo_plano" | "ausente";
 };
 
 export type HomeDto = {
@@ -100,12 +112,15 @@ export type HomeDto = {
   replanejamentoTotal: number;
   ttlCts: number;
   gap: number;
+  /** Linha Valores Totais: a mesma regra do card STATUS (maioria das suítes). */
+  statusTotais: "done" | "ok" | "warn" | "risk" | "na";
   percentBugsDev: number;
   percentBugsCliente: number;
   percentTotalImpactados: number;
-  statusGeral: "ok" | "warn" | "risk";
+  statusGeral: "done" | "ok" | "warn" | "risk" | "na";
   totais: {
     ctsPlan: number;
+    ctsPlanAteHoje: number;
     totalRealizado: number;
     passeds: number;
     na: number;
@@ -119,8 +134,11 @@ export type HomeDto = {
   percentuais: { plan: number; real: number };
   impactos: HomeImpactos;
   suites: ReportSuiteRow[];
+  /** Dimensões da árvore. Vazio quando não há agrupamento acima da suíte. */
+  dimensoes: DetectedDimension[];
   bugs: HomeBugsPainel;
   graficos: HomeGraficos;
+  gestaoImpactos: HomeGestaoImpactos;
 };
 
 /** Ponto do gráfico "Planejado Vs Realizado" (acumulado por dia útil). */
@@ -141,6 +159,25 @@ export type GraficoFatia = {
 export type HomeGraficos = {
   planejadoVsRealizado: GraficoPontoDia[];
   statusExecucoes: GraficoFatia[];
+};
+
+/** Bloco "Gestão de Impactos" da Home (B78:B97 + gráficos de Regras de Calculo). */
+export type HomeGestaoImpactos = {
+  cards: {
+    total: number;
+    fechados: number;
+    pendentes: number;
+    emRetestes: number;
+    abertosDev: number;
+    abertosCliente: number;
+    abertosOutros: number;
+  };
+  /** Bugs abertos por frente (um bug com várias frentes conta em cada uma). */
+  frentes: GraficoFatia[];
+  /** Bugs abertos por Status. */
+  status: GraficoFatia[];
+  /** Bugs abertos por Categoria. */
+  categoria: GraficoFatia[];
 };
 
 export type StatusFrenteBloco = {

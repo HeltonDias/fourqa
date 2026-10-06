@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { ReportChrome } from "../components/ReportChrome";
+import { ReportChromeProvider } from "../context/ReportChromeContext";
+import { TopAppBar } from "./TopAppBar";
 import {
   IconBug,
   IconCalendar,
@@ -23,58 +26,49 @@ export function AppLayout() {
 
   return (
     <div className={`app ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <span className="brand-icon" aria-hidden>
-            ◎
-          </span>
-          {!collapsed && <span className="brand-text">Motor QA</span>}
-        </div>
+      <TopAppBar />
+      <div className="app-body">
+        <aside className="sidebar">
+          <nav className="sidebar-nav">
+            {nav.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  isActive ? "nav-item active" : "nav-item"
+                }
+                title={label}
+              >
+                <Icon />
+                {!collapsed && <span>{label}</span>}
+              </NavLink>
+            ))}
+          </nav>
 
-        <div className="sidebar-user">
-          <div className="avatar" aria-hidden />
-          {!collapsed && (
-            <div>
-              <div className="user-name">Usuário</div>
-              <div className="user-role">Cargo</div>
-            </div>
-          )}
-        </div>
-
-        <nav className="sidebar-nav">
-          {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                isActive ? "nav-item active" : "nav-item"
-              }
-              title={label}
+          <div className="sidebar-foot">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             >
-              <Icon />
-              {!collapsed && <span>{label}</span>}
-            </NavLink>
-          ))}
-        </nav>
+              <IconChevron flipped={collapsed} />
+            </button>
+            <button type="button" className="icon-btn" aria-label="Configurações">
+              <IconSettings />
+            </button>
+          </div>
+        </aside>
 
-        <div className="sidebar-foot">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          >
-            <IconChevron flipped={collapsed} />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Configurações">
-            <IconSettings />
-          </button>
-        </div>
-      </aside>
-
-      <div className="main-area">
-        <Outlet />
+        <ReportChromeProvider>
+          <div className="main-area">
+            <ReportChrome />
+            <div className="main-content">
+              <Outlet />
+            </div>
+          </div>
+        </ReportChromeProvider>
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, fmtDate, fmtDateTime, fmtPctBr, type HomeDto } from "../api";
+import { fmtDate, fmtPctBr } from "../api";
 import { LoadState } from "../components/LoadState";
 import { ImpactResponsaveisPanel } from "../components/ImpactResponsaveisPanel";
+import { GestaoImpactosPanel } from "../components/GestaoImpactosPanel";
 import { ReportCharts } from "../components/ReportCharts";
 import { ReportKpiRow } from "../components/ReportKpiRow";
 import { ScenarioStatusPanel } from "../components/ScenarioStatusPanel";
 import { StatusFace } from "../components/StatusFace";
+import { useReportChrome } from "../context/ReportChromeContext";
 import type { ReportSuiteRow } from "../types";
 
 /** Linha "Valores Totais >>>>>>>" da planilha: não é suíte, vira rodapé fixo. */
@@ -15,7 +16,7 @@ function isTotalsRow(s: ReportSuiteRow): boolean {
 
 const TOTAL_KEYS = [
   "ttlCts",
-  "qtd_cts_plan",
+  "cts_plan_dia",
   "total_realizado",
   "gap",
   "cts_passeds",
@@ -39,81 +40,15 @@ function sumSuites(rows: ReportSuiteRow[]): Record<TotalKey, number> {
 }
 
 export function ReportPage() {
-  const [data, setData] = useState<HomeDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(new Date());
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    api
-      .home()
-      .then((d) => {
-        setData(d);
-        setNow(new Date());
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+  const { home: data, homeLoading, homeError } = useReportChrome();
 
   const suites = data ? data.suites.filter((s) => !isTotalsRow(s)) : [];
   const totals = sumSuites(suites);
 
   return (
-    <LoadState loading={loading} error={error}>
+    <LoadState loading={homeLoading} error={homeError}>
       {data && (
         <div className="report-page">
-          <header className="report-header">
-            <div className="report-titles">
-              <h1>{data.title}</h1>
-              <p className="report-subtitle">{data.subtitle}</p>
-            </div>
-
-            <div className="report-dates-row">
-              <div className="report-dates-block card-soft">
-                <div>
-                  <span className="muted">Data Início:</span> {fmtDate(data.periodo.inicio)}
-                </div>
-                <div>
-                  <span className="muted">Data Fim:</span> {fmtDate(data.periodo.fim)}
-                </div>
-              </div>
-              <div className="report-dates-block card-soft">
-                <div>
-                  <span className="muted">Data atual:</span> {now.toLocaleDateString("pt-BR")}
-                </div>
-                <div>
-                  <span className="muted">Hora atual:</span>{" "}
-                  {now.toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="report-actions">
-            <button type="button" className="btn-primary" onClick={load}>
-              Atualizar
-            </button>
-            <p className="last-update">
-              Última Atualização:{" "}
-              {fmtDateTime(data.ultimaImportacao ?? data.atualizadoEm)}
-            </p>
-          </div>
-
           <ReportKpiRow
             statusGeral={data.statusGeral}
             percentBugsDev={fmtPctBr(data.percentBugsDev)}
@@ -128,7 +63,7 @@ export function ReportPage() {
           <section className="mid-panels">
             <ScenarioStatusPanel
               ttl={data.ttlCts}
-              plan={data.totais.ctsPlan}
+              plan={data.totais.ctsPlanAteHoje}
               final={data.totais.totalRealizado}
               falha={data.totais.falhados}
               bloq={data.totais.bloqueados}
@@ -151,7 +86,9 @@ export function ReportPage() {
               <table className="report-table">
                 <thead>
                   <tr>
-                    <th>Frente</th>
+                    {(data.dimensoes ?? []).map((d) => (
+                      <th key={d.key}>{d.label}</th>
+                    ))}
                     <th>Suites</th>
                     <th>Status</th>
                     <th>Início</th>
@@ -160,7 +97,7 @@ export function ReportPage() {
                     <th title="CTs planejados">Plan</th>
                     <th title="Finalizados">Fin.</th>
                     <th>GAP</th>
-                    <th title="CTs Passeds">Passed</th>
+                    <th title="CTs Passeds" className="col-divider">Passed</th>
                     <th title="CTs N/A">N/A</th>
                     <th title="CTs com ressalvas">Ress.</th>
                     <th title="CTs falhados">Falh.</th>
@@ -173,7 +110,9 @@ export function ReportPage() {
                 <tbody>
                   {suites.map((s) => (
                     <tr key={s.row_num}>
-                      <td>{s.frente}</td>
+                      {(data.dimensoes ?? []).map((d) => (
+                        <td key={d.key}>{s.classificacao?.[d.key] ?? (d.key === (data.dimensoes ?? [])[0]?.key ? s.frente : "")}</td>
+                      ))}
                       <td className="col-suite" title={s.processo ?? ""}>
                         {s.suiteLabel}
                       </td>
@@ -183,10 +122,10 @@ export function ReportPage() {
                       <td>{fmtDate(s.data_inicio ?? "")}</td>
                       <td>{fmtDate(s.data_fim ?? "")}</td>
                       <td>{s.ttlCts}</td>
-                      <td>{s.qtd_cts_plan ?? 0}</td>
+                      <td>{s.cts_plan_dia ?? 0}</td>
                       <td>{s.total_realizado}</td>
                       <td>{s.gap}</td>
-                      <td>{s.cts_passeds}</td>
+                      <td className="col-divider">{s.cts_passeds}</td>
                       <td>{s.cts_na}</td>
                       <td>{s.cts_cancelados}</td>
                       <td>{s.cts_falhados}</td>
@@ -199,18 +138,20 @@ export function ReportPage() {
                 </tbody>
                 <tfoot>
                   <tr className="totals-row">
-                    <td />
+                    {(data.dimensoes ?? []).map((d) => (
+                      <td key={d.key} />
+                    ))}
                     <td className="col-suite">Valores Totais</td>
                     <td className="col-status">
-                      <StatusFace status={data.statusGeral} />
+                      <StatusFace status={data.statusTotais} />
                     </td>
                     <td>–</td>
                     <td>–</td>
                     <td>{totals.ttlCts}</td>
-                    <td>{totals.qtd_cts_plan}</td>
+                    <td>{totals.cts_plan_dia}</td>
                     <td>{totals.total_realizado}</td>
                     <td>{totals.gap}</td>
-                    <td>{totals.cts_passeds}</td>
+                    <td className="col-divider">{totals.cts_passeds}</td>
                     <td>{totals.cts_na}</td>
                     <td>{totals.cts_cancelados}</td>
                     <td>{totals.cts_falhados}</td>
@@ -225,6 +166,8 @@ export function ReportPage() {
           </section>
 
           <ReportCharts graficos={data.graficos} />
+
+          <GestaoImpactosPanel data={data.gestaoImpactos} />
         </div>
       )}
     </LoadState>

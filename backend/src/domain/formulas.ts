@@ -16,6 +16,27 @@ function norm(v: string | null | undefined): string {
   return (v ?? "").trim();
 }
 
+/**
+ * Valor de "TestPointState" no vocabulário das fórmulas da planilha.
+ * O Azure devolve state = Ready/NotReady/Completed e outcome = Passed/Failed/Blocked/NotApplicable/Unspecified;
+ * as fórmulas (COUNTIFS) esperam Passed/Failed/Blocked/Closed para pontos executados, Ready para liberados
+ * e Unspecified para os demais. Por isso o resultado executado prevalece sobre o state.
+ */
+export function estadoPonto(r: Pick<ExecucaoRow, "test_point_state" | "outcome">): string {
+  switch (norm(r.outcome).toLowerCase()) {
+    case "passed":
+      return "Passed";
+    case "failed":
+      return "Failed";
+    case "blocked":
+      return "Blocked";
+    case "notapplicable":
+      return "Closed";
+  }
+  const state = norm(r.test_point_state);
+  return state.toLowerCase() === "ready" ? "Ready" : state ? "Unspecified" : "";
+}
+
 function matchContains(haystack: string, needle: string): boolean {
   return haystack.toUpperCase().includes(needle.toUpperCase());
 }
@@ -27,7 +48,7 @@ export function countExecucoes(rows: ExecucaoRow[], f: ExecFilter): number {
       return false;
     if (f.suiteId !== undefined && String(r.suite_id ?? "") !== String(f.suiteId))
       return false;
-    if (f.testPointState !== undefined && norm(r.test_point_state) !== f.testPointState)
+    if (f.testPointState !== undefined && estadoPonto(r) !== f.testPointState)
       return false;
     if (f.testCaseState !== undefined && norm(r.test_case_state) !== f.testCaseState)
       return false;
@@ -59,78 +80,74 @@ export function metricasPorProcesso(
     };
   }
 
-  const cts_passeds = countExecucoes(execRows, {
-    planKey,
-    suiteName: processo,
-    testPointState: "Passed",
-    testCaseState: "Closed",
-  });
-
-  const cts_na = countExecucoes(execRows, {
-    planKey,
-    suiteName: processo,
-    testCaseState: "NotApplicable",
-    testPointState: "Closed",
-  });
-
-  const cts_falhados =
-    countExecucoes(execRows, {
-      planKey,
-      suiteName: processo,
-      testPointState: "Failed",
-      testCaseState: "BUG",
-    }) +
-    countExecucoes(execRows, {
-      planKey,
-      suiteId: processo,
-      testPointState: "Failed",
-      responsabilidade: "Pendências",
-    });
-
-  const cts_bloqueados =
-    countExecucoes(execRows, {
-      planKey,
-      suiteName: processo,
-      testPointState: "Blocked",
-      testCaseState: "BUG",
-    }) +
-    countExecucoes(execRows, {
-      planKey,
-      suiteId: processo,
-      testPointState: "Blocked",
-      responsabilidade: "Pendências",
-    });
-
-  const cts_liberados = countExecucoes(execRows, {
-    planKey,
-    suiteName: processo,
-    testPointState: "Ready",
-    testCaseState: "QA",
-  });
-
-  const cts_design = countExecucoes(execRows, {
-    planKey,
-    suiteName: processo,
-    outcome: "Unspecified",
-    testCaseState: "Design",
-  });
-
-  const cts_nao_liberados = countExecucoes(execRows, {
-    planKey,
-    suiteName: processo,
-    testPointState: "Unspecified",
-    testCaseState: "Não atribuído",
-  });
-
-  return {
-    cts_passeds,
-    cts_na,
-    cts_falhados,
-    cts_bloqueados,
-    cts_liberados,
-    cts_design,
-    cts_nao_liberados,
+  const out = {
+    cts_passeds: 0,
+    cts_na: 0,
+    cts_falhados: 0,
+    cts_bloqueados: 0,
+    cts_liberados: 0,
+    cts_design: 0,
+    cts_nao_liberados: 0,
   };
+  for (const r of execRows) {
+    if (norm(r.plan_key) !== planKey || norm(r.suite_name) !== norm(processo)) continue;
+    out[STATUS_COLUNA[statusCenario(r)]]++;
+  }
+  return out;
+}
+
+export type StatusCenario = "passed" | "na" | "falhado" | "bloqueado" | "design" | "naoLiberado" | "liberado";
+
+const STATUS_COLUNA = {
+  passed: "cts_passeds",
+  na: "cts_na",
+  falhado: "cts_falhados",
+  bloqueado: "cts_bloqueados",
+  design: "cts_design",
+  naoLiberado: "cts_nao_liberados",
+  liberado: "cts_liberados",
+} as const;
+
+/**
+ * Fonte única da coluna de status. O resultado da execução manda (Passed/N/A/Failed/Blocked),
+ * independentemente do estado do Test Case (Closed, UAT, BUG, QA, Pendências...).
+ * Sem execução: Design e "Não atribuído" pelo estado do Test Case; ponto Ready fica em
+ * Liberados e o restante em Não Liberados. Cada cenário cai em exatamente uma coluna.
+ *
+ * Decisão em relação à planilha: a Home legada às vezes cruza Outcome com TestCaseState
+ * (ex.: Passed + Closed). Aqui Passed conta como finalizado mesmo se o Test Case não estiver
+ * Closed — é o que fechou os números da Fase 2 (907 passed). Ver docs/adr/002-status.md.
+ */
+export function classifyExecution(
+  r: Pick<ExecucaoRow, "test_point_state" | "outcome" | "test_case_state">,
+): StatusCenario {
+  const ponto = estadoPonto(r);
+  if (ponto === "Passed") return "passed";
+  if (ponto === "Closed") return "na";
+  if (ponto === "Failed") return "falhado";
+  if (ponto === "Blocked") return "bloqueado";
+  const tc = norm(r.test_case_state).toLowerCase();
+  if (tc === "design") return "design";
+  if (tc === "não atribuído" || tc === "nao atribuido") return "naoLiberado";
+  return ponto === "Ready" ? "liberado" : "naoLiberado";
+}
+
+export function statusCenario(r: ExecucaoRow): StatusCenario {
+  return classifyExecution(r);
+}
+
+export function metricasDosPontos(rows: ExecucaoRow[]) {
+  const out = {
+    cts_passeds: 0,
+    cts_na: 0,
+    cts_falhados: 0,
+    cts_bloqueados: 0,
+    cts_liberados: 0,
+    cts_design: 0,
+    cts_nao_liberados: 0,
+  };
+  for (const r of rows) out[STATUS_COLUNA[classifyExecution(r)]]++;
+  return out;
 }
 
 export function totalRealizadoLinha(

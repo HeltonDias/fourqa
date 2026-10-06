@@ -1,56 +1,58 @@
 # Motor QA
 
-Plataforma web para centralização, planejamento, acompanhamento e auditoria de processos de QA, integrada a ferramentas.
+Aplicação web que acompanha a execução de QA a partir do Azure DevOps. A planilha legada serviu de referência para as regras; o Motor consulta o Azure e calcula os indicadores sozinho.
 
-Ambiente web que espelha a planilha **Status Report QA Fase 3** (abas Home PORT., Planejamento, Status por frente, Controle de Execuções e Controle de falhas), com a mesma lógica de agregação (`COUNTIFS` / `SUMIF`) aplicada no backend sobre dados importados da planilha.
+## Fontes de verdade
 
-Documentação do domínio: [fonte/ENTENDIMENTO_ECOSISTEMA_PLANILHA.md](fonte/ENTENDIMENTO_ECOSISTEMA_PLANILHA.md).
+- **Test points, bugs e árvore de suítes:** Azure DevOps, gravados no SQLite só depois de `validateSyncResult`.
+- **Regras de status:** `classifyExecution` no backend. O frontend não reclassifica. Ver [docs/adr/002-status.md](docs/adr/002-status.md).
+- **Hierarquia:** detectada na árvore. Frente e Prioridade não têm nível fixo. Ver [docs/adr/001-hierarquia-dinamica.md](docs/adr/001-hierarquia-dinamica.md).
+- **Configuração do plano:** `.env` (`SYNC_TEST_PLANS`, `SYNC_KPI_PLAN_KEY`). O frontend não guarda PlanKey.
+- **Planejamento de datas:** importação legada quando a suíte existe lá; senão a janela do plano é inferida e marcada como tal. Ver [docs/adr/003-planejamento.md](docs/adr/003-planejamento.md).
+- **PAT:** só no `.env`, só no backend. Não vai para o banco, para o frontend nem para logs.
 
-## Pré-requisitos
+## Fluxo de sincronização
 
-- Node.js 22+ (usa `node:sqlite`)
-- Python 3 + `openpyxl` (`pip install openpyxl`)
+`FETCH` (suítes, test points, runs, bugs) → `TRANSFORM` (dimensões + status) → `VALIDATE` → `COMMIT` transacional.
 
-## Primeira execução
+Se a validação falhar (lote vazio, TestPointId ou BugId duplicado, suíte sem pai na árvore), os dados anteriores permanecem.
+
+## Como executar
+
+Requisitos: Node.js 22+ (`node:sqlite`). Python só é necessário para importar a planilha legada.
 
 ```bash
-cd motor_Qa
 npm install
-npm run import:planilha
+cp .env.example .env   # preencha org, projeto, PAT e SYNC_TEST_PLANS
 npm run dev
 ```
 
-- API: http://localhost:3001  
-- UI: http://localhost:5173 (proxy `/api` → backend)
+- UI: http://localhost:5173
+- API: http://localhost:3001
 
-## Scripts
+O backend cria o banco vazio em `data/motor_qa.db` (migrations em `backend/src/db/migrate.ts`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha.
 
-| Comando | Descrição |
-|---------|-----------|
-| `npm run import:planilha` | Lê o xlsx em `fonte/` e grava `data/motor_qa.db` |
-| `npm run dev` | Backend + frontend em paralelo |
-| `npm run build` | Build produção (API serve `frontend/dist`) |
-| `npm start` | Só API (após build) |
+## Testes e build
 
-Variáveis opcionais:
-
-- `MOTOR_QA_XLSX` — caminho da planilha
-- `MOTOR_QA_DB` — caminho do SQLite
-- `PORT` — porta da API (padrão 3001)
-
-## Estrutura
-
-```
-backend/     API Express + motor de fórmulas (TypeScript)
-frontend/    React + Vite (5 abas)
-tools/       import_planilha.py
-data/        motor_qa.db (gerado, gitignored)
-fonte/       planilha e scripts Office originais
+```bash
+npm run typecheck
+npm test
+npm run build
 ```
 
-## Próximos passos (fora deste MVP)
+## Novo projeto / Test Plan
 
-- Sincronização Azure (substituir import xlsx)
-- Calendário diário do Planejamento (colunas W+)
-- KPI C14:E14 idêntico ao Office Script (bugs por Run/Result)
-- Autenticação e config sem PAT na planilha
+1. Ajuste `SYNC_TEST_PLANS` com o PlanId e um PlanKey estável.
+2. Ajuste `SYNC_KPI_PLAN_KEY` para o plano da Home.
+3. `SYNC_FRENTES_VALIDAS` só entra se o projeto marca frentes nas tags dos bugs. Não define o nível na árvore.
+4. `SYNC_HIERARQUIA_SUITES` é opcional. Deixe inativo para a detecção automática.
+5. Clique em Atualizar. A Home mostra só as dimensões reconhecidas (ou "Nível N").
+
+## Segurança antes de compartilhar
+
+- `FRONTEND_ORIGIN` restringe o CORS. Vazio permite só localhost.
+- `MOTOR_QA_API_TOKEN`, se preenchido, protege `POST /api/sync` e `PUT /api/cabecalho`. No navegador, grave o mesmo valor em `localStorage.motorqa_token`.
+- Não há login de usuários. Não publique o Motor na internet só com o token vazio.
+- O health check responde `{ ok, database }` e não devolve caminho de arquivo.
+
+Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.
