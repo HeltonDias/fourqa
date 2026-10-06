@@ -36,6 +36,7 @@ export function PlanningGridTable({
   onToggleAll,
   onToggleOne,
   onSave,
+  onCellDirtyChange,
 }: {
   idCols: IdCol[];
   dates: string[];
@@ -53,6 +54,7 @@ export function PlanningGridTable({
   onToggleAll: () => void;
   onToggleOne: (key: string) => void;
   onSave: (item: PlanningItem, field: "start" | "end" | "day", date: string, quantity?: number) => void;
+  onCellDirtyChange?: (cellKey: string, dirty: boolean) => void;
 }) {
   const todayRef = useRef<HTMLTableCellElement | null>(null);
   const today = hojeIso();
@@ -170,6 +172,7 @@ export function PlanningGridTable({
         <tbody>
           {pageRows.map((item) => {
             const key = `${item.suiteId ?? "s"}-${item.suiteName}`;
+            const rowId = String(item.suiteId ?? item.suiteName);
             return (
               <tr key={key} className={selected.has(key) ? "plan-selected" : undefined}>
                 <td className="plan-sticky plan-checkcol" style={checkStyle}>
@@ -199,10 +202,22 @@ export function PlanningGridTable({
                   );
                 })}
                 <td className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)}>
-                  <DateCell value={item.plannedStart} editable={canEdit} onCommit={(date) => onSave(item, "start", date)} />
+                  <DateCell
+                    cellKey={`${rowId}:start`}
+                    value={item.plannedStart}
+                    editable={canEdit}
+                    onDirtyChange={onCellDirtyChange}
+                    onCommit={(date) => onSave(item, "start", date)}
+                  />
                 </td>
                 <td className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)}>
-                  <DateCell value={item.plannedEnd} editable={canEdit} onCommit={(date) => onSave(item, "end", date)} />
+                  <DateCell
+                    cellKey={`${rowId}:end`}
+                    value={item.plannedEnd}
+                    editable={canEdit}
+                    onDirtyChange={onCellDirtyChange}
+                    onCommit={(date) => onSave(item, "end", date)}
+                  />
                 </td>
                 <td className={`plan-num plan-c-plan plan-split${item.baselineCount === 0 ? " plan-zero" : ""}`}>{num(item.baselineCount)}</td>
                 <td className={`plan-num plan-c-plan${item.distributedCount === 0 ? " plan-zero" : ""}`}>{num(item.distributedCount)}</td>
@@ -216,7 +231,13 @@ export function PlanningGridTable({
                       key={date}
                       className={`plan-c-day plan-heat-${level}${index === 0 ? " plan-split" : ""}${isToday ? " plan-today" : ""}${partesDia(date).weekend ? " plan-weekend-col" : ""}`}
                     >
-                      <DayCell value={quantity} editable={canEdit} onCommit={(next) => onSave(item, "day", date, next)} />
+                      <DayCell
+                        cellKey={`${rowId}:day:${date}`}
+                        value={quantity}
+                        editable={canEdit}
+                        onDirtyChange={onCellDirtyChange}
+                        onCommit={(next) => onSave(item, "day", date, next)}
+                      />
                     </td>
                   );
                 })}
@@ -244,10 +265,11 @@ export function PlanningGridTable({
             {dates.map((date, index) => {
               const total = dayTotals[index] ?? 0;
               const level = heatLevel(total);
+              const isToday = date === today;
               return (
                 <td
                   key={date}
-                  className={`plan-num plan-c-day plan-heat-${level}${index === 0 ? " plan-split" : ""}`}
+                  className={`plan-num plan-c-day plan-heat-${level}${index === 0 ? " plan-split" : ""}${isToday ? " plan-today" : ""}`}
                 >
                   {total || "0"}
                 </td>
@@ -266,17 +288,40 @@ function idText(item: PlanningItem, col: IdCol): string {
   return item.dimensions[col.dimKey ?? ""] || "—";
 }
 
+function toDateInputValue(value: string | null): string {
+  if (!value) return "";
+  const iso = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const br = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return "";
+}
+
 function DateCell({
+  cellKey,
   value,
   editable,
   onCommit,
+  onDirtyChange,
 }: {
+  cellKey: string;
   value: string | null;
   editable: boolean;
   onCommit: (date: string) => void;
+  onDirtyChange?: (cellKey: string, dirty: boolean) => void;
 }) {
-  const [draft, setDraft] = useState(value ?? "");
-  useEffect(() => setDraft(value ?? ""), [value]);
+  const [draft, setDraft] = useState(() => toDateInputValue(value));
+  const saved = toDateInputValue(value);
+  const dirty = draft !== saved;
+
+  useEffect(() => {
+    setDraft(toDateInputValue(value));
+  }, [value]);
+
+  useEffect(() => {
+    onDirtyChange?.(cellKey, dirty);
+  }, [cellKey, dirty, onDirtyChange]);
+
   if (!editable) return <span>{value ? diaCheio(value) : "—"}</span>;
   return (
     <input
@@ -286,23 +331,40 @@ function DateCell({
       aria-label={value ? diaCheio(value) : "Data"}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => {
-        if ((draft || "") !== (value ?? "")) onCommit(draft);
+        if (draft !== saved) onCommit(draft);
       }}
     />
   );
 }
 
+function draftQuantity(draft: string): number {
+  return draft === "" ? 0 : Number(draft);
+}
+
 function DayCell({
+  cellKey,
   value,
   editable,
   onCommit,
+  onDirtyChange,
 }: {
+  cellKey: string;
   value: number;
   editable: boolean;
   onCommit: (quantity: number) => void;
+  onDirtyChange?: (cellKey: string, dirty: boolean) => void;
 }) {
   const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  const dirty = draftQuantity(draft) !== value;
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  useEffect(() => {
+    onDirtyChange?.(cellKey, dirty);
+  }, [cellKey, dirty, onDirtyChange]);
+
   if (!editable) return <span>{String(value)}</span>;
   return (
     <input
@@ -315,7 +377,7 @@ function DayCell({
       }}
       onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
       onBlur={() => {
-        const quantity = draft === "" ? 0 : Number(draft);
+        const quantity = draftQuantity(draft);
         if (quantity !== value) onCommit(quantity);
         setDraft(String(quantity));
       }}

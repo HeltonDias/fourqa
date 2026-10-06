@@ -52,6 +52,15 @@ export function partesDia(iso: string): { dow: string; num: string; monday: bool
   };
 }
 
+export function isWeekendDay(iso: string): boolean {
+  return partesDia(iso).weekend;
+}
+
+/** Dias úteis (seg–sex) para o calendário da aba Planejar. */
+export function onlyWeekdays(dates: string[]): string[] {
+  return dates.filter((date) => !isWeekendDay(date));
+}
+
 export function soma(items: PlanningItem[], pick: (item: PlanningItem) => number | null): number {
   return items.reduce((total, item) => total + (pick(item) ?? 0), 0);
 }

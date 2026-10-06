@@ -1,4 +1,5 @@
 import { classifyExecution, type StatusCenario } from "./formulas.js";
+import { calendarDaySpanInclusive, parseCalendarDay, PLAN_PERIOD_MAX_DAYS } from "./planPeriod.js";
 
 /** Identidade estável do CT na fonte. Nome, atalho e frente não entram na chave. */
 export type ScopeRef = {
@@ -47,12 +48,9 @@ export function diffScope(baseline: ScopeRef[], source: ScopeRef[]) {
 
 export function calendarDate(value: string | null | undefined): string | null {
   if (!value) return null;
-  const s = value.trim();
-  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-  return null;
+  const head = value.trim().match(/^(\d{4}-\d{2}-\d{2})/)?.[0];
+  if (head) return parseCalendarDay(head);
+  return parseCalendarDay(value.trim());
 }
 
 export function scheduleOf(input: {
@@ -84,6 +82,7 @@ export function datesBetween(start: string | null, end: string | null): string[]
   const a = calendarDate(start);
   const b = calendarDate(end);
   if (!a || !b || a > b) return [];
+  if (calendarDaySpanInclusive(a, b) > PLAN_PERIOD_MAX_DAYS) return [];
   const out: string[] = [];
   const cursor = new Date(`${a}T12:00:00`);
   const last = new Date(`${b}T12:00:00`);

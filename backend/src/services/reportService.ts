@@ -17,6 +17,7 @@ import {
 } from "../domain/formulas.js";
 import { statusEvolucao, statusGeralDe } from "../domain/evolucaoStatus.js";
 import { planejadoAteHoje, planejadoVsRealizado, statusExecucoes } from "../domain/graficos.js";
+import { assertPlanningPeriod, assertStoredPlanningPeriod } from "../domain/planPeriod.js";
 import type {
   GraficoFatia,
   HomeBugsPainel,
@@ -343,30 +344,17 @@ export function setCabecalho(title: string, subtitle: string): { title: string; 
   return getCabecalho();
 }
 
-function normalizeIsoDay(value: string): string | null {
-  const trimmed = value.trim();
-  const iso = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-  return null;
-}
-
 export function setPeriodoPlano(inicio: string, fim: string): HomeDto["periodo"] {
-  const start = normalizeIsoDay(inicio);
-  const end = normalizeIsoDay(fim);
-  if (!start || !end) {
-    throw new Error("Informe início e fim válidos (aaaa-mm-dd).");
-  }
-  if (start > end) {
-    throw new Error("A data de início não pode ser posterior à data de fim.");
-  }
+  const { inicio: start, fim: end } = assertPlanningPeriod(inicio, fim);
   setMeta("data_inicio", start);
   setMeta("data_fim", end);
   return periodoGeral();
 }
 
 export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
+  const periodo = periodoGeral();
+  assertStoredPlanningPeriod(periodo.inicio, periodo.fim);
+
   const execRows = listExecucoesAll(planKey);
   const falhas = listFalhasAll(planKey);
   const dimensoes = catalogoDimensoes(planKey, execRows);
@@ -389,7 +377,6 @@ export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
   const statusGeral = statusGeralDe(suites.map((s) => s.status));
   const gapTotal = suites.reduce((a, s) => a + s.gap, 0);
 
-  const periodo = periodoGeral();
   return {
     ...getCabecalho(),
     planKey,
@@ -433,6 +420,7 @@ export function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): {
   blocos: StatusFrenteBloco[];
   total: StatusFrenteBloco["cenarios"] & { bugs: StatusFrenteBloco["bugs"] };
 } {
+  assertStoredPlanningPeriod(periodoGeral().inicio, periodoGeral().fim);
   const execRows = listExecucoesAll(planKey);
   const dimensoes = catalogoDimensoes(planKey, execRows);
   const linhas = buildPlanejamento(planKey, execRows, dimensoes);

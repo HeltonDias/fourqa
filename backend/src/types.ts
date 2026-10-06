@@ -149,6 +149,20 @@ export type GraficoPontoDia = {
   realizado: number | null;
 };
 
+/** Ponto diário do progresso do planejamento Motor (distribuição + execução). */
+export type GraficoPontoDiaDetalhado = GraficoPontoDia & {
+  planejadoDia: number;
+  realizadoDia: number;
+};
+
+export type PlanningProgressSnapshot = {
+  serie: GraficoPontoDiaDetalhado[];
+  planejadoAteHoje: number;
+  realizadoAteHoje: number;
+  diferenca: number;
+  situacao: "adiantado" | "dentro" | "atrasado";
+};
+
 /** Fatia do gráfico "Status das Execuções". */
 export type GraficoFatia = {
   key: string;

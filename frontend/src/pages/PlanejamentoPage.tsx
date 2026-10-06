@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { LoadState } from "../components/LoadState";
 import { PlanningAcompanhamentoSummary } from "../components/planning/PlanningAcompanhamentoSummary";
@@ -16,6 +16,7 @@ import {
   idColFilterToken,
   daysInMonth,
   monthKeysInRange,
+  onlyWeekdays,
   resolvePlanningDates,
   resolvePlanningRange,
   rowKey,
@@ -27,7 +28,8 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import type { PlanningItem, PlanningView } from "../types";
 
 export function PlanejamentoPage() {
-  const { dataVersion, home, handleAtualizar, syncing, homeLoading, patchPeriodo } = useReportChrome();
+  const { dataVersion, home, handleAtualizar, syncing, homeLoading, patchPeriodo, refreshHome } =
+    useReportChrome();
   const [periodoSaving, setPeriodoSaving] = useState(false);
   const [periodoError, setPeriodoError] = useState<string | null>(null);
   const [tab, setTab] = useState<PlanningTabId>("acompanhamento");
@@ -50,6 +52,27 @@ export function PlanejamentoPage() {
   const [monthKey, setMonthKey] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
   const [columnSort, setColumnSort] = useState<ColumnSort | null>(null);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [periodDirty, setPeriodDirty] = useState(false);
+  const [dirtyCells, setDirtyCells] = useState<Set<string>>(() => new Set());
+  const pendingSaves = useRef(0);
+
+  const setCellDirty = useCallback((cellKey: string, dirty: boolean) => {
+    setDirtyCells((prev) => {
+      if (dirty) {
+        if (prev.has(cellKey)) return prev;
+        const next = new Set(prev);
+        next.add(cellKey);
+        return next;
+      }
+      if (!prev.has(cellKey)) return prev;
+      const next = new Set(prev);
+      next.delete(cellKey);
+      return next;
+    });
+  }, []);
+
+  const planHasChanges = periodDirty || dirtyCells.size > 0;
 
   useEffect(() => {
     let cancel = false;
@@ -93,8 +116,8 @@ export function PlanejamentoPage() {
   }, [monthKeys, monthKey]);
 
   const displayDates = useMemo(() => {
-    if (!monthKey) return allDates;
-    return daysInMonth(monthKey);
+    const dates = !monthKey ? allDates : daysInMonth(monthKey);
+    return onlyWeekdays(dates);
   }, [allDates, monthKey]);
 
   const dimensions = view?.dimensions ?? [];
@@ -186,6 +209,8 @@ export function PlanejamentoPage() {
     try {
       const periodo = await api.salvarPeriodoPlano(inicio, fim);
       patchPeriodo(periodo);
+      setPeriodoError(null);
+      refreshHome(true);
       const next = await api.planejamento(version);
       setView(next);
     } catch (err) {
@@ -198,6 +223,8 @@ export function PlanejamentoPage() {
   async function salvar(item: PlanningItem, field: "start" | "end" | "day", date: string, quantity?: number) {
     if (!view?.editable || busy) return;
     setActionError(null);
+    pendingSaves.current += 1;
+    setSaveBusy(true);
     try {
       const next = await api.salvarCelulaPlanejamento({
         suiteId: item.suiteId,
@@ -208,7 +235,18 @@ export function PlanejamentoPage() {
       setView(next);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Não foi possível gravar a célula.");
+    } finally {
+      pendingSaves.current -= 1;
+      if (pendingSaves.current <= 0) {
+        pendingSaves.current = 0;
+        setSaveBusy(false);
+      }
     }
+  }
+
+  function salvarMudancasPlanejar() {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
   }
 
   function toggleAll() {
@@ -232,14 +270,18 @@ export function PlanejamentoPage() {
   return (
     <LoadState loading={loading && !view} error={error && !view ? error : null}>
       {view && summary && (
-        <div className="plan-page">
+        <div className="plan-page module-page">
           <PlanningPageHeader
             periodoInicio={home?.periodo?.inicio ?? ""}
             periodoFim={home?.periodo?.fim ?? ""}
             ultimaAtualizacao={ultimaAtualizacao}
             onSavePeriodo={salvarPeriodo}
+            onClearPeriodoError={() => setPeriodoError(null)}
             periodoSaving={periodoSaving}
             periodoError={periodoError}
+            onAtualizar={handleAtualizar}
+            atualizando={syncing || homeLoading}
+            onPeriodDirtyChange={setPeriodDirty}
           />
           <PlanningTabs active={tab} onChange={setTab} />
 
@@ -254,14 +296,6 @@ export function PlanejamentoPage() {
                   onChange={(event) => setQueryAcc(event.target.value)}
                   aria-label="Buscar no acompanhamento"
                 />
-                <button
-                  type="button"
-                  className="plan-filter-primary"
-                  onClick={handleAtualizar}
-                  disabled={syncing || homeLoading}
-                >
-                  {syncing || homeLoading ? "Atualizando…" : "Atualizar"}
-                </button>
               </div>
 
               <PlanningAcompanhamentoSummary
@@ -310,8 +344,9 @@ export function PlanejamentoPage() {
                 onMonthChange={setMonthKey}
                 query={query}
                 onQueryChange={setQuery}
-                onRefresh={handleAtualizar}
-                refreshing={syncing || homeLoading}
+                onSaveChanges={salvarMudancasPlanejar}
+                saving={saveBusy || periodoSaving}
+                hasChanges={planHasChanges}
               />
 
               {actionError && <p className="plan-error">{actionError}</p>}
@@ -346,6 +381,7 @@ export function PlanejamentoPage() {
                 onToggleAll={toggleAll}
                 onToggleOne={toggleOne}
                 onSave={salvar}
+                onCellDirtyChange={setCellDirty}
               />
 
               <PlanningPagination

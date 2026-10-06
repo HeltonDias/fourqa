@@ -1,4 +1,5 @@
 import { getDb, getMeta, listExecucoesAll, listPlanejamentoBase } from "../db.js";
+import { assertStoredPlanningPeriod } from "../domain/planPeriod.js";
 import { inferDimensions, type DetectedDimension } from "../domain/dimensions.js";
 import { metricasDosPontos } from "../domain/formulas.js";
 import {
@@ -171,6 +172,7 @@ function loadScope(revisionId: number): ScopeRef[] {
 }
 
 export function getPlanningView(planKey: string, version?: number): PlanningView {
+  assertStoredPlanningPeriod(getMeta("data_inicio"), getMeta("data_fim"));
   const execRows = listExecucoesAll(planKey);
   const asOf = hojeLocal();
   const revision = version != null ? revisionByVersion(planKey, version) : latestRevision(planKey);

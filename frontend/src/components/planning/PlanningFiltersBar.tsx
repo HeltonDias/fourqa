@@ -6,16 +6,18 @@ export function PlanningFiltersBar({
   onMonthChange,
   query,
   onQueryChange,
-  onRefresh,
-  refreshing,
+  onSaveChanges,
+  saving,
+  hasChanges,
 }: {
   monthKey: string;
   monthKeys: string[];
   onMonthChange: (key: string) => void;
   query: string;
   onQueryChange: (value: string) => void;
-  onRefresh: () => void;
-  refreshing: boolean;
+  onSaveChanges: () => void;
+  saving: boolean;
+  hasChanges: boolean;
 }) {
   const index = monthKeys.indexOf(monthKey);
 
@@ -52,9 +54,13 @@ export function PlanningFiltersBar({
         aria-label="Buscar processo, suite ou atalho"
       />
 
-      <button type="button" className="plan-filter-more">Mais filtros</button>
-      <button type="button" className="plan-filter-primary" onClick={onRefresh} disabled={refreshing}>
-        {refreshing ? "Atualizando…" : "Atualizar"}
+      <button
+        type="button"
+        className={`plan-filter-primary${saving ? " plan-filter-primary--busy" : ""}${!hasChanges ? " plan-filter-primary--inactive" : ""}`}
+        onClick={onSaveChanges}
+        disabled={saving || !hasChanges}
+      >
+        {saving ? "Salvando…" : "Salvar as mudanças do Planejar"}
       </button>
     </div>
   );

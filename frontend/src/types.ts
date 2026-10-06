@@ -203,6 +203,23 @@ export type PlanningView = {
   executionHistory: { reconstructed: false; note: string };
   revisions: { version: number; createdAt: string; reason: string }[];
   editable: boolean;
+  progresso: PlanningProgressSnapshot | null;
+};
+
+export type PlanningProgressPoint = {
+  data: string;
+  planejadoDia: number;
+  realizadoDia: number;
+  planejado: number;
+  realizado: number | null;
+};
+
+export type PlanningProgressSnapshot = {
+  serie: PlanningProgressPoint[];
+  planejadoAteHoje: number;
+  realizadoAteHoje: number;
+  diferenca: number;
+  situacao: "adiantado" | "dentro" | "atrasado";
 };
 
 export type StatusFrenteBloco = {

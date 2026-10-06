@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/domain/formulas.test.ts src/domain/dimensions.test.ts src/domain/validateSync.test.ts src/domain/evolucaoStatus.test.ts src/domain/planning.test.ts src/db/migrate.test.ts"
+    "test": "tsx --test src/domain/formulas.test.ts src/domain/dimensions.test.ts src/domain/validateSync.test.ts src/domain/evolucaoStatus.test.ts src/domain/planning.test.ts src/domain/planPeriod.test.ts src/db/migrate.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

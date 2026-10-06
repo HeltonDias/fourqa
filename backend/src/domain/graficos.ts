@@ -5,6 +5,7 @@ import type {
   PlanejamentoLinha,
 } from "../types.js";
 import { statusCenario } from "./formulas.js";
+import { assertDateRangeForCalculation, assertStoredPlanningPeriod, parseCalendarDay } from "./planPeriod.js";
 
 /**
  * Releitura dos gráficos da aba Home da planilha:
@@ -20,13 +21,11 @@ import { statusCenario } from "./formulas.js";
 function toDateOnly(v: string | null | undefined): Date | null {
   if (!v) return null;
   const s = String(v).trim();
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if (m) return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
-  if (br) return new Date(Date.UTC(Number(br[3]), Number(br[2]) - 1, Number(br[1])));
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const head = s.match(/^(\d{4}-\d{2}-\d{2})/)?.[0] ?? s;
+  const cal = parseCalendarDay(head);
+  if (!cal) return null;
+  const [y, m, d] = cal.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
 function isoDay(d: Date): string {
@@ -44,6 +43,7 @@ function isBusinessDay(d: Date): boolean {
 
 /** Dias úteis (seg–sex) no intervalo fechado [inicio, fim]. */
 export function businessDays(inicio: Date, fim: Date): Date[] {
+  assertDateRangeForCalculation(inicio, fim);
   const out: Date[] = [];
   for (let d = inicio; d.getTime() <= fim.getTime(); d = addDays(d, 1)) {
     if (isBusinessDay(d)) out.push(d);
@@ -84,6 +84,7 @@ export function planejadoVsRealizado(
   periodo: { inicio: string; fim: string },
   hoje: Date = new Date(),
 ): GraficoPontoDia[] {
+  assertStoredPlanningPeriod(periodo.inicio, periodo.fim);
   const suites = linhas.filter((l) => l.processo && (Number(l.qtd_cts_plan) || 0) > 0);
 
   const inicios = suites.map((s) => toDateOnly(s.data_inicio)).filter(Boolean) as Date[];

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { envValue } from "../azure/config.js";
 import { dbReady, getMeta, parsePageQuery, queryExecucoes, queryFalhas } from "../db.js";
 import { DEFAULT_PLAN_KEY } from "../domain/formulas.js";
+import { PlanningPeriodError } from "../domain/planPeriod.js";
 import { confirmOrRevise, getPlanningView, savePlanningCell } from "../services/planningService.js";
 import {
   getHome,
@@ -12,6 +13,17 @@ import {
 import { getSyncState, startSync, SyncConfigError } from "../services/syncService.js";
 
 export const apiRouter = Router();
+
+function respondPlanningPeriodError(
+  res: { status(code: number): { json(body: unknown): void } },
+  err: unknown,
+): boolean {
+  if (err instanceof PlanningPeriodError) {
+    res.status(400).json({ error: err.message });
+    return true;
+  }
+  return false;
+}
 
 function planKeyFromQuery(q: unknown): string {
   if (typeof q === "string" && q.trim()) return q.trim();
@@ -48,7 +60,12 @@ apiRouter.get("/meta", (_req, res) => {
     });
     return;
   }
-  res.json(getHome().periodo);
+  try {
+    res.json(getHome().periodo);
+  } catch (err) {
+    if (respondPlanningPeriodError(res, err)) return;
+    throw err;
+  }
 });
 
 apiRouter.get("/home", (req, res) => {
@@ -56,7 +73,12 @@ apiRouter.get("/home", (req, res) => {
     res.status(503).json({ error: "Execute npm run import:planilha" });
     return;
   }
-  res.json(getHome(planKeyFromQuery(req.query.planKey)));
+  try {
+    res.json(getHome(planKeyFromQuery(req.query.planKey)));
+  } catch (err) {
+    if (respondPlanningPeriodError(res, err)) return;
+    throw err;
+  }
 });
 
 apiRouter.put("/cabecalho", requireWriteAuth, (req, res) => {
@@ -99,7 +121,17 @@ apiRouter.get("/planejamento", (req, res) => {
     return;
   }
   const version = Number(req.query.version);
-  res.json(getPlanningView(planKeyFromQuery(req.query.planKey), Number.isFinite(version) && version > 0 ? version : undefined));
+  try {
+    res.json(
+      getPlanningView(
+        planKeyFromQuery(req.query.planKey),
+        Number.isFinite(version) && version > 0 ? version : undefined,
+      ),
+    );
+  } catch (err) {
+    if (respondPlanningPeriodError(res, err)) return;
+    throw err;
+  }
 });
 
 apiRouter.post("/planejamento/revisao", requireWriteAuth, (req, res) => {

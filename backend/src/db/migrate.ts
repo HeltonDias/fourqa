@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
   {
@@ -135,6 +135,15 @@ const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
       indexIf(db, "idx_plan_item_rev", "planning_item", ["revision_id"]);
       indexIf(db, "idx_plan_scope_rev", "planning_scope_item", ["revision_id", "test_point_id"]);
       indexIf(db, "idx_plan_alloc_item", "planning_allocation", ["item_id", "alloc_date"]);
+    },
+  },
+  {
+    version: 4,
+    up: (db) => {
+      db.prepare("UPDATE workbook_meta SET value = ? WHERE key = 'data_inicio' AND value = ?").run(
+        "2026-08-03",
+        "0939-08-03",
+      );
     },
   },
 ];

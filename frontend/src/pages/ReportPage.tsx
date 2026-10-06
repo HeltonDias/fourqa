@@ -6,6 +6,7 @@ import { ReportCharts } from "../components/ReportCharts";
 import { ReportKpiRow } from "../components/ReportKpiRow";
 import { ScenarioStatusPanel } from "../components/ScenarioStatusPanel";
 import { StatusFace } from "../components/StatusFace";
+import { ReportPageHeader } from "../components/ReportPageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
 import type { ReportSuiteRow } from "../types";
 
@@ -46,9 +47,11 @@ export function ReportPage() {
   const totals = sumSuites(suites);
 
   return (
-    <LoadState loading={homeLoading} error={homeError}>
-      {data && (
-        <div className="report-page">
+    <LoadState loading={homeLoading && !data} error={homeError && !data ? homeError : null}>
+      <div className="report-page module-page">
+        <ReportPageHeader />
+        {data && (
+          <>
           <ReportKpiRow
             statusGeral={data.statusGeral}
             percentBugsDev={fmtPctBr(data.percentBugsDev)}
@@ -168,8 +171,9 @@ export function ReportPage() {
           <ReportCharts graficos={data.graficos} />
 
           <GestaoImpactosPanel data={data.gestaoImpactos} />
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </LoadState>
   );
 }

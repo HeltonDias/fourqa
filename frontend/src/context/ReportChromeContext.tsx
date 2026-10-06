@@ -54,6 +54,7 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
       .home()
       .then((d) => {
         setHome(d);
+        setHomeError(null);
         setNow(new Date());
       })
       .catch((e: Error) => setHomeError(e.message))
