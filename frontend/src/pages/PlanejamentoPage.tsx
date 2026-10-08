@@ -123,8 +123,9 @@ export function PlanejamentoPage() {
   const dimensions = view?.dimensions ?? [];
 
   const items = view?.items ?? [];
-  const idCols = useMemo(() => buildIdCols(dimensions, items), [dimensions, items]);
-  const idColsAcc = useMemo(() => buildIdCols(dimensions, items, { startLeft: 0 }), [dimensions, items]);
+  const planKey = view?.planning.planKey ?? home?.planKey ?? "";
+  const idCols = useMemo(() => buildIdCols(dimensions, items, { planKey }), [dimensions, items, planKey]);
+  const idColsAcc = useMemo(() => buildIdCols(dimensions, items, { startLeft: 0, planKey }), [dimensions, items, planKey]);
   const idColByKey = useMemo(() => new Map(idCols.map((col) => [col.key, col])), [idCols]);
 
   const rows = useMemo(() => {

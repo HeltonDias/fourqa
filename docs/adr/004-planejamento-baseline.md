@@ -12,4 +12,4 @@ Classificação vem de `classifyExecution`. Integridade de escopo, de classifica
 
 A aba `2) Planejamento` da planilha é referência funcional e visual. Ela não define tabelas, fórmulas nem identidade dos dados.
 
-Planejamento legado importado só com quantidades fica `baselineOrigin = legacy` e `scopeSnapshotAvailable = false`. Sem o snapshot dos Test Points, o Motor não inventa membership e não trata isso como "sem divergência".
+Planejamento legado importado só com quantidades fica `baselineOrigin = legacy` e `scopeSnapshotAvailable = false`. Sem o snapshot dos Test Points, o FourQA não inventa membership e não trata isso como "sem divergência".

@@ -8,7 +8,7 @@ async function get<T>(path: string): Promise<T> {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("motorqa_token");
+  const token = localStorage.getItem("fourqa_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -95,15 +95,29 @@ export function fmtPctBr(n: number, decimals = 2): string {
   return `${v}%`;
 }
 
-export function fmtDate(iso: string): string {
-  if (!iso) return "—";
+function parseDateIso(iso: string): Date | null {
+  if (!iso) return null;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-    return iso.slice(0, 10);
-  }
+  if (!Number.isNaN(d.getTime())) return d;
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return null;
+}
+
+export function fmtDate(iso: string): string {
+  const d = parseDateIso(iso);
+  if (!d) return iso ? iso.slice(0, 10) : "—";
   return d.toLocaleDateString("pt-BR");
+}
+
+/** Data compacta para tabelas: dd/MM/yy */
+export function fmtDateShort(iso: string): string {
+  const d = parseDateIso(iso);
+  if (!d) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear() % 100).padStart(2, "0");
+  return `${dd}/${mm}/${yy}`;
 }
 
 export function fmtDateTime(iso: string): string {

@@ -26,6 +26,9 @@ export interface HierarchyConfig {
   columnName: string;
   sourceLevel: string;
   active: boolean;
+  /** Se definido, aplica só a este PlanKey. Caso contrário, fallback para planos sem config específica. */
+  planKey?: string;
+  sourceType: "hierarchy_level" | "current_suite";
 }
 
 export interface SyncConfig {
@@ -124,13 +127,27 @@ export function loadSyncConfig(): SyncConfig {
     }));
   if (plans.length === 0) throw new SyncConfigError('Nenhum Test Plan ativo em SYNC_TEST_PLANS (Carregar = "SIM").');
 
-  type EnvHier = { Ordem?: number | string; NomeColuna?: string; NivelOrigem?: number | string; Ativo?: string };
+  type EnvHier = {
+    PlanKey?: string;
+    Ordem?: number | string;
+    NomeColuna?: string;
+    NivelOrigem?: number | string;
+    Fonte?: string;
+    Ativo?: string;
+  };
+  const parseSourceType = (raw: string | undefined): HierarchyConfig["sourceType"] => {
+    const n = normalize(raw ?? "");
+    if (n === "current_suite" || n === "suite_atual" || n === "folha") return "current_suite";
+    return "hierarchy_level";
+  };
   const hierarchy = (jsonEnv<EnvHier[]>("SYNC_HIERARQUIA_SUITES") ?? [])
     .map<HierarchyConfig>((h) => ({
       order: Number(h.Ordem ?? 0),
       columnName: String(h.NomeColuna ?? "").trim(),
       sourceLevel: String(h.NivelOrigem ?? "").trim(),
       active: yes(h.Ativo),
+      planKey: String(h.PlanKey ?? "").trim() || undefined,
+      sourceType: parseSourceType(h.Fonte),
     }))
     .filter((h) => h.order > 0 && h.columnName)
     .sort((a, b) => a.order - b.order);

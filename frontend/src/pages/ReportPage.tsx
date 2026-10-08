@@ -1,4 +1,4 @@
-import { fmtDate, fmtPctBr } from "../api";
+import { fmtDate, fmtDateShort, fmtPctBr } from "../api";
 import { LoadState } from "../components/LoadState";
 import { ImpactResponsaveisPanel } from "../components/ImpactResponsaveisPanel";
 import { GestaoImpactosPanel } from "../components/GestaoImpactosPanel";
@@ -8,7 +8,13 @@ import { ScenarioStatusPanel } from "../components/ScenarioStatusPanel";
 import { StatusFace } from "../components/StatusFace";
 import { ReportPageHeader } from "../components/ReportPageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
-import type { ReportSuiteRow } from "../types";
+import { HierCellText } from "../components/HierCellText";
+import {
+  hierarchyColumnLabel,
+  hierarchyDimTier,
+  suiteMatchesProcessValue,
+} from "../components/planning/planningUtils";
+import type { DetectedDimension, ReportSuiteRow } from "../types";
 
 /** Linha "Valores Totais >>>>>>>" da planilha: não é suíte, vira rodapé fixo. */
 function isTotalsRow(s: ReportSuiteRow): boolean {
@@ -45,6 +51,25 @@ export function ReportPage() {
 
   const suites = data ? data.suites.filter((s) => !isTotalsRow(s)) : [];
   const totals = sumSuites(suites);
+  const dimensoes = data?.dimensoes ?? [];
+  const processDim = dimensoes.find((dim) => dim.role === "process");
+  const showSuiteColumn =
+    !processDim ||
+    suites.some((row) => {
+      const processValue = row.classificacao?.[processDim.key] ?? row.processo ?? "";
+      const suiteValue = row.suiteLabel ?? row.processo ?? "";
+      return !suiteMatchesProcessValue(processValue, suiteValue);
+    });
+
+  function dimensionCell(row: ReportSuiteRow, dim: DetectedDimension): string {
+    const value = row.classificacao?.[dim.key]?.trim();
+    if (value) return value;
+    if (dim.role === "front") return row.frente?.trim() ?? "";
+    if (dim.role === "process") return row.processo?.trim() ?? row.suiteLabel?.trim() ?? "";
+    return "";
+  }
+
+  const lastDimKey = dimensoes[dimensoes.length - 1]?.key;
 
   return (
     <LoadState loading={homeLoading && !data} error={homeError && !data ? homeError : null}>
@@ -89,62 +114,92 @@ export function ReportPage() {
               <table className="report-table">
                 <thead>
                   <tr>
-                    {(data.dimensoes ?? []).map((d) => (
-                      <th key={d.key}>{d.label}</th>
-                    ))}
-                    <th>Suites</th>
-                    <th>Status</th>
-                    <th>Início</th>
-                    <th>Fim</th>
-                    <th title="Total de CTs">TTL CTs</th>
-                    <th title="CTs planejados">Plan</th>
-                    <th title="Finalizados">Fin.</th>
-                    <th>GAP</th>
-                    <th title="CTs Passeds" className="col-divider">Passed</th>
-                    <th title="CTs N/A">N/A</th>
-                    <th title="CTs com ressalvas">Ress.</th>
-                    <th title="CTs falhados">Falh.</th>
-                    <th title="CTs bloqueados">Bloq.</th>
-                    <th title="Liberados">Lib.</th>
-                    <th>Design</th>
-                    <th title="Não liberado">Não Lib.</th>
+                    <th className="hier-col hier-col--plan">Test Plan</th>
+                    {dimensoes.map((d) => {
+                      const tier = hierarchyDimTier(d);
+                      return (
+                        <th key={d.key} className={tier ? `hier-col hier-col--${tier}` : undefined}>
+                          {hierarchyColumnLabel(d)}
+                        </th>
+                      );
+                    })}
+                    {showSuiteColumn ? <th className="hier-col hier-col--process">Suites</th> : null}
+                    <th className="col-status">Status</th>
+                    <th className="col-date">Início</th>
+                    <th className="col-date">Fim</th>
+                    <th className="col-metric" title="Total de CTs">TTL CTs</th>
+                    <th className="col-metric" title="CTs planejados">Plan</th>
+                    <th className="col-metric" title="Finalizados">Fin.</th>
+                    <th className="col-metric">GAP</th>
+                    <th className="col-metric col-divider" title="CTs Passeds">Passed</th>
+                    <th className="col-metric" title="CTs N/A">N/A</th>
+                    <th className="col-metric" title="CTs com ressalvas">Ress.</th>
+                    <th className="col-metric" title="CTs falhados">Falh.</th>
+                    <th className="col-metric" title="CTs bloqueados">Bloq.</th>
+                    <th className="col-metric" title="Liberados">Lib.</th>
+                    <th className="col-metric">Design</th>
+                    <th className="col-metric" title="Não liberado">Não Lib.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {suites.map((s) => (
                     <tr key={s.row_num}>
-                      {(data.dimensoes ?? []).map((d) => (
-                        <td key={d.key}>{s.classificacao?.[d.key] ?? (d.key === (data.dimensoes ?? [])[0]?.key ? s.frente : "")}</td>
-                      ))}
-                      <td className="col-suite" title={s.processo ?? ""}>
-                        {s.suiteLabel}
+                      <td className="hier-col hier-col--plan">
+                        <HierCellText value={data.planKey} />
                       </td>
+                      {dimensoes.map((d) => {
+                        const tier = hierarchyDimTier(d);
+                        const cell = dimensionCell(s, d);
+                        return (
+                          <td key={d.key} className={tier ? `hier-col hier-col--${tier}` : undefined}>
+                            <HierCellText value={cell} />
+                          </td>
+                        );
+                      })}
+                      {showSuiteColumn ? (
+                        <td className="hier-col hier-col--process col-suite">
+                          <HierCellText value={s.suiteLabel ?? s.processo ?? ""} />
+                        </td>
+                      ) : null}
                       <td className="col-status">
                         <StatusFace status={s.status} />
                       </td>
-                      <td>{fmtDate(s.data_inicio ?? "")}</td>
-                      <td>{fmtDate(s.data_fim ?? "")}</td>
-                      <td>{s.ttlCts}</td>
-                      <td>{s.cts_plan_dia ?? 0}</td>
-                      <td>{s.total_realizado}</td>
-                      <td>{s.gap}</td>
-                      <td className="col-divider">{s.cts_passeds}</td>
-                      <td>{s.cts_na}</td>
-                      <td>{s.cts_cancelados}</td>
-                      <td>{s.cts_falhados}</td>
-                      <td>{s.cts_bloqueados}</td>
-                      <td>{s.cts_liberados}</td>
-                      <td>{s.cts_design}</td>
-                      <td>{s.cts_nao_liberados}</td>
+                      <td className="col-date">
+                        <HierCellText
+                          value={fmtDateShort(s.data_inicio ?? "")}
+                          tooltip={fmtDate(s.data_inicio ?? "")}
+                        />
+                      </td>
+                      <td className="col-date">
+                        <HierCellText
+                          value={fmtDateShort(s.data_fim ?? "")}
+                          tooltip={fmtDate(s.data_fim ?? "")}
+                        />
+                      </td>
+                      <td className="col-metric">{s.ttlCts}</td>
+                      <td className="col-metric">{s.cts_plan_dia ?? 0}</td>
+                      <td className="col-metric">{s.total_realizado}</td>
+                      <td className="col-metric">{s.gap}</td>
+                      <td className="col-metric col-divider">{s.cts_passeds}</td>
+                      <td className="col-metric">{s.cts_na}</td>
+                      <td className="col-metric">{s.cts_cancelados}</td>
+                      <td className="col-metric">{s.cts_falhados}</td>
+                      <td className="col-metric">{s.cts_bloqueados}</td>
+                      <td className="col-metric">{s.cts_liberados}</td>
+                      <td className="col-metric">{s.cts_design}</td>
+                      <td className="col-metric">{s.cts_nao_liberados}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="totals-row">
-                    {(data.dimensoes ?? []).map((d) => (
-                      <td key={d.key} />
+                    <td />
+                    {dimensoes.map((d) => (
+                      <td key={d.key} className={!showSuiteColumn && d.key === lastDimKey ? "col-suite" : undefined}>
+                        {!showSuiteColumn && d.key === lastDimKey ? "Valores Totais" : null}
+                      </td>
                     ))}
-                    <td className="col-suite">Valores Totais</td>
+                    {showSuiteColumn ? <td className="col-suite">Valores Totais</td> : null}
                     <td className="col-status">
                       <StatusFace status={data.statusTotais} />
                     </td>

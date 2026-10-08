@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
   {
@@ -143,6 +143,26 @@ const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
       db.prepare("UPDATE workbook_meta SET value = ? WHERE key = 'data_inicio' AND value = ?").run(
         "2026-08-03",
         "0939-08-03",
+      );
+    },
+  },
+  {
+    version: 5,
+    up: (db) => {
+      const existing = db
+        .prepare("SELECT value FROM workbook_meta WHERE key = ?")
+        .get("planejamento_legado_plan_key") as { value: string } | undefined;
+      if (existing?.value?.trim()) return;
+      const table = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'planejamento_linhas'")
+        .get() as { name: string } | undefined;
+      if (!table) return;
+      const count = db.prepare("SELECT COUNT(*) AS n FROM planejamento_linhas").get() as { n: number };
+      if (count.n === 0) return;
+      // Dado do banco já importado desta instalação, não fallback da regra de planejamento.
+      db.prepare("INSERT INTO workbook_meta (key, value) VALUES (?, ?)").run(
+        "planejamento_legado_plan_key",
+        "EndToEnd",
       );
     },
   },

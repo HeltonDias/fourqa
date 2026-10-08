@@ -100,6 +100,24 @@ function dimsOf(row: ExecucaoRow): Record<string, string> {
   }
 }
 
+function samePlan(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function isLegacyTotalsRow(processo: string | null): boolean {
+  return /valores\s+totais/i.test(processo ?? "");
+}
+
+/**
+ * planejamento_linhas não tem plan_key. Só entra no plano cujo dono está em
+ * workbook_meta.planejamento_legado_plan_key. Sem essa meta, o legado não tem proprietário.
+ */
+function legacyBaseForPlan(planKey: string): ReturnType<typeof listPlanejamentoBase> {
+  const owner = getMeta("planejamento_legado_plan_key")?.trim() ?? "";
+  if (!owner || !samePlan(planKey, owner)) return [];
+  return listPlanejamentoBase().filter((row) => !isLegacyTotalsRow(row.processo));
+}
+
 function catalog(planKey: string, rows: ExecucaoRow[]): DetectedDimension[] {
   const raw = getMeta(`dimensoes_catalog:${planKey}`);
   if (raw) {
@@ -203,11 +221,8 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
         removedSuites: 0,
       };
 
-  const legacy = new Map(
-    listPlanejamentoBase()
-      .filter((row) => !/valores\s+totais/i.test(row.processo ?? ""))
-      .map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
-  );
+  const legacyRows = legacyBaseForPlan(planKey);
+  const legacy = new Map(legacyRows.map((row) => [(row.processo ?? "").trim().toLowerCase(), row]));
 
   const groups = new Map<string, ExecucaoRow[]>();
   for (const row of execRows) {
@@ -259,7 +274,6 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
     }
   }
 
-  const legacyRows = [...legacy.values()];
   if (!snapshot && legacyRows.length > 0) {
     return legacyPlanningView({
       planKey,
@@ -459,7 +473,7 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
     },
     executionHistory: {
       reconstructed: false,
-      note: "O histórico de execução passa a ser observável a partir das sincronizações do Motor. O estado atual do Test Point não reconstrói execuções antigas.",
+      note: "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas.",
     },
     revisions: listRevisions(planKey),
     editable,
@@ -574,7 +588,7 @@ function legacyPlanningView(input: {
     },
     executionHistory: {
       reconstructed: false,
-      note: "O histórico de execução passa a ser observável a partir das sincronizações do Motor. O estado atual do Test Point não reconstrói execuções antigas. O planejamento legado não liga cada processo aos Test Points.",
+      note: "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas. O planejamento legado não liga cada processo aos Test Points.",
     },
     revisions: [],
     editable: false,
@@ -696,9 +710,7 @@ function insertItemsFromScope(
     if (row.suite_id != null && row.suite_name) names.set(row.suite_id, row.suite_name);
   }
   const legacy = new Map(
-    listPlanejamentoBase()
-      .filter((row) => !/valores\s+totais/i.test(row.processo ?? ""))
-      .map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
+    legacyBaseForPlan(planKey).map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
   );
   const bySuite = new Map<string, { suiteId: number | null; count: number }>();
   for (const item of scope) {

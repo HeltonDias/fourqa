@@ -1,16 +1,24 @@
 :root {
-  --sidebar-bg: #1a2332;
+  --chrome-bg: #222239;
+  --sidebar-bg: var(--chrome-bg);
+  --topbar-bg: var(--chrome-bg);
   --sidebar-text: #cbd5e1;
   --sidebar-active: #ffffff;
   --sidebar-width: 220px;
   --sidebar-collapsed: 72px;
-  --page-bg: #e8ecf1;
+  --page-bg: #ffffff;
   --card-bg: #ffffff;
   --text: #1e293b;
   --muted: #64748b;
   --border: #e2e8f0;
-  --primary: #0ea5e9;
-  --primary-hover: #0284c7;
+  --tertiary: #ff5315;
+  --tertiary-hover: #e64910;
+  --tertiary-soft: #fff1eb;
+  --tertiary-soft-border: #ffc9b0;
+  --tertiary-muted: #ffb088;
+  --tertiary-ink: #c43d0f;
+  --primary: var(--tertiary);
+  --primary-hover: var(--tertiary-hover);
   --radius: 12px;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
@@ -41,7 +49,7 @@ body {
   align-items: center;
   gap: 1rem;
   padding: 0 0.85rem 0 0.7rem;
-  background: var(--sidebar-bg);
+  background: var(--topbar-bg);
   color: var(--sidebar-text);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 30;
@@ -54,20 +62,15 @@ body {
   min-width: 148px;
   color: #fff;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   letter-spacing: 0.01em;
 }
 
-.topbar-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 0.85rem;
-  line-height: 1;
+.topbar-logo-mark {
+  display: block;
+  height: 22px;
+  width: auto;
+  object-fit: contain;
 }
 
 .topbar-search {
@@ -263,7 +266,7 @@ body {
 .nav-item.active {
   background: rgba(255, 255, 255, 0.1);
   color: var(--sidebar-active);
-  border-left-color: #38bdf8;
+  border-left-color: var(--tertiary);
   font-weight: 600;
 }
 
@@ -1257,45 +1260,137 @@ body {
   border-top: 2px solid var(--border);
 }
 
-/* Suites: largura fixa proporcional, texto cortado com reticências */
-.col-suite {
+/* Colunas hierárquicas (Evoluções): Test Plan < Frente < Processo */
+.report-table th.hier-col,
+.report-table td.hier-col {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   max-width: 0;
+}
+
+.report-table th.hier-col--plan,
+.report-table td.hier-col--plan {
+  width: 11%;
+}
+
+.report-table th.hier-col--front,
+.report-table td.hier-col--front {
+  width: 16%;
+}
+
+.report-table th.hier-col--process,
+.report-table td.hier-col--process {
+  width: 32%;
+}
+
+.report-table .col-suite.hier-col {
+  max-width: 0;
+}
+
+.report-table th.col-date,
+.report-table td.col-date {
+  width: 10%;
+  max-width: 0;
+  text-align: center;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Layout fixo (Frente 6% + Suites 19% + Status 5% + datas 2×8% + 12 numéricas ×4,5%).
-   Abaixo de min-width a tabela rola na horizontal em vez de cortar datas e números. */
+.report-table td.col-date {
+  position: relative;
+}
+
+.report-table td.col-date:hover,
+.report-table td.col-date:focus-within {
+  overflow: visible;
+  z-index: 12;
+}
+
+.report-table td.col-date .hier-cell-text {
+  margin: 0 auto;
+}
+
+.report-table th.col-metric,
+.report-table td.col-metric {
+  width: 4.5%;
+  text-align: center;
+}
+
+.report-table th.col-status,
+.report-table td.col-status {
+  width: 5%;
+}
+
+/* Layout fixo: hierarquia + status/datas + métricas. */
 .report-table {
   table-layout: fixed;
   min-width: 1100px;
 }
 
-.report-table th:nth-child(1) {
-  width: 6%;
+/* Texto truncado + balão no hover (compartilhado com Planejamento) */
+.hier-cell-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  outline: none;
 }
 
-.report-table th:nth-child(2) {
-  width: 19%;
+.hier-cell-text[data-tip] {
+  position: relative;
 }
 
-.report-table th:nth-child(3) {
-  width: 5%;
+.hier-col {
+  position: relative;
 }
 
-.report-table th:nth-child(4),
-.report-table th:nth-child(5) {
-  width: 8%;
+.hier-col:hover,
+.hier-col:focus-within {
+  overflow: visible;
+  z-index: 12;
 }
 
-/* Colunas numéricas (da 6ª em diante): mesma largura e centralizadas */
-.report-table th:nth-child(n + 6) {
-  width: 4.5%;
+.hier-cell-text[data-tip]:hover::after,
+.hier-cell-text[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 50;
+  max-width: min(22rem, 90vw);
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+  pointer-events: none;
 }
 
-.report-table th:nth-child(n + 6),
-.report-table td:nth-child(n + 6) {
-  text-align: center;
+.plan-table td.hier-col,
+.plan-table thead th.hier-col {
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.plan-table td.hier-col:hover,
+.plan-table td.hier-col:focus-within,
+.plan-table thead th.hier-col:hover,
+.plan-table thead th.hier-col:focus-within {
+  overflow: visible;
+  z-index: 15;
+}
+
+.plan-sticky.hier-col:hover,
+.plan-sticky.hier-col:focus-within {
+  z-index: 16;
 }
 
 .col-status {
@@ -1886,8 +1981,8 @@ body {
 }
 
 .plan-ghost {
-  background: #0ea5e9;
-  border-color: #0ea5e9;
+  background: var(--tertiary);
+  border-color: var(--tertiary);
   color: #fff;
   font-weight: 600;
 }
@@ -2001,7 +2096,8 @@ body {
 .plan-table thead tr.plan-groups th.plan-g-plan { background: #fde4c4; color: #9a3412; }
 .plan-table thead tr.plan-groups th.plan-g-check { background: #f3f4f6; color: #334155; }
 .plan-table thead tr.plan-groups th.plan-g-exec { background: #e4f6ea; color: #166534; }
-.plan-table thead tr.plan-groups th.plan-g-days { background: #e5f0fb; color: #1e40af; }
+.plan-table thead tr.plan-groups th.plan-g-obs { background: #eceff4; color: #334155; }
+.plan-table thead tr.plan-groups th.plan-g-days { background: #ffe8dc; color: var(--tertiary-ink); }
 
 .plan-table thead tr.plan-groups th.plan-sticky {
   top: 0;
@@ -2033,8 +2129,6 @@ body {
 
 .plan-suite {
   box-shadow: 4px 0 8px -6px rgba(15, 23, 42, 0.45);
-  width: auto;
-  min-width: 240px;
 }
 
 .plan-ellipsis {
@@ -2056,7 +2150,7 @@ body {
 
 .plan-checkcol input {
   margin: 0;
-  accent-color: #0ea5e9;
+  accent-color: var(--tertiary);
 }
 
 .plan-c-period,
@@ -2205,7 +2299,7 @@ td.plan-today.plan-qty {
 }
 
 .plan-edit:focus:not(.plan-day) {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--tertiary);
   outline-offset: -2px;
   background: #fff;
   color: #0f172a;
@@ -2425,7 +2519,7 @@ td.plan-today.plan-qty {
 .plan-meta-sync-btn {
   flex: 0 0 auto;
   border: 0;
-  background: #0ea5e9;
+  background: var(--tertiary);
   color: #fff;
   border-radius: 8px;
   padding: 0.38rem 0.75rem;
@@ -2434,6 +2528,10 @@ td.plan-today.plan-qty {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.plan-meta-sync-btn:hover:not(:disabled) {
+  background: var(--tertiary-hover);
 }
 
 .plan-meta-sync-btn:disabled {
@@ -2469,8 +2567,8 @@ td.plan-today.plan-qty {
 }
 
 .plan-tabs button.is-active {
-  color: #0ea5e9;
-  border-bottom-color: #0ea5e9;
+  color: var(--tertiary);
+  border-bottom-color: var(--tertiary);
   font-weight: 600;
 }
 
@@ -2580,7 +2678,7 @@ td.plan-today.plan-qty {
 
 .plan-filter-primary {
   border: 0;
-  background: #0ea5e9;
+  background: var(--tertiary);
   color: #fff;
   border-radius: 8px;
   padding: 0.38rem 0.85rem;
@@ -2596,7 +2694,7 @@ td.plan-today.plan-qty {
 
 .plan-filter-primary--inactive:disabled {
   opacity: 0.45;
-  background: #7dd3fc;
+  background: var(--tertiary-muted);
   color: #f8fafc;
 }
 
@@ -2622,7 +2720,7 @@ td.plan-today.plan-qty {
 }
 
 .plan-c-id--filter.plan-c-id--filtered {
-  background: #eff6ff;
+  background: var(--tertiary-soft);
 }
 
 .plan-col-filter {
@@ -2654,9 +2752,9 @@ td.plan-today.plan-qty {
 }
 
 .plan-col-filter-btn--active {
-  border-color: #7dd3fc;
-  background: #e0f2fe;
-  color: #0369a1;
+  border-color: var(--tertiary-soft-border);
+  background: var(--tertiary-soft);
+  color: var(--tertiary-ink);
 }
 
 .plan-col-filter-chevron {
@@ -2724,7 +2822,7 @@ td.plan-today.plan-qty {
 
 .plan-col-filter-check {
   margin-left: auto;
-  color: var(--primary);
+  color: var(--tertiary);
   font-weight: 600;
   font-size: 0.8rem;
 }
@@ -2951,10 +3049,10 @@ td.plan-today.plan-qty {
 }
 
 .plan-heat-0 { background: #fff; }
-.plan-heat-1 { background: #eff6ff; color: #1e40af; }
-.plan-heat-2 { background: #dbeafe; color: #1d4ed8; }
-.plan-heat-3 { background: #93c5fd; color: #1e3a8a; }
-.plan-heat-4 { background: #3b82f6; color: #fff; }
+.plan-heat-1 { background: var(--tertiary-soft); color: var(--tertiary-ink); }
+.plan-heat-2 { background: #ffd4c2; color: #a83812; }
+.plan-heat-3 { background: #ff9a6b; color: #7c2d12; }
+.plan-heat-4 { background: var(--tertiary); color: #fff; }
 
 .plan-table--planejar .plan-c-day.plan-heat-0 {
   background: #fff;
@@ -2962,25 +3060,25 @@ td.plan-today.plan-qty {
 }
 
 .plan-table--planejar td.plan-c-day.plan-heat-1 {
-  background: #eff6ff;
-  color: #1e40af;
+  background: var(--tertiary-soft);
+  color: var(--tertiary-ink);
   font-weight: 600;
 }
 
 .plan-table--planejar td.plan-c-day.plan-heat-2 {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #ffd4c2;
+  color: #a83812;
   font-weight: 600;
 }
 
 .plan-table--planejar td.plan-c-day.plan-heat-3 {
-  background: #93c5fd;
-  color: #1e3a8a;
+  background: #ff9a6b;
+  color: #7c2d12;
   font-weight: 700;
 }
 
 .plan-table--planejar td.plan-c-day.plan-heat-4 {
-  background: #3b82f6;
+  background: var(--tertiary);
   color: #fff;
   font-weight: 700;
 }
@@ -3125,41 +3223,44 @@ td.plan-today.plan-qty {
   min-height: 0;
   min-width: 0;
   width: 100%;
+  align-self: stretch;
+  font-size: 0.6875rem;
 }
 
 .plan-table--acompanhamento {
-  --plan-head: 26px;
+  --plan-head: 1.625rem;
+  width: max-content;
+  max-width: 100%;
+  font-size: inherit;
 }
 
 .plan-table--acompanhamento th,
 .plan-table--acompanhamento td {
   padding: 0.12rem 0.28rem;
-  font-size: 11px;
-  height: 24px;
+  font-size: inherit;
+  height: 1.5rem;
 }
 
-.plan-table thead tr.plan-groups th.plan-g-qual {
-  background: #eceff4;
-  color: #334155;
+.plan-table--acompanhamento thead tr.plan-groups th {
+  font-size: 0.75rem;
 }
 
-.plan-c-qual {
-  text-align: center;
-  width: 62px;
-  min-width: 62px;
-  max-width: 72px;
+.plan-table--acompanhamento thead tr.plan-cols th {
+  font-size: inherit;
 }
 
-.plan-table td.plan-x-qual-u.plan-has {
-  background: #ffedd5;
-  color: #c2410c;
-  font-weight: 600;
+
+.plan-table--acompanhamento .plan-c-period {
+  width: 5.375rem;
+  min-width: 5.375rem;
+  max-width: 5.375rem;
 }
 
-.plan-table td.plan-x-qual-i.plan-has {
-  background: #fee2e2;
-  color: #b91c1c;
-  font-weight: 600;
+.plan-table--acompanhamento .plan-c-plan,
+.plan-table--acompanhamento .plan-x {
+  width: 3.625rem;
+  min-width: 3.625rem;
+  max-width: 3.625rem;
 }
 
 .plan-table--acompanhamento tbody td.plan-c-id {
@@ -3175,9 +3276,22 @@ td.plan-today.plan-qty {
   background: #fafafa;
 }
 
+.plan-c-obs,
+.plan-table thead tr.plan-groups th.plan-g-obs {
+  width: 5rem;
+  min-width: 5rem;
+  max-width: 5rem;
+  text-align: left;
+  color: #334155;
+}
+
+.plan-table thead tr.plan-cols th.plan-c-obs {
+  text-align: center;
+}
+
 .plan-table-filler,
 .plan-table thead tr.plan-groups th.plan-g-filler {
-  width: 100%;
+  width: auto;
   min-width: 0;
   padding: 0;
   border-right: 0;

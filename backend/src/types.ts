@@ -149,7 +149,7 @@ export type GraficoPontoDia = {
   realizado: number | null;
 };
 
-/** Ponto diário do progresso do planejamento Motor (distribuição + execução). */
+/** Ponto diário do progresso do planejamento FourQA (distribuição + execução). */
 export type GraficoPontoDiaDetalhado = GraficoPontoDia & {
   planejadoDia: number;
   realizadoDia: number;

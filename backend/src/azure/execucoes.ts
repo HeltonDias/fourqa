@@ -1,9 +1,12 @@
 import { persistTimestamp } from "../domain/dates.js";
 import {
-  applyHierarchyOverrides,
+  buildDimensionCatalog,
   detectDimensions,
-  valuesForPath,
+  dimensionDefinitionsForPlan,
+  legacyRoleValue,
+  resolveDimensionValues,
   type DetectedDimension,
+  type DimensionDefinition,
 } from "../domain/dimensions.js";
 import type { ExecucaoRow } from "../types.js";
 import type { AzureClient } from "./client.js";
@@ -110,17 +113,19 @@ async function getTestPoints(client: AzureClient, planId: number, suiteId: numbe
 function buildRecord(
   client: AzureClient,
   plan: PlanConfig,
-  dims: DetectedDimension[],
+  definitions: DimensionDefinition[],
+  catalog: DetectedDimension[],
+  suggestions: DetectedDimension[],
   sp: SuitePath,
   point: TestPoint,
 ): ExecucaoInsert {
-  const ancestors = sp.path.map((s) => ({ name: String(s.name ?? "") }));
-  const classificacao = valuesForPath(ancestors, dims);
-  const front = dims.find((d) => d.role === "front" && d.confidence >= 0.8);
-  const process = dims.find((d) => d.role === "process" && d.confidence >= 0.8);
+  const pathNames = sp.path.map((s) => String(s.name ?? "").trim());
   const leaf = sp.path[sp.path.length - 1];
   const parent = sp.path.length >= 2 ? sp.path[sp.path.length - 2] : undefined;
   const suiteName = String(leaf?.name ?? "").trim();
+  const classificacao = resolveDimensionValues({ pathNames, currentSuiteName: suiteName }, definitions, suggestions);
+  const frenteValue = legacyRoleValue("front", classificacao, definitions, catalog);
+  const processoValue = legacyRoleValue("process", classificacao, definitions, catalog);
   const testCaseId = Number(point.testCase?.id ?? 0);
   const webUrl = String(point.testCase?.webUrl ?? "").trim();
   const suitePath = sp.path.map((s, index) => ({
@@ -134,9 +139,9 @@ function buildRecord(
     plan_key: plan.planKey,
     plan_id: plan.planId,
     plan_name: emptyToNull(plan.planName),
-    frente: emptyToNull(front ? classificacao[front.key] ?? "" : ""),
+    frente: emptyToNull(frenteValue),
     atalho: emptyToNull(extractAtalho(suiteName)),
-    processo: emptyToNull(process ? classificacao[process.key] ?? "" : ""),
+    processo: emptyToNull(processoValue),
     suite_id: Number(leaf?.id ?? 0) || null,
     suite_name: emptyToNull(suiteName),
     parent_suite_id: Number(parent?.id ?? 0) || null,
@@ -180,13 +185,17 @@ export async function loadPlanExecutions(
   }
   if (plan.maxSuites > 0) suites = suites.slice(0, plan.maxSuites);
 
-  const dimensions = applyHierarchyOverrides(
-    detectDimensions(
-      suites.map((s) => ({ ancestors: s.path.map((n) => ({ name: String(n.name ?? "") })) })),
-      { knownFronts },
-    ),
-    hierarchy,
+  const pathContexts = suites.map((s) => {
+    const pathNames = s.path.map((n) => String(n.name ?? "").trim());
+    const currentSuiteName = pathNames[pathNames.length - 1] ?? "";
+    return { pathNames, currentSuiteName };
+  });
+  const suggestions = detectDimensions(
+    suites.map((s) => ({ ancestors: s.path.map((n) => ({ name: String(n.name ?? "") })) })),
+    { knownFronts },
   );
+  const definitions = dimensionDefinitionsForPlan(plan.planKey, hierarchy);
+  const dimensions = buildDimensionCatalog(definitions, suggestions, pathContexts);
 
   const perSuite = await mapInBatches(
     suites,
@@ -195,7 +204,7 @@ export async function loadPlanExecutions(
       const suiteId = Number(sp.suite.id ?? 0);
       if (!suiteId) return [] as ExecucaoInsert[];
       const points = await getTestPoints(client, plan.planId, suiteId);
-      return points.map((p) => buildRecord(client, plan, dimensions, sp, p));
+      return points.map((p) => buildRecord(client, plan, definitions, dimensions, suggestions, sp, p));
     },
     (done, total) => report(`Execuções (${plan.planKey}): suítes`, done, total),
   );

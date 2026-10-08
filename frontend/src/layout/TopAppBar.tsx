@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FoursysMark } from "../components/FoursysMark";
 
 export function TopAppBar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -23,15 +24,13 @@ export function TopAppBar() {
   return (
     <header className="topbar">
       <div className="topbar-brand">
-        <span className="topbar-logo" aria-hidden>
-          ◎
-        </span>
-        <span className="topbar-name">Motor QA</span>
+        <FoursysMark className="topbar-logo-mark" />
+        <span className="topbar-name">FourQA</span>
       </div>
 
       <label className="topbar-search">
         <SearchIcon />
-        <input type="search" placeholder="Buscar no Motor QA..." aria-label="Buscar no Motor QA" />
+        <input type="search" placeholder="Buscar no FourQA..." aria-label="Buscar no FourQA" />
       </label>
 
       <div className="topbar-actions">

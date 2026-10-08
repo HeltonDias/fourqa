@@ -29,7 +29,7 @@ function execCompleted(day: string, id: number): ExecucaoRow {
     frente: "F",
     dimensions_json: null,
     plan_id: 1,
-  } as ExecucaoRow;
+  } as unknown as ExecucaoRow;
 }
 
 describe("planningProgress", () => {

@@ -56,7 +56,7 @@ flowchart TB
         CF[Controle_Falhas<br/>tbControle_FalhasScript]
     end
 
-    subgraph Motor["Abas visíveis cálculo"]
+    subgraph Calculo["Abas visíveis cálculo"]
         PL["2) Planejamento"]
         HP[Home PORT.]
         SFRT[Status por frente]
@@ -377,11 +377,11 @@ Cada bloco usa um rótulo de frente (ex.: **B1 = GERORJ**, **L1 = GESIN**):
 4. Excel recalcula (`calculate full` já chamado nos scripts).
 5. Validar Home / Planejamento / Status por frente.
 
-Para evolução **Motor QA local**: o motor deve reproduzir **colunas e semântica** das tabelas de controle; as fórmulas das abas 5–7 **não precisam mudar** se os nomes de tabela/coluna e valores (TestCaseState, TestPointState, Outcome, PlanKey) forem preservados.
+Para evolução do **FourQA**: ele deve reproduzir **colunas e semântica** das tabelas de controle; as fórmulas das abas 5–7 **não precisam mudar** se os nomes de tabela/coluna e valores (TestCaseState, TestPointState, Outcome, PlanKey) forem preservados.
 
 ---
 
-## 9. Implicações para um Motor QA (checklist)
+## 9. Implicações para o FourQA (checklist)
 
 | Requisito | Motivo |
 |-----------|--------|

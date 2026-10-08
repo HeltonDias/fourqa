@@ -17,6 +17,7 @@ import {
 } from "../domain/formulas.js";
 import { statusEvolucao, statusGeralDe } from "../domain/evolucaoStatus.js";
 import { planejadoAteHoje, planejadoVsRealizado, statusExecucoes } from "../domain/graficos.js";
+import { groupExecucoesForReport } from "../domain/reportGroups.js";
 import { assertPlanningPeriod, assertStoredPlanningPeriod } from "../domain/planPeriod.js";
 import type {
   GraficoFatia,
@@ -75,57 +76,33 @@ function periodoGeral() {
 }
 
 /**
- * Uma linha por suíte retornada pelo Azure (ordem da árvore do Test Plan).
- * QTD CTS PLAN = Test Points da suíte no Azure; CTS PLAN DIA = planejado acumulado até hoje dentro
- * da janela da suíte. Da aba Planejamento só entram dados que o Azure não tem (QA, prioridade,
- * datas próprias da suíte, replanejamento, cancelados); sem eles vale o período geral do plano.
+ * Uma linha por combinação das dimensões visíveis quando existe papel process.
+ * Sem process, uma linha por suíte (plano legado).
+ * QTD CTS PLAN = Test Points do grupo. Da aba Planejamento só entram dados que o Azure não tem
+ * (QA, prioridade, datas, replanejamento, cancelados); quantidades legadas entram uma vez por processo.
  */
-function buildPlanejamento(planKey: string, execRows: ExecucaoRow[], dimensoes: DetectedDimension[]) {
+function buildPlanejamento(_planKey: string, execRows: ExecucaoRow[], dimensoes: DetectedDimension[]) {
   const periodo = periodoGeral();
   const key = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
-  const porSuite = new Map<string, ExecucaoRow[]>();
-  for (const e of execRows) {
-    const nome = (e.suite_name ?? "").trim();
-    if (!nome) continue;
-    const list = porSuite.get(nome) ?? [];
-    list.push(e);
-    porSuite.set(nome, list);
-  }
   const planejamento = new Map(
     listPlanejamentoBase()
       .filter((row) => !isLinhaTotais(row))
       .map((row) => [key(row.processo), row] as const),
   );
+  const legacyQtyApplied = new Set<string>();
 
-  const suites = new Map<string, { frente: string | null; processo: string }>();
-  for (const [nome, rows] of porSuite) {
-    const e = rows[0];
-    if (e && !suites.has(key(nome))) suites.set(key(nome), { frente: e.frente, processo: nome });
-  }
-
-  return [...suites.values()].map((s, i) => {
-    const p = planejamento.get(key(s.processo));
-    const pontos = porSuite.get(s.processo) ?? [];
+  return groupExecucoesForReport(execRows, dimensoes).map((s, i) => {
+    const legacyKey = key(s.processo);
+    const p = planejamento.get(legacyKey);
+    const applyLegacyQty = Boolean(p) && !legacyQtyApplied.has(legacyKey);
+    if (applyLegacyQty) legacyQtyApplied.add(legacyKey);
+    const pontos = s.rows;
     const m = metricasDosPontos(pontos);
-    const cts_cancelados = Number(p?.cts_cancelados) || 0;
+    const cts_cancelados = applyLegacyQty ? Number(p?.cts_cancelados) || 0 : 0;
     const qtd = pontos.length;
     const datasConfirmadas = Boolean(p?.data_inicio || p?.data_fim);
     const data_inicio = p?.data_inicio || periodo.inicio || null;
     const data_fim = p?.data_fim || periodo.fim || null;
-    const sample = pontos[0];
-    let classificacao: Record<string, string> = {};
-    if (sample?.dimensions_json) {
-      try {
-        const parsed = JSON.parse(sample.dimensions_json) as Record<string, unknown>;
-        classificacao = Object.fromEntries(
-          Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-        );
-      } catch {
-        classificacao = {};
-      }
-    } else if (dimensoes[0] && sample?.frente) {
-      classificacao = { [dimensoes[0].key]: sample.frente };
-    }
     return {
       row_num: i + 1,
       qa: p?.qa ?? null,
@@ -134,13 +111,13 @@ function buildPlanejamento(planKey: string, execRows: ExecucaoRow[], dimensoes: 
       processo: s.processo,
       data_inicio,
       data_fim,
-      replanejamento: Number(p?.replanejamento) || 0,
+      replanejamento: applyLegacyQty ? Number(p?.replanejamento) || 0 : 0,
       qtd_cts_plan: qtd,
       cts_plan_dia: planejadoAteHoje(qtd, data_inicio, data_fim),
       cts_cancelados,
       ...m,
       total_realizado: totalRealizadoLinha(m, cts_cancelados),
-      classificacao,
+      classificacao: s.classificacao,
       planejamentoOrigem: datasConfirmadas
         ? ("confirmado" as const)
         : data_inicio || data_fim

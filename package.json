@@ -1,5 +1,5 @@
 {
-  "name": "motor-qa-web",
+  "name": "four-qa-web",
   "private": true,
   "workspaces": [
     "backend",

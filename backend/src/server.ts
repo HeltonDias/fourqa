@@ -27,5 +27,5 @@ app.get(/^(?!\/api).*/, (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Motor QA API em http://localhost:${port}`);
+  console.log(`FourQA API em http://localhost:${port}`);
 });

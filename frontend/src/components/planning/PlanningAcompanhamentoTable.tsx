@@ -1,27 +1,31 @@
 import type { CSSProperties } from "react";
+import { HierCellText } from "../HierCellText";
 import type { PlanningItem } from "../../types";
 import {
   EXEC_COLS,
   PERIOD_COL_W,
   PLAN_TRACK_COLS,
-  QUAL_COLS,
   atalhoDe,
   diaCheio,
   isPriority,
   num,
   soma,
-  stickyStyle,
+  planRem,
+  hierColClass,
+  isIdentificacaoAnchorCol,
+  stickyStyleRem,
   type IdCol,
   type MetricCol,
 } from "./planningUtils";
 
 function idText(item: PlanningItem, col: IdCol): string {
+  if (col.kind === "planKey") return col.planKeyValue?.trim() || "—";
   if (col.kind === "atalho") return atalhoDe(item.suiteName) || "—";
   if (col.kind === "suite") return item.suiteName;
   return item.dimensions[col.dimKey ?? ""] || "—";
 }
 
-function metricCell(baseClass: string, col: MetricCol, item: PlanningItem, variant: "plan" | "exec" | "qual") {
+function metricCell(baseClass: string, col: MetricCol, item: PlanningItem, variant: "plan" | "exec") {
   const value = col.pick(item);
   const has = value != null && value > 0;
   const zero = value === 0;
@@ -50,12 +54,10 @@ export function PlanningAcompanhamentoTable({
   const periodEndLeft = stickyWidth + PERIOD_COL_W;
   const stickyBlock = stickyWidth + PERIOD_COL_W * 2;
 
-  const periodSticky = (left: number): CSSProperties => ({
-    left,
-    width: PERIOD_COL_W,
-    minWidth: PERIOD_COL_W,
-    maxWidth: PERIOD_COL_W,
-  });
+  const periodSticky = (left: number): CSSProperties => {
+    const width = planRem(PERIOD_COL_W);
+    return { left: planRem(left), width, minWidth: width, maxWidth: width };
+  };
 
   return (
     <div className="plan-table-wrap plan-table-wrap--acc">
@@ -65,40 +67,37 @@ export function PlanningAcompanhamentoTable({
             {idCols.map((col) => (
               <th
                 key={col.key}
-                className={`plan-g-id plan-sticky${col.kind === "suite" ? " plan-suite" : ""}`}
-                style={stickyStyle(col)}
+                className={`plan-g-id plan-sticky${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
+                style={stickyStyleRem(col)}
               >
-                {col.kind === "suite" && (
-                  <span className="plan-g-cover" style={{ left: -col.left, width: stickyBlock }}>
+                {isIdentificacaoAnchorCol(col, idCols) && (
+                  <span className="plan-g-cover" style={{ left: planRem(-col.left), width: planRem(stickyBlock) }}>
                     Identificação
                   </span>
                 )}
               </th>
             ))}
             <th className="plan-g-period plan-sticky plan-g-period-start" style={periodSticky(periodStartLeft)}>
-              <span className="plan-g-pin plan-g-pin-sticky" style={{ left: periodStartLeft + 8 }}>Período</span>
+              <span className="plan-g-pin plan-g-pin-sticky" style={{ left: planRem(periodStartLeft + 8) }}>Período</span>
             </th>
             <th className="plan-g-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} />
             <th className="plan-g-plan" colSpan={PLAN_TRACK_COLS.length}>
-              <span className="plan-g-pin" style={{ left: stickyBlock + 8 }}>Planejamento</span>
+              <span className="plan-g-pin" style={{ left: planRem(stickyBlock + 8) }}>Planejamento</span>
             </th>
             <th className="plan-g-exec" colSpan={EXEC_COLS.length}>
-              <span className="plan-g-pin" style={{ left: stickyBlock + 8 }}>Status / Execução</span>
+              <span className="plan-g-pin" style={{ left: planRem(stickyBlock + 8) }}>Status / Execução</span>
             </th>
-            <th className="plan-g-qual" colSpan={QUAL_COLS.length}>
-              <span className="plan-g-pin" style={{ left: stickyBlock + 8 }}>Qualidade dos dados</span>
-            </th>
-            <th className="plan-g-filler" aria-hidden />
+            <th className="plan-g-obs">Observação</th>
           </tr>
           <tr className="plan-cols">
             {idCols.map((col) => (
               <th
                 key={col.key}
-                className={`plan-sticky plan-c-id${col.kind === "suite" ? " plan-suite" : ""}`}
-                style={stickyStyle(col)}
+                className={`plan-sticky plan-c-id ${hierColClass(col)}${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
+                style={stickyStyleRem(col)}
                 title={col.label}
               >
-                <span className="plan-ellipsis">{col.short}</span>
+                <HierCellText value={col.short} className="plan-ellipsis" />
               </th>
             ))}
             <th className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)} title="Data início">
@@ -117,12 +116,7 @@ export function PlanningAcompanhamentoTable({
                 {col.label}
               </th>
             ))}
-            {QUAL_COLS.map((col, index) => (
-              <th key={col.key} className={`plan-c-qual${index === 0 ? " plan-split" : ""}`} title={col.title}>
-                {col.label}
-              </th>
-            ))}
-            <th className="plan-table-filler" aria-hidden />
+            <th className="plan-c-obs plan-split" title="Observação" />
           </tr>
         </thead>
         <tbody>
@@ -136,14 +130,13 @@ export function PlanningAcompanhamentoTable({
                   return (
                     <td
                       key={col.key}
-                      className={`plan-sticky plan-c-id${col.kind === "suite" ? " plan-suite" : ""}`}
-                      style={stickyStyle(col)}
-                      title={text === "—" ? undefined : text}
+                      className={`plan-sticky plan-c-id ${hierColClass(col)}${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
+                      style={stickyStyleRem(col)}
                     >
                       {pill ? (
                         <span className={/^\d+$/.test(text) ? "plan-pill plan-pill-hot" : "plan-pill plan-pill-cool"}>{text}</span>
                       ) : (
-                        <span className="plan-ellipsis">{text}</span>
+                        <HierCellText value={text === "—" ? "" : text} className="plan-ellipsis" />
                       )}
                     </td>
                   );
@@ -160,10 +153,7 @@ export function PlanningAcompanhamentoTable({
                 {EXEC_COLS.map((col, index) =>
                   metricCell(`plan-x${index === 0 ? " plan-split" : ""}`, col, item, "exec"),
                 )}
-                {QUAL_COLS.map((col, index) =>
-                  metricCell(`plan-c-qual${index === 0 ? " plan-split" : ""}`, col, item, "qual"),
-                )}
-                <td className="plan-table-filler" aria-hidden />
+                <td className="plan-c-obs plan-split" />
               </tr>
             );
           })}
@@ -173,10 +163,10 @@ export function PlanningAcompanhamentoTable({
             {idCols.map((col) => (
               <td
                 key={col.key}
-                className={`plan-sticky plan-c-id${col.kind === "suite" ? " plan-suite" : ""}`}
-                style={stickyStyle(col)}
+                className={`plan-sticky plan-c-id${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
+                style={stickyStyleRem(col)}
               >
-                {col.kind === "suite" ? "Totais" : ""}
+                {isIdentificacaoAnchorCol(col, idCols) ? "Totais" : ""}
               </td>
             ))}
             <td className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)} />
@@ -191,12 +181,7 @@ export function PlanningAcompanhamentoTable({
                 {soma(allRows, col.pick)}
               </td>
             ))}
-            {QUAL_COLS.map((col, index) => (
-              <td key={col.key} className={`plan-num plan-c-qual${index === 0 ? " plan-split" : ""}`}>
-                {soma(allRows, col.pick)}
-              </td>
-            ))}
-            <td className="plan-table-filler" aria-hidden />
+            <td className="plan-c-obs plan-split" />
           </tr>
         </tfoot>
       </table>

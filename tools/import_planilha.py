@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
@@ -10,7 +11,25 @@ import openpyxl
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_XLSX = ROOT / "fonte" / "Status_Report_Diario_QA_SIAS_EndToEnd_Fase3 (2).xlsx"
-DB_PATH = ROOT / "data" / "motor_qa.db"
+DEFAULT_DB = ROOT / "data" / "fourqa.db"
+LEGACY_DB = ROOT / "data" / "motor_qa.db"
+
+
+def resolve_db_path() -> Path:
+    configured = os.environ.get("FOURQA_DB", "").strip()
+    if configured:
+        return Path(configured)
+    if DEFAULT_DB.exists() or not LEGACY_DB.exists():
+        return DEFAULT_DB
+    try:
+        LEGACY_DB.rename(DEFAULT_DB)
+        for suffix in ("-wal", "-shm", "-journal"):
+            side = Path(f"{LEGACY_DB}{suffix}")
+            if side.exists():
+                side.rename(Path(f"{DEFAULT_DB}{suffix}"))
+        return DEFAULT_DB
+    except OSError:
+        return LEGACY_DB
 
 EXEC_HEADERS = [
     "plan_key",
@@ -222,14 +241,15 @@ def import_planejamento(ws, conn: sqlite3.Connection) -> int:
 
 
 def main() -> None:
-    xlsx = Path(__import__("os").environ.get("MOTOR_QA_XLSX", str(DEFAULT_XLSX)))
+    xlsx = Path(os.environ.get("FOURQA_XLSX", "").strip() or str(DEFAULT_XLSX))
     if not xlsx.is_file():
         raise SystemExit(f"Planilha não encontrada: {xlsx}")
 
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db_path = resolve_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     wb = openpyxl.load_workbook(xlsx, data_only=True, read_only=True)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     try:
         init_db(conn)
         meta = {
@@ -255,7 +275,7 @@ def main() -> None:
         print(
             json.dumps(
                 {
-                    "db": str(DB_PATH),
+                    "db": str(db_path),
                     "execucoes": n_exec,
                     "falhas": n_fal,
                     "planejamento_linhas": n_plan,

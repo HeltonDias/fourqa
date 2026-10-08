@@ -1,8 +1,18 @@
 import type { CSSProperties } from "react";
 import type { DetectedDimension, PlanningItem, PlanningView } from "../../types";
 
+export function planRem(px: number): string {
+  return `${px / 16}rem`;
+}
+
 export function stickyStyle(col: { left: number; width: number }): CSSProperties {
   return { left: col.left, width: col.width, minWidth: col.width, maxWidth: col.width };
+}
+
+/** Colunas fixas em rem para acompanhar o zoom do navegador na tabela de acompanhamento. */
+export function stickyStyleRem(col: { left: number; width: number }): CSSProperties {
+  const width = planRem(col.width);
+  return { left: planRem(col.left), width, minWidth: width, maxWidth: width };
 }
 
 export const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -92,14 +102,33 @@ export function dimensionRank(dim: DetectedDimension): number {
   return 80 + dim.level;
 }
 
+/** Larguras fixas (px) do bloco hierárquico Test Plan → Frente → Processo. */
+export const HIER_COL_WIDTH = {
+  plan: 88,
+  front: 112,
+  process: 248,
+} as const;
+
+export type HierColTier = "plan" | "front" | "process";
+
 export function dimWidth(dim: DetectedDimension): number {
   const blob = `${dim.key} ${dim.label} ${dim.role}`.toLowerCase();
   if (blob.includes("atalho")) return 78;
   if (dim.role === "priority" || blob.includes("prior")) return 52;
   if (blob.includes("onda")) return 78;
-  if (dim.role === "front" || blob.includes("frente")) return 78;
-  if (dim.role === "process" || blob.includes("process")) return 120;
+  if (dim.role === "front" || blob.includes("frente")) return HIER_COL_WIDTH.front;
+  if (dim.role === "process" || blob.includes("process")) return HIER_COL_WIDTH.process;
   return 88;
+}
+
+export function hierarchyDimTier(dim: { role: string }): HierColTier | undefined {
+  if (dim.role === "front") return "front";
+  if (dim.role === "process") return "process";
+  return undefined;
+}
+
+export function hierColClass(col: { hierTier?: HierColTier }): string {
+  return col.hierTier ? `hier-col hier-col--${col.hierTier}` : "";
 }
 
 export function shortDim(label: string): string {
@@ -125,9 +154,44 @@ export type IdCol = {
   short: string;
   width: number;
   left: number;
-  kind: "atalho" | "dim" | "suite";
+  kind: "atalho" | "dim" | "suite" | "planKey";
   dimKey?: string;
+  planKeyValue?: string;
+  hierTier?: HierColTier;
 };
+
+/** Cabeçalho visual das dimensões hierárquicas (sem alterar dados). */
+export function hierarchyColumnLabel(dim: { role: string; label: string }): string {
+  if (dim.role === "front") return "Frente/Feature";
+  if (dim.role === "process") return "Processo/Function";
+  return dim.label;
+}
+
+export function suiteMatchesProcessValue(processValue: string | undefined, suiteValue: string | undefined): boolean {
+  const process = processValue?.trim();
+  const suite = suiteValue?.trim();
+  return Boolean(process && suite && process === suite);
+}
+
+function processDimensionKey(dimensions: DetectedDimension[]): string | undefined {
+  return dimensions.find((dim) => dim.role === "process" && dim.visible !== false)?.key;
+}
+
+/** Oculta coluna de suíte quando Processo já traz o mesmo texto da folha. */
+/** Última coluna do bloco Identificação (suíte ou processo quando a suíte está oculta). */
+export function isIdentificacaoAnchorCol(col: IdCol, idCols: IdCol[]): boolean {
+  const last = idCols[idCols.length - 1];
+  return last?.key === col.key;
+}
+
+export function shouldHideSuiteIdColumn(dimensions: DetectedDimension[], items: PlanningItem[]): boolean {
+  const processKey = processDimensionKey(dimensions);
+  if (!processKey) return false;
+  if (items.length === 0) return false;
+  return items.every((item) =>
+    suiteMatchesProcessValue(item.dimensions[processKey], item.suiteName),
+  );
+}
 
 export type MetricCol = {
   key: string;
@@ -153,15 +217,10 @@ export const EXEC_COLS: MetricCol[] = [
   { key: "notReleased", label: "Não Lib.", title: "Não liberados", tone: "nl", pick: (item) => item.notReleased },
 ];
 
-export const QUAL_COLS: MetricCol[] = [
-  { key: "unclassified", label: "Não class.", title: "Não classificados", tone: "qual-u", pick: (item) => item.unclassifiedCount },
-  { key: "inconsistent", label: "Inconsist.", title: "Inconsistentes", tone: "qual-i", pick: (item) => item.inconsistentCount },
-];
-
 export function buildIdCols(
   dimensions: DetectedDimension[],
   items: PlanningItem[],
-  options?: { startLeft?: number },
+  options?: { startLeft?: number; planKey?: string },
 ): IdCol[] {
   const ordered = [...dimensions]
     .filter((dim) => dim.visible !== false)
@@ -169,24 +228,41 @@ export function buildIdCols(
   const hasAtalhoDim = ordered.some((dim) => /atalho/i.test(`${dim.key} ${dim.label}`));
   const showAtalho = !hasAtalhoDim && items.some((item) => atalhoDe(item.suiteName) !== "");
   const cols: Omit<IdCol, "left">[] = [];
+  const planKey = options?.planKey?.trim();
+  if (planKey) {
+    cols.push({
+      key: "planKey",
+      label: "Test Plan",
+      short: "Test Plan",
+      width: HIER_COL_WIDTH.plan,
+      kind: "planKey",
+      planKeyValue: planKey,
+      hierTier: "plan",
+    });
+  }
   if (showAtalho) cols.push({ key: "atalho", label: "Atalho", short: "Atalho", width: 78, kind: "atalho" });
   for (const dim of ordered) {
+    const short = hierarchyColumnLabel(dim);
     cols.push({
       key: dim.key,
-      label: dim.label,
-      short: shortDim(dim.label),
+      label: hierarchyColumnLabel(dim),
+      short,
       width: dimWidth(dim),
       kind: "dim",
       dimKey: dim.key,
+      hierTier: hierarchyDimTier(dim),
     });
   }
-  cols.push({
-    key: "suite",
-    label: "Processo / Suíte",
-    short: "Processo / Suíte",
-    width: 240,
-    kind: "suite",
-  });
+  if (!shouldHideSuiteIdColumn(dimensions, items)) {
+    cols.push({
+      key: "suite",
+      label: "Processo / Suíte",
+      short: "Processo / Suíte",
+      width: HIER_COL_WIDTH.process,
+      kind: "suite",
+      hierTier: "process",
+    });
+  }
   let left = options?.startLeft ?? CHECK_W;
   return cols.map((col) => {
     const placed: IdCol = { ...col, left };
@@ -281,6 +357,7 @@ export function atalhoValues(items: PlanningItem[]): string[] {
 const BLANK_VALUE = "__blank__";
 
 export function idColDisplayValue(item: PlanningItem, col: IdCol): string {
+  if (col.kind === "planKey") return col.planKeyValue?.trim() ?? "";
   if (col.kind === "atalho") return atalhoDe(item.suiteName) || "";
   if (col.kind === "suite") return item.suiteName.trim();
   return (item.dimensions[col.dimKey ?? ""] ?? "").trim();

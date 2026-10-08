@@ -1,10 +1,12 @@
 import json
 import re
 from collections import Counter
+from pathlib import Path
 
 import openpyxl
 
-path = r"c:\Users\HeltonDiasMarques\Desktop\Projetos\motor_Qa\fonte\Status_Report_Diario_QA_SIAS_EndToEnd_Fase3 (2).xlsx"
+ROOT = Path(__file__).resolve().parent
+path = ROOT / "Status_Report_Diario_QA_SIAS_EndToEnd_Fase3 (2).xlsx"
 wb = openpyxl.load_workbook(path, data_only=False, read_only=True)
 
 targets = [
@@ -95,11 +97,7 @@ for label in targets:
 
 wb.close()
 
-with open(
-    r"c:\Users\HeltonDiasMarques\Desktop\Projetos\motor_Qa\fonte\_analysis_fase3.json",
-    "w",
-    encoding="utf-8",
-) as f:
+with open(ROOT / "_analysis_fase3.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=2)
 
 print("OK", len(out))

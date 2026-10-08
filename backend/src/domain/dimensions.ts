@@ -18,6 +18,31 @@ export interface HierarchyOverride {
   active: boolean;
 }
 
+export type DimensionSource =
+  | { type: "hierarchy_level"; level: number }
+  | { type: "current_suite" };
+
+export interface DimensionDefinition {
+  key: string;
+  label: string;
+  role: DimensionRole;
+  source: DimensionSource;
+}
+
+export interface HierarchyConfigInput {
+  order: number;
+  columnName: string;
+  sourceLevel: string;
+  active: boolean;
+  planKey?: string;
+  sourceType: "hierarchy_level" | "current_suite";
+}
+
+export interface DimensionResolutionContext {
+  pathNames: string[];
+  currentSuiteName: string;
+}
+
 const PRIORITY_NAME = /^(prioridade\s*\d+|p\s*\d+)$/i;
 function roleFromColumn(name: string): DimensionRole | null {
   const n = name.trim().toLowerCase();
@@ -27,6 +52,137 @@ function roleFromColumn(name: string): DimensionRole | null {
   if (n.includes("frente") || n === "front") return "front";
   if (n.includes("process")) return "process";
   return null;
+}
+
+function definitionKey(role: DimensionRole, columnName: string): string {
+  if (role === "priority") return "priority";
+  if (role === "front") return "front";
+  if (role === "process") return "process";
+  if (role === "subprocess") return "subprocess";
+  const slug = columnName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return slug ? `dim-${slug}` : `dim-${role}`;
+}
+
+function resolveSourceValue(context: DimensionResolutionContext, source: DimensionSource): string {
+  if (source.type === "current_suite") return context.currentSuiteName.trim();
+  const index = source.level - 1;
+  if (index < 0 || index >= context.pathNames.length) return "";
+  return context.pathNames[index]?.trim() ?? "";
+}
+
+/** Config explícita por PlanKey (env). Planos com entradas próprias não herdam entradas globais. */
+export function dimensionDefinitionsForPlan(planKey: string, entries: HierarchyConfigInput[]): DimensionDefinition[] {
+  const norm = (value: string) => value.trim().toLowerCase();
+  const keyed = entries.filter((e) => e.active && e.planKey && norm(e.planKey) === norm(planKey));
+  const chosen = keyed.length > 0 ? keyed : entries.filter((e) => e.active && !e.planKey?.trim());
+  return chosen
+    .sort((a, b) => a.order - b.order)
+    .map((entry) => {
+      const label = entry.columnName.trim();
+      const role = roleFromColumn(label) ?? "generic";
+      const source: DimensionSource =
+        entry.sourceType === "current_suite"
+          ? { type: "current_suite" }
+          : { type: "hierarchy_level", level: Math.max(1, Number(entry.sourceLevel) || 1) };
+      return {
+        key: definitionKey(role, label),
+        label,
+        role,
+        source,
+      };
+    });
+}
+
+/**
+ * Precedência: definição explícita → sugestão automática (por nível não reivindicado).
+ * Configuração explícita pode usar a folha (hierarchy_level ou current_suite).
+ */
+export function resolveDimensionValues(
+  context: DimensionResolutionContext,
+  definitions: DimensionDefinition[],
+  suggestions: DetectedDimension[] = [],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const explicitLevels = new Set<number>();
+
+  for (const def of definitions) {
+    const value = resolveSourceValue(context, def.source);
+    if (!value) continue;
+    out[def.key] = value;
+    if (def.source.type === "hierarchy_level") explicitLevels.add(def.source.level);
+  }
+
+  for (const dim of suggestions) {
+    if (out[dim.key]) continue;
+    if (explicitLevels.has(dim.level)) continue;
+    const name = context.pathNames[dim.level - 1]?.trim();
+    if (name) out[dim.key] = name;
+  }
+
+  return out;
+}
+
+export function buildDimensionCatalog(
+  definitions: DimensionDefinition[],
+  suggestions: DetectedDimension[],
+  paths: DimensionResolutionContext[],
+): DetectedDimension[] {
+  const valuesByKey = new Map<string, Set<string>>();
+  for (const path of paths) {
+    const resolved = resolveDimensionValues(path, definitions, suggestions);
+    for (const [key, value] of Object.entries(resolved)) {
+      const set = valuesByKey.get(key) ?? new Set<string>();
+      set.add(value);
+      valuesByKey.set(key, set);
+    }
+  }
+
+  const explicitKeys = new Set(definitions.map((d) => d.key));
+  const explicitDims: DetectedDimension[] = definitions.map((def) => ({
+    key: def.key,
+    label: def.label,
+    role: def.role,
+    level: def.source.type === "hierarchy_level" ? def.source.level : 0,
+    values: [...(valuesByKey.get(def.key) ?? [])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    confidence: 1,
+    visible: true,
+  }));
+
+  const suggestedDims = suggestions
+    .filter((dim) => !explicitKeys.has(dim.key) && !explicitDims.some((e) => e.level === dim.level && dim.level > 0))
+    .map((dim) => ({
+      ...dim,
+      values: [...(valuesByKey.get(dim.key) ?? dim.values)].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    }));
+
+  return [...explicitDims, ...suggestedDims];
+}
+
+export function legacyRoleValue(
+  role: DimensionRole,
+  classificacao: Record<string, string>,
+  definitions: DimensionDefinition[],
+  catalog: DetectedDimension[],
+): string {
+  const keys: string[] = [];
+  for (const def of definitions) {
+    if (def.role === role) keys.push(def.key);
+  }
+  for (const dim of catalog) {
+    if (dim.role === role) keys.push(dim.key);
+  }
+  const seen = new Set<string>();
+  for (const key of keys) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const value = classificacao[key]?.trim();
+    if (value) return value;
+  }
+  return "";
 }
 
 function labelFor(role: DimensionRole, level: number, columnName?: string): string {
@@ -140,16 +296,14 @@ export function applyHierarchyOverrides(
   });
 }
 
+/** Compatibilidade: resolve só a partir do catálogo detectado (nível = índice na path). */
 export function valuesForPath(
   ancestors: { name: string }[],
   dims: DetectedDimension[],
 ): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const dim of dims) {
-    const name = ancestors[dim.level - 1]?.name?.trim();
-    if (name) out[dim.key] = name;
-  }
-  return out;
+  const pathNames = ancestors.map((a) => a.name);
+  const leaf = pathNames[pathNames.length - 1] ?? "";
+  return resolveDimensionValues({ pathNames, currentSuiteName: leaf }, [], dims);
 }
 
 /** Catálogo para dados já gravados, quando o sync ainda não persistiu `dimensoes_catalog`. */

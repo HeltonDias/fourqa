@@ -1,6 +1,6 @@
-# Motor QA
+# FourQA
 
-Aplicação web que acompanha a execução de QA a partir do Azure DevOps. A planilha legada serviu de referência para as regras; o Motor consulta o Azure e calcula os indicadores sozinho.
+Aplicação web que acompanha a execução de QA a partir do Azure DevOps. A planilha legada serviu de referência para as regras; o FourQA consulta o Azure e calcula os indicadores sozinho.
 
 ## Fontes de verdade
 
@@ -30,7 +30,7 @@ npm run dev
 - UI: http://localhost:5173
 - API: http://localhost:3001
 
-O backend cria o banco vazio em `data/motor_qa.db` (migrations em `backend/src/db/migrate.ts`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha.
+O backend cria o banco vazio em `data/fourqa.db` (migrations em `backend/src/db/migrate.ts`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha. O caminho pode ser alterado com `FOURQA_DB`.
 
 ## Testes e build
 
@@ -51,8 +51,8 @@ npm run build
 ## Segurança antes de compartilhar
 
 - `FRONTEND_ORIGIN` restringe o CORS. Vazio permite só localhost.
-- `MOTOR_QA_API_TOKEN`, se preenchido, protege `POST /api/sync` e `PUT /api/cabecalho`. No navegador, grave o mesmo valor em `localStorage.motorqa_token`.
-- Não há login de usuários. Não publique o Motor na internet só com o token vazio.
+- `FOURQA_API_TOKEN`, se preenchido, protege `POST /api/sync` e `PUT /api/cabecalho`. No navegador, grave o mesmo valor em `localStorage.fourqa_token`.
+- Não há login de usuários. Não publique o FourQA na internet só com o token vazio.
 - O health check responde `{ ok, database }` e não devolve caminho de arquivo.
 
 Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.

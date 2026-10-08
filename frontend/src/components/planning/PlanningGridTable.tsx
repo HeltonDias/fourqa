@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { HierCellText } from "../HierCellText";
 import type { PlanningItem } from "../../types";
 import { PlanningExcelColumnFilter } from "./PlanningExcelColumnFilter";
 import {
@@ -14,6 +15,8 @@ import {
   partesDia,
   soma,
   stickyStyle,
+  hierColClass,
+  isIdentificacaoAnchorCol,
   uniqueIdColValues,
   type ColumnSort,
   type IdCol,
@@ -83,10 +86,10 @@ export function PlanningGridTable({
             {idCols.map((col) => (
               <th
                 key={col.key}
-                className={`plan-g-id plan-sticky${col.kind === "suite" ? " plan-suite" : ""}`}
+                className={`plan-g-id plan-sticky${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
                 style={stickyStyle(col)}
               >
-                {col.kind === "suite" && (
+                {isIdentificacaoAnchorCol(col, idCols) && (
                   <span className="plan-g-cover" style={{ left: -col.left, width: stickyWithPeriod }}>
                     Identificação
                   </span>
@@ -123,12 +126,12 @@ export function PlanningGridTable({
               return (
                 <th
                   key={col.key}
-                  className={`plan-sticky plan-c-id plan-c-id--filter${col.kind === "suite" ? " plan-suite" : ""}${hasFilter ? " plan-c-id--filtered" : ""}`}
+                  className={`plan-sticky plan-c-id plan-c-id--filter ${hierColClass(col)}${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}${hasFilter ? " plan-c-id--filtered" : ""}`}
                   style={stickyStyle(col)}
                   title={col.label}
                 >
                   <span className="plan-col-head">
-                    <span className="plan-ellipsis">{col.short}</span>
+                    <HierCellText value={col.short} className="plan-ellipsis" />
                     <PlanningExcelColumnFilter
                       columnLabel={col.label}
                       values={values}
@@ -189,14 +192,13 @@ export function PlanningGridTable({
                   return (
                     <td
                       key={col.key}
-                      className={`plan-sticky plan-c-id${col.kind === "suite" ? " plan-suite" : ""}`}
+                      className={`plan-sticky plan-c-id ${hierColClass(col)}${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
                       style={stickyStyle(col)}
-                      title={text === "—" ? undefined : text}
                     >
                       {pill ? (
                         <span className={/^\d+$/.test(text) ? "plan-pill plan-pill-hot" : "plan-pill plan-pill-cool"}>{text}</span>
                       ) : (
-                        <span className="plan-ellipsis">{text}</span>
+                        <HierCellText value={text === "—" ? "" : text} className="plan-ellipsis" />
                       )}
                     </td>
                   );
@@ -251,10 +253,10 @@ export function PlanningGridTable({
             {idCols.map((col) => (
               <td
                 key={col.key}
-                className={`plan-sticky plan-c-id${col.kind === "suite" ? " plan-suite" : ""}`}
+                className={`plan-sticky plan-c-id${isIdentificacaoAnchorCol(col, idCols) ? " plan-suite" : ""}`}
                 style={stickyStyle(col)}
               >
-                {col.kind === "suite" ? "Totais" : ""}
+                {isIdentificacaoAnchorCol(col, idCols) ? "Totais" : ""}
               </td>
             ))}
             <td className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)} />
@@ -283,6 +285,7 @@ export function PlanningGridTable({
 }
 
 function idText(item: PlanningItem, col: IdCol): string {
+  if (col.kind === "planKey") return col.planKeyValue?.trim() || "—";
   if (col.kind === "atalho") return atalhoDe(item.suiteName) || "—";
   if (col.kind === "suite") return item.suiteName;
   return item.dimensions[col.dimKey ?? ""] || "—";

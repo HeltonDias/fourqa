@@ -34,9 +34,9 @@ function planKeyFromQuery(q: unknown): string {
   }
 }
 
-/** Se MOTOR_QA_API_TOKEN estiver vazio, escrita fica aberta (desenvolvimento local). */
+/** Se FOURQA_API_TOKEN estiver vazio, escrita fica aberta (desenvolvimento local). */
 function requireWriteAuth(req: { header(name: string): string | undefined }, res: { status(code: number): { json(body: unknown): void } }, next: () => void): void {
-  const token = envValue("MOTOR_QA_API_TOKEN");
+  const token = envValue("FOURQA_API_TOKEN");
   if (!token) {
     next();
     return;
