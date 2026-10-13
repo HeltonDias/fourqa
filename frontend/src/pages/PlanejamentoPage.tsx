@@ -28,8 +28,7 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import type { PlanningItem, PlanningView } from "../types";
 
 export function PlanejamentoPage() {
-  const { dataVersion, home, handleAtualizar, syncing, homeLoading, patchPeriodo, refreshHome } =
-    useReportChrome();
+  const { dataVersion, home, patchPeriodo, refreshHome } = useReportChrome();
   const [periodoSaving, setPeriodoSaving] = useState(false);
   const [periodoError, setPeriodoError] = useState<string | null>(null);
   const [tab, setTab] = useState<PlanningTabId>("acompanhamento");
@@ -181,8 +180,6 @@ export function PlanejamentoPage() {
   const confirmed = view?.revision?.baselineOrigin === "motor";
   const baseline = summary ? (summary.sourceCount > 0 ? summary.sourceCount : summary.baselineCount) : 0;
 
-  const ultimaAtualizacao = home?.ultimaImportacao ?? home?.atualizadoEm ?? view?.revision?.createdAt ?? null;
-
   async function confirmar() {
     if (!view || busy) return;
     setBusy(true);
@@ -275,13 +272,10 @@ export function PlanejamentoPage() {
           <PlanningPageHeader
             periodoInicio={home?.periodo?.inicio ?? ""}
             periodoFim={home?.periodo?.fim ?? ""}
-            ultimaAtualizacao={ultimaAtualizacao}
             onSavePeriodo={salvarPeriodo}
             onClearPeriodoError={() => setPeriodoError(null)}
             periodoSaving={periodoSaving}
             periodoError={periodoError}
-            onAtualizar={handleAtualizar}
-            atualizando={syncing || homeLoading}
             onPeriodDirtyChange={setPeriodDirty}
           />
           <PlanningTabs active={tab} onChange={setTab} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, fmtDateTime } from "../api";
 import { LoadState } from "../components/LoadState";
+import { PageHeader } from "../components/PageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
 import type { FalhaRow } from "../types";
 
@@ -83,22 +84,25 @@ export function FalhasPage() {
     <LoadState loading={loading && !data} error={error}>
       {data && (
         <div className="exec-page">
-          <header className="exec-head">
-            <div>
-              <h1>Falhas</h1>
-              <p className="muted">
+          <PageHeader
+            title="Falhas"
+            description={
+              <>
                 Bugs associados aos resultados do Test Plan no Azure DevOps na última atualização ·{" "}
                 <strong>{total}</strong> registros
-              </p>
-            </div>
-            <input
-              type="search"
-              className="exec-search"
-              placeholder="Filtrar no servidor…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-          </header>
+              </>
+            }
+            actions={
+              <input
+                type="search"
+                className="exec-search"
+                placeholder="Filtrar no servidor…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                aria-label="Filtrar falhas"
+              />
+            }
+          />
 
           <div className="card exec-table-wrap">
             <table className="exec-table">

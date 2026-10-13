@@ -488,6 +488,19 @@ body {
   }
 }
 
+@container report-header (max-width: 40rem) {
+  .report-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-dates-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+}
+
 @container report-header (max-width: 36rem) {
   .report-dates-block {
     font-size: 0.75rem;
@@ -1667,22 +1680,48 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Página Execuções: tabela larga com cabeçalho fixo e rolagem nos dois eixos */
-.exec-head {
+/* Cabeçalho local da página, abaixo do chrome do projeto */
+.page-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem 1rem;
   margin-bottom: 0.75rem;
 }
 
-.exec-head h1 {
-  margin: 0 0 0.2rem;
+.page-header-text {
+  min-width: 0;
+  flex: 1 1 16rem;
 }
 
-.exec-head p {
+.page-header h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.page-header p {
   margin: 0;
   font-size: 0.85rem;
+}
+
+.page-header-actions {
+  flex: 1 1 18rem;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.page-header-actions > * {
+  max-width: 100%;
+}
+
+.page-header-actions .plan-module-meta {
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .exec-search {
@@ -1825,11 +1864,6 @@ body {
   overflow: hidden;
 }
 
-.main-area:has(.plan-page) > .report-chrome,
-.main-area:has(.module-page) > .report-chrome {
-  display: none;
-}
-
 .main-area:has(.plan-page) > .main-content {
   flex: 1 1 auto;
   min-height: 0;
@@ -1852,6 +1886,13 @@ body {
 .plan-page h1 {
   margin: 0;
   font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.plan-page .page-header h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.75rem;
+  font-weight: 700;
   line-height: 1.2;
 }
 
