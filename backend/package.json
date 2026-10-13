@@ -7,16 +7,19 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/domain/formulas.test.ts src/domain/dimensions.test.ts src/domain/validateSync.test.ts src/domain/evolucaoStatus.test.ts src/domain/planning.test.ts src/domain/planPeriod.test.ts src/db/migrate.test.ts src/db/adoptDatabase.test.ts src/services/planningService.test.ts src/domain/reportGroups.test.ts"
+    "db:postgres": "tsx src/db/postgres/cli.ts",
+    "test": "tsx --import ./src/test/forceSqlite.ts --test src/domain/formulas.test.ts src/domain/dimensions.test.ts src/domain/validateSync.test.ts src/domain/evolucaoStatus.test.ts src/domain/statusFrente.test.ts src/domain/planning.test.ts src/domain/planPeriod.test.ts src/domain/legacyPlanOwner.test.ts src/db/migrate.test.ts src/db/adoptDatabase.test.ts src/db/sqlitePlanningStore.test.ts src/db/sqliteAzureSnapshotStore.test.ts src/db/sqliteMetaStore.test.ts src/db/sqliteLegacyPlanStore.test.ts src/persistence/provider.test.ts src/services/planningService.test.ts src/services/reportService.test.ts src/domain/reportGroups.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }

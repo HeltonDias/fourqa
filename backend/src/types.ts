@@ -1,4 +1,5 @@
 import type { DetectedDimension } from "./domain/dimensions.js";
+import type { FrenteIndicadores } from "./domain/statusFrente.js";
 
 export type ExecucaoRow = {
   id: number;
@@ -194,26 +195,47 @@ export type HomeGestaoImpactos = {
   categoria: GraficoFatia[];
 };
 
+export type StatusFrenteCenarios = {
+  ttl: number;
+  /** Mantido igual a ttl: o planejado até hoje vai em planAteHoje. */
+  plan: number;
+  planAteHoje: number;
+  na: number;
+  passeds: number;
+  finalizado: number;
+  falha: number;
+  bloqueado: number;
+  liberado: number;
+  design: number;
+  naoLib: number;
+};
+
+export type StatusFrenteBugs = {
+  total: number;
+  fechados: number;
+  abertosDev: number;
+  fechadosDev: number;
+  abertosCliente: number;
+  fechadosCliente: number;
+  reteste: number;
+  outrosUat: number;
+  /** Falhas do responsável Desenvolvimento, qualquer status. Base do % da Home. */
+  impactosDev: number;
+  /** Falhas do responsável Cliente, qualquer status. Base do % da Home. */
+  impactosCliente: number;
+};
+
 export type StatusFrenteBloco = {
   frente: string;
-  cenarios: {
-    ttl: number;
-    plan: number;
-    finalizado: number;
-    falha: number;
-    bloqueado: number;
-    liberado: number;
-    design: number;
-    naoLib: number;
-  };
-  bugs: {
-    total: number;
-    fechados: number;
-    abertosDev: number;
-    fechadosDev: number;
-    abertosCliente: number;
-    fechadosCliente: number;
-    reteste: number;
-    outrosUat: number;
-  };
+  cenarios: StatusFrenteCenarios;
+  bugs: StatusFrenteBugs;
+  indicadores: FrenteIndicadores;
+};
+
+export type StatusFrenteDto = {
+  planKey: string;
+  blocos: StatusFrenteBloco[];
+  total: Omit<StatusFrenteBloco, "frente">;
+  /** Nomes de frente em que um contém o outro; o total pode contar o item mais de uma vez. */
+  sobreposicao: boolean;
 };

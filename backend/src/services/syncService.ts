@@ -3,7 +3,7 @@ import { loadSyncConfig, SyncConfigError, type SyncConfig } from "../azure/confi
 import { loadPlanExecutions, type ExecucaoInsert } from "../azure/execucoes.js";
 import { loadFalhas, type BugMeta, type FalhaInsert } from "../azure/falhas.js";
 import { calculateKpiImpactos, type KpiImpactos } from "../azure/kpis.js";
-import { replaceAzureData } from "../db.js";
+import { getStores } from "../persistence/provider.js";
 import { SyncValidationError, validateSyncResult } from "../domain/validateSync.js";
 
 export { SyncConfigError };
@@ -107,7 +107,7 @@ async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
   validateSyncResult({ execucoes, falhas, suites: suiteRefs });
 
   report("Gravando no banco de dados");
-  replaceAzureData({
+  await (await getStores()).azureSnapshot.replaceSnapshot({
     execucoes,
     falhas,
     meta: {

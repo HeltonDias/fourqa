@@ -32,6 +32,8 @@ npm run dev
 
 O backend cria o banco vazio em `data/fourqa.db` (migrations em `backend/src/db/migrate.ts`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha. O caminho pode ser alterado com `FOURQA_DB`.
 
+`DB_PROVIDER` escolhe a persistência. Ausente ou `sqlite` usa o arquivo local. `postgres` usa `DATABASE_URL` e não abre o SQLite. A URL fica só no `.env`, que o Git ignora.
+
 ## Testes e build
 
 ```bash
