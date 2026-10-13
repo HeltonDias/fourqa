@@ -1,0 +1,15 @@
+---
+description: FourQA Squad routing: main Cursor Agent coordinates selective read-only specialists
+alwaysApply: true
+---
+# FourQA Squad — lightweight orchestration
+- The primary Cursor Agent is the orchestrator and sole implementation owner. Do not spawn an orchestration subagent.
+- For localized edits and obvious fixes: implement directly without delegating.
+- For unknown code locations: prefer Cursor built-in Explore; do not add a custom explorer.
+- Before complex changes spanning domain/API/persistence/reporting: delegate once to `impact-analyst` for a bounded dependency/risk map, only when that information is not already known.
+- After high-risk changes touching business invariants, data storage, integrations, or multiple modules: delegate once to `qa-verifier` when independent verification adds value; otherwise run targeted checks directly.
+- Delegate by objective + paths + acceptance criteria. Do not forward large conversations, secrets, whole files, or redundant context.
+- Avoid parallel delegates if work depends on prior output. Maximum two custom subagent invocations per task by default; more only when the user requests or a specific blocker warrants it.
+- Treat specialist summaries as advisory; confirm consequential claims against code/tests. A PASS is not proof of full coverage.
+- Do not invoke an agent solely to satisfy a process template. Each delegation has overhead in latency/tokens; optimize total cost, not just main-chat context.
+- Only the main Agent makes source edits. For nontrivial edits, report concise evidence (tests/results) and open risks.

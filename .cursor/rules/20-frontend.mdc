@@ -1,0 +1,10 @@
+---
+description: Frontend implementation constraints for FourQA React views
+globs: frontend/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+# Frontend
+- Reuse existing components and CSS conventions; do not create an unrelated design system.
+- Keep business calculations in backend/domain when appropriate; avoid divergent frontend formulas.
+- Read only the affected page/component, its immediate dependencies, and API contract.
+- Validate TypeScript and frontend build after relevant changes; clearly state when UI verification was not performed.

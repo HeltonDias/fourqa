@@ -1,0 +1,11 @@
+---
+description: FourQA context index: load targeted project, domain, UI and handoff notes only when useful
+alwaysApply: true
+---
+# FourQA — targeted knowledge loading
+- `context/PROJECT_MAP.md` is a small index for finding owners when file locations are unknown. If paths are already known, skip it.
+- For business semantics consult `context/DOMAIN_RULES.md` and **only the relevant ADR**; for visual consistency consult `context/UI_GUIDELINES.md`.
+- Consult `context/HANDOFF.md` only for cross-session continuation or unclear recent decisions; it may be stale.
+- Never load all context notes by default, dump full source files, or re-read documents already summarized without a concrete unresolved question.
+- Reuse subagent findings by path and concise facts; validate consequential claims against code/tests. Keep the existing Squad delegation limits.
+- At task completion, report precise checks and unresolved concerns succinctly. Update durable notes only if architecture/contracts actually changed and the user permits file edits.

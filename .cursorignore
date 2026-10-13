@@ -1,0 +1,16 @@
+# FourQA - files irrelevant or unsafe for coding context
+.git/
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!.env.example
+**/*.db
+**/*.sqlite*
+**/*.xlsx
+**/*.xlsm
+**/*.zip
+fonte/scripts_extracted/
+fonte/_analysis_*.json
+**/*.log

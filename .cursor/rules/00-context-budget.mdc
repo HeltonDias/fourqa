@@ -1,0 +1,15 @@
+---
+description: FourQA context and token budget rules
+alwaysApply: true
+---
+# FourQA — efficient development
+- Work in Portuguese and keep responses compact.
+- Before edits, identify scope and inspect only relevant files; prefer symbol search and bounded excerpts instead of dumping entire files.
+- Reuse README and ADRs as sources of truth; only read relevant ADRs when task requires them.
+- Do not read `fonte/scripts_extracted`, spreadsheets, generated JSON, or entire repository unless explicitly needed to resolve a legacy behavior.
+- Prefer direct implementation for localized changes. Use built-in Explore only for unknown cross-file locations.
+- Invoke custom subagents only for multi-module impact or high-risk validation. Do not invoke multiple agents automatically for trivial work.
+- Subagent handoff: goal, changed paths, relevant constraints, concise questions; never send full file contents if paths suffice.
+- Before modifying code, inspect `git status --short`; never overwrite unrelated changes.
+- Do not expose `.env`, secrets, tokens or real data in prompts, logs or reports.
+- For delivered changes state paths, validation commands/results and unresolved risks in <= 8 lines unless asked for detail.

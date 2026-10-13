@@ -1,0 +1,12 @@
+---
+description: Domain consistency and persistence rules when editing FourQA backend
+globs: backend/src/**/*.ts
+alwaysApply: false
+---
+# Backend boundaries
+- Keep domain logic in `backend/src/domain`, orchestration in `services`, storage behind `persistence` contracts, API in `routes`.
+- For status semantics consult `docs/adr/002-status.md` and the existing classifier. Do not duplicate status business logic.
+- For planning semantics consult `docs/adr/003-planejamento.md` and `docs/adr/004-planejamento-baseline.md` only when affected.
+- For dynamic hierarchy consult `docs/adr/001-hierarquia-dinamica.md` only when affected.
+- Treat SQLite/PostgreSQL parity and migration as high-risk; avoid changing schema, contracts, or migration behavior without tests.
+- Favor narrow tests near changed business logic. Do not assume `npm test` covers every `*.test.ts`.
