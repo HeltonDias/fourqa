@@ -20,7 +20,7 @@ const faceIcons: Record<FaceStatus, string | undefined> = {
   na: evolucaoIconUrl("status_na.png"),
 };
 
-const faceLabel: Record<FaceStatus, string> = {
+export const faceLabel: Record<FaceStatus, string> = {
   done: "Finalizado",
   ok: "No prazo",
   warn: "Atenção",

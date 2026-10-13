@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { getDb, getDbPath, setMeta } from "../db.js";
+import { getDb, getDbPath } from "../db.js";
+import { sqliteMetaStore } from "../db/sqliteMetaStore.js";
 import { getPlanningView } from "./planningService.js";
 
 const dir = mkdtempSync(path.join(tmpdir(), "four-qa-plan-"));
@@ -25,8 +26,8 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
   before(() => {
     assert.equal(getDbPath(), process.env.FOURQA_DB);
     const db = getDb();
-    setMeta("data_inicio", "2026-10-12");
-    setMeta("data_fim", "2026-11-12");
+    sqliteMetaStore.set("data_inicio", "2026-10-12");
+    sqliteMetaStore.set("data_fim", "2026-11-12");
     db.prepare(
       `INSERT INTO planejamento_linhas
         (row_num, frente, processo, qtd_cts_plan, data_inicio, data_fim, cts_cancelados, replanejamento)
@@ -75,9 +76,9 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("legado sem planejamento_legado_plan_key não é aplicado a nenhum plano", () => {
+  it("legado sem planejamento_legado_plan_key não é aplicado a nenhum plano", async () => {
     for (const planKey of ["EndToEnd", "PlanTeste"]) {
-      const view = getPlanningView(planKey);
+      const view = await getPlanningView(planKey);
       const blob = JSON.stringify(view.items);
       assert.equal(view.revision?.baselineOrigin === "legacy", false);
       assert.equal(blob.includes("GESIN"), false);
@@ -86,9 +87,9 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     }
   });
 
-  it("plano legado continua usando a base da planilha quando o dono está gravado", () => {
-    setMeta("planejamento_legado_plan_key", "EndToEnd");
-    const view = getPlanningView("EndToEnd");
+  it("plano legado continua usando a base da planilha quando o dono está gravado", async () => {
+    sqliteMetaStore.set("planejamento_legado_plan_key", "EndToEnd");
+    const view = await getPlanningView("EndToEnd");
     assert.equal(view.planning.planKey, "EndToEnd");
     assert.equal(view.revision?.baselineOrigin, "legacy");
     assert.equal(view.revision?.scopeSnapshotAvailable, false);
@@ -101,9 +102,9 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     assert.equal(view.items.some((item) => /valores\s+totais/i.test(item.suiteName)), false);
   });
 
-  it("plano novo com execuções não usa o legado de outro PlanKey", () => {
+  it("plano novo com execuções não usa o legado de outro PlanKey", async () => {
     const before = revisionCount("EndToEnd");
-    const view = getPlanningView("PlanTeste");
+    const view = await getPlanningView("PlanTeste");
     assert.equal(revisionCount("EndToEnd"), before);
     assert.equal(revisionCount("PlanTeste"), 0);
     assert.equal(view.revision?.baselineOrigin, "ausente");
@@ -115,8 +116,8 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     assert.ok(view.items.every((item) => item.sourceCount != null && item.sourceCount > 0));
   });
 
-  it("PlanTeste retorna somente as próprias suítes, sem GESIN/GERORJ", () => {
-    const view = getPlanningView("PlanTeste");
+  it("PlanTeste retorna somente as próprias suítes, sem GESIN/GERORJ", async () => {
+    const view = await getPlanningView("PlanTeste");
     const names = view.items.map((item) => item.suiteName).sort();
     assert.deepEqual(names, ["Processo/Function 1", "Processo/Function 2"]);
     const blob = JSON.stringify(view.items);
@@ -129,7 +130,7 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     assert.equal(byName.get("Processo/Function 2"), 2);
   });
 
-  it("troca de PlanKey não reutiliza revisão de outro plano e o sourceScope permanece do plano pedido", () => {
+  it("troca de PlanKey não reutiliza revisão de outro plano e o sourceScope permanece do plano pedido", async () => {
     const db = getDb();
     const planningId = Number(
       db.prepare("INSERT INTO planning (plan_key, created_at) VALUES (?, ?)").run("EndToEnd", "2026-10-06T18:00:00.000Z")
@@ -150,7 +151,7 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     ).run(revisionId, 900, "Somente EndToEnd", 1);
 
     const endToEndRevisions = revisionCount("EndToEnd");
-    const planTeste = getPlanningView("PlanTeste");
+    const planTeste = await getPlanningView("PlanTeste");
     assert.equal(revisionCount("EndToEnd"), endToEndRevisions);
     assert.equal(revisionCount("PlanTeste"), 0);
     assert.equal(planTeste.revisions.length, 0);
@@ -158,7 +159,7 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     assert.equal(planTeste.summary.sourceCount, 5);
     assert.equal(JSON.stringify(planTeste.items).includes("Somente EndToEnd"), false);
 
-    const endToEnd = getPlanningView("EndToEnd");
+    const endToEnd = await getPlanningView("EndToEnd");
     assert.equal(endToEnd.planning.planKey, "EndToEnd");
     assert.equal(endToEnd.revision?.version, 7);
     assert.equal(endToEnd.revision?.baselineOrigin, "motor");

@@ -3,10 +3,12 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { envValue } from "./azure/config.js";
+import { getStores } from "./persistence/provider.js";
 import { apiRouter } from "./routes/api.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
+await getStores();
 
 const configuredOrigin = envValue("FRONTEND_ORIGIN");
 const origins = configuredOrigin

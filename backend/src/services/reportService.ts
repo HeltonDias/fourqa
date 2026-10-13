@@ -1,11 +1,7 @@
-import {
-  getMeta,
-  listExecucoesAll,
-  listFalhasAll,
-  listPlanejamentoBase,
-  setMeta,
-} from "../db.js";
+import { getStores } from "../persistence/provider.js";
+import type { LegacyPlanRow } from "../persistence/contracts.js";
 import { inferDimensions, type DetectedDimension } from "../domain/dimensions.js";
+import { isLegacyPlanOwner } from "../domain/legacyPlanOwner.js";
 import {
   classificarImpactosKpi,
   countFalhas,
@@ -16,6 +12,7 @@ import {
   totalRealizadoLinha,
 } from "../domain/formulas.js";
 import { statusEvolucao, statusGeralDe } from "../domain/evolucaoStatus.js";
+import { haSobreposicaoFrentes, indicadoresFrente } from "../domain/statusFrente.js";
 import { planejadoAteHoje, planejadoVsRealizado, statusExecucoes } from "../domain/graficos.js";
 import { groupExecucoesForReport } from "../domain/reportGroups.js";
 import { assertPlanningPeriod, assertStoredPlanningPeriod } from "../domain/planPeriod.js";
@@ -29,7 +26,17 @@ import type {
   PlanejamentoLinha,
   ReportSuiteRow,
   StatusFrenteBloco,
+  StatusFrenteBugs,
+  StatusFrenteCenarios,
+  StatusFrenteDto,
 } from "../types.js";
+
+const stores = await getStores();
+const getMeta = async (key: string) => stores.meta.get(key);
+const setMeta = async (key: string, value: string) => stores.meta.set(key, value);
+const listExecucoesAll = async (planKey: string) => stores.azureSnapshot.listExecucoes(planKey);
+const listFalhasAll = async (planKey: string) => stores.azureSnapshot.listFalhas(planKey);
+const listPlanejamentoBase = async () => stores.legacyPlan.listBase();
 
 function suiteLabel(processo: string): string {
   const p = processo.trim();
@@ -37,7 +44,7 @@ function suiteLabel(processo: string): string {
   return `${p.slice(0, 33)}…`;
 }
 
-function buildReportSuites(linhas: ReturnType<typeof buildPlanejamento>): ReportSuiteRow[] {
+function buildReportSuites(linhas: Awaited<ReturnType<typeof buildPlanejamento>>): ReportSuiteRow[] {
   return linhas.map((row) => {
     const processo = row.processo ?? "";
     const ttlCts = Number(row.qtd_cts_plan) || 0;
@@ -67,12 +74,21 @@ function isLinhaTotais(row: { processo: string | null }): boolean {
   return /valores\s+totais/i.test(row.processo ?? "");
 }
 
-function periodoGeral() {
+async function periodoGeral() {
   return {
-    inicio: getMeta("data_inicio") ?? "",
-    fim: getMeta("data_fim") ?? "",
-    referencia: getMeta("data_fim_linha") ?? "",
+    inicio: (await getMeta("data_inicio")) ?? "",
+    fim: (await getMeta("data_fim")) ?? "",
+    referencia: (await getMeta("data_fim_linha")) ?? "",
   };
+}
+
+/**
+ * planejamento_linhas não tem plan_key. O Report só enriquece o plano dono
+ * gravado em planejamento_legado_plan_key. A leitura da tabela continua bruta.
+ */
+async function legacyBaseForReport(planKey: string): Promise<LegacyPlanRow[]> {
+  if (!isLegacyPlanOwner(planKey, await getMeta("planejamento_legado_plan_key"))) return [];
+  return (await listPlanejamentoBase()).filter((row) => !isLinhaTotais(row));
 }
 
 /**
@@ -81,13 +97,11 @@ function periodoGeral() {
  * QTD CTS PLAN = Test Points do grupo. Da aba Planejamento só entram dados que o Azure não tem
  * (QA, prioridade, datas, replanejamento, cancelados); quantidades legadas entram uma vez por processo.
  */
-function buildPlanejamento(_planKey: string, execRows: ExecucaoRow[], dimensoes: DetectedDimension[]) {
-  const periodo = periodoGeral();
+async function buildPlanejamento(planKey: string, execRows: ExecucaoRow[], dimensoes: DetectedDimension[]) {
+  const periodo = await periodoGeral();
   const key = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
   const planejamento = new Map(
-    listPlanejamentoBase()
-      .filter((row) => !isLinhaTotais(row))
-      .map((row) => [key(row.processo), row] as const),
+    (await legacyBaseForReport(planKey)).map((row) => [key(row.processo), row] as const),
   );
   const legacyQtyApplied = new Set<string>();
 
@@ -276,11 +290,13 @@ function bugsPorFrente(planKey: string, frente: string, falhas: FalhaRow[], falh
       fechamentoNotEmpty: true,
       idNotEmpty: true,
     }),
+    impactosDev: countFalhas(falhas, { ...base, responsavel: "Desenvolvimento Foursys" }),
+    impactosCliente: countFalhas(falhas, { ...base, responsavel: "Cliente CVP" }),
   };
 }
 
-function catalogoDimensoes(planKey: string, execRows: ExecucaoRow[]): DetectedDimension[] {
-  const raw = getMeta(`dimensoes_catalog:${planKey}`);
+async function catalogoDimensoes(planKey: string, execRows: ExecucaoRow[]): Promise<DetectedDimension[]> {
+  const raw = await getMeta(`dimensoes_catalog:${planKey}`);
   if (raw) {
     try {
       const parsed = JSON.parse(raw) as DetectedDimension[];
@@ -292,8 +308,8 @@ function catalogoDimensoes(planKey: string, execRows: ExecucaoRow[]): DetectedDi
   return inferDimensions(execRows);
 }
 
-function readStoredKpi(planKey: string): { foursys: number; cliente: number; reteste: number } | null {
-  const raw = getMeta(`kpi_impactos:${planKey}`);
+async function readStoredKpi(planKey: string): Promise<{ foursys: number; cliente: number; reteste: number } | null> {
+  const raw = await getMeta(`kpi_impactos:${planKey}`);
   if (!raw) return null;
   try {
     const k = JSON.parse(raw) as Record<string, unknown>;
@@ -305,40 +321,40 @@ function readStoredKpi(planKey: string): { foursys: number; cliente: number; ret
   }
 }
 
-export function getCabecalho(): { title: string; subtitle: string } {
+export async function getCabecalho(): Promise<{ title: string; subtitle: string }> {
   return {
-    title: (getMeta("cabecalho_titulo") ?? getMeta("title") ?? "STATUS REPORT QA").trim(),
+    title: ((await getMeta("cabecalho_titulo")) ?? (await getMeta("title")) ?? "STATUS REPORT QA").trim(),
     subtitle: (
-      getMeta("cabecalho_subtitulo") ??
+      (await getMeta("cabecalho_subtitulo")) ??
       "FASE - Execução QA - Testes EndToEnd - Validacão da V1 para V3"
     ).trim(),
   };
 }
 
-export function setCabecalho(title: string, subtitle: string): { title: string; subtitle: string } {
-  setMeta("cabecalho_titulo", title.trim());
-  setMeta("cabecalho_subtitulo", subtitle.trim());
+export async function setCabecalho(title: string, subtitle: string): Promise<{ title: string; subtitle: string }> {
+  await setMeta("cabecalho_titulo", title.trim());
+  await setMeta("cabecalho_subtitulo", subtitle.trim());
   return getCabecalho();
 }
 
-export function setPeriodoPlano(inicio: string, fim: string): HomeDto["periodo"] {
+export async function setPeriodoPlano(inicio: string, fim: string): Promise<HomeDto["periodo"]> {
   const { inicio: start, fim: end } = assertPlanningPeriod(inicio, fim);
-  setMeta("data_inicio", start);
-  setMeta("data_fim", end);
+  await setMeta("data_inicio", start);
+  await setMeta("data_fim", end);
   return periodoGeral();
 }
 
-export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
-  const periodo = periodoGeral();
+export async function getHome(planKey = DEFAULT_PLAN_KEY): Promise<HomeDto> {
+  const periodo = await periodoGeral();
   assertStoredPlanningPeriod(periodo.inicio, periodo.fim);
 
-  const execRows = listExecucoesAll(planKey);
-  const falhas = listFalhasAll(planKey);
-  const dimensoes = catalogoDimensoes(planKey, execRows);
-  const linhas = buildPlanejamento(planKey, execRows, dimensoes);
+  const execRows = await listExecucoesAll(planKey);
+  const falhas = await listFalhasAll(planKey);
+  const dimensoes = await catalogoDimensoes(planKey, execRows);
+  const linhas = await buildPlanejamento(planKey, execRows, dimensoes);
   const totais = sumTotals(linhas);
   // Prefere o KPI exato calculado na última sincronização com o Azure; senão, aproxima pelos dados locais.
-  const kpi = readStoredKpi(planKey) ?? classificarImpactosKpi(execRows, falhas, planKey);
+  const kpi = (await readStoredKpi(planKey)) ?? classificarImpactosKpi(execRows, falhas, planKey);
   const bugs = bugsPainel(planKey, falhas);
 
   // Home H6 = I44/H44 e I6 = J44/H44: planejado até hoje e finalizados sobre a QTD CTS PLAN total.
@@ -355,11 +371,11 @@ export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
   const gapTotal = suites.reduce((a, s) => a + s.gap, 0);
 
   return {
-    ...getCabecalho(),
+    ...(await getCabecalho()),
     planKey,
     periodo,
     atualizadoEm: new Date().toISOString(),
-    ultimaImportacao: getMeta("ultima_sincronizacao_azure") ?? getMeta("imported_at"),
+    ultimaImportacao: (await getMeta("ultima_sincronizacao_azure")) ?? (await getMeta("imported_at")),
     replanejamentoTotal: linhas.reduce((a, r) => a + r.replanejamento, 0),
     ttlCts,
     // Home J6 = Planejamento T32 (Σ BACKLOG)
@@ -392,86 +408,100 @@ export function getHome(planKey = DEFAULT_PLAN_KEY): HomeDto {
   };
 }
 
-export function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): {
-  planKey: string;
-  blocos: StatusFrenteBloco[];
-  total: StatusFrenteBloco["cenarios"] & { bugs: StatusFrenteBloco["bugs"] };
-} {
-  assertStoredPlanningPeriod(periodoGeral().inicio, periodoGeral().fim);
-  const execRows = listExecucoesAll(planKey);
-  const dimensoes = catalogoDimensoes(planKey, execRows);
-  const linhas = buildPlanejamento(planKey, execRows, dimensoes);
+const CENARIOS_ZERO: StatusFrenteCenarios = {
+  ttl: 0,
+  plan: 0,
+  planAteHoje: 0,
+  na: 0,
+  passeds: 0,
+  finalizado: 0,
+  falha: 0,
+  bloqueado: 0,
+  liberado: 0,
+  design: 0,
+  naoLib: 0,
+};
+
+const BUGS_ZERO: StatusFrenteBugs = {
+  total: 0,
+  fechados: 0,
+  abertosDev: 0,
+  fechadosDev: 0,
+  abertosCliente: 0,
+  fechadosCliente: 0,
+  reteste: 0,
+  outrosUat: 0,
+  impactosDev: 0,
+  impactosCliente: 0,
+};
+
+function indicadoresDoBloco(cenarios: StatusFrenteCenarios, bugs: StatusFrenteBugs) {
+  return indicadoresFrente({
+    ttl: cenarios.ttl,
+    planAteHoje: cenarios.planAteHoje,
+    finalizado: cenarios.finalizado,
+    na: cenarios.na,
+    passeds: cenarios.passeds,
+    falha: cenarios.falha,
+    bloqueado: cenarios.bloqueado,
+    impactosDev: bugs.impactosDev,
+    impactosCliente: bugs.impactosCliente,
+    bugsTotal: bugs.total,
+    bugsFechados: bugs.fechados,
+  });
+}
+
+function somarBlocos(blocos: StatusFrenteBloco[]): Omit<StatusFrenteBloco, "frente"> {
+  const cenarios = { ...CENARIOS_ZERO };
+  const bugs = { ...BUGS_ZERO };
+  for (const bloco of blocos) {
+    (Object.keys(cenarios) as (keyof StatusFrenteCenarios)[]).forEach((key) => {
+      cenarios[key] += bloco.cenarios[key];
+    });
+    (Object.keys(bugs) as (keyof StatusFrenteBugs)[]).forEach((key) => {
+      bugs[key] += bloco.bugs[key];
+    });
+  }
+  const indicadores = indicadoresDoBloco(cenarios, bugs);
+  // A face do conjunto é a maioria das frentes, como na Home. Os números continuam a soma.
+  if (blocos.length > 0) indicadores.status = statusGeralDe(blocos.map((bloco) => bloco.indicadores.status));
+  return { cenarios, bugs, indicadores };
+}
+
+export async function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): Promise<StatusFrenteDto> {
+  const periodo = await periodoGeral();
+  assertStoredPlanningPeriod(periodo.inicio, periodo.fim);
+  const execRows = await listExecucoesAll(planKey);
+  const dimensoes = await catalogoDimensoes(planKey, execRows);
+  const linhas = await buildPlanejamento(planKey, execRows, dimensoes);
   const frenteDim = dimensoes.find((d) => d.role === "front" && d.confidence >= 0.8);
   const frentes = frenteDim?.values ?? [];
-  const falhas = listFalhasAll(planKey);
-  const falhasUat = planKey.toLowerCase() === "uat" ? falhas : listFalhasAll("UAT");
+  const falhas = await listFalhasAll(planKey);
+  const falhasUat = planKey.toLowerCase() === "uat" ? falhas : await listFalhasAll("UAT");
 
-  const blocos: StatusFrenteBloco[] = frentes.map((frente) => ({
-    frente,
-    cenarios: {
-      ttl: sumifFrente(linhas, frente, "qtd_cts_plan"),
-      plan: sumifFrente(linhas, frente, "qtd_cts_plan"),
+  const blocos: StatusFrenteBloco[] = frentes.map((frente) => {
+    const ttl = sumifFrente(linhas, frente, "qtd_cts_plan");
+    const cenarios: StatusFrenteCenarios = {
+      ttl,
+      plan: ttl,
+      planAteHoje: sumifFrente(linhas, frente, "cts_plan_dia"),
+      na: sumifFrente(linhas, frente, "cts_na"),
+      passeds: sumifFrente(linhas, frente, "cts_passeds"),
       finalizado: sumifFrente(linhas, frente, "total_realizado"),
       falha: sumifFrente(linhas, frente, "cts_falhados"),
       bloqueado: sumifFrente(linhas, frente, "cts_bloqueados"),
       liberado: sumifFrente(linhas, frente, "cts_liberados"),
       design: sumifFrente(linhas, frente, "cts_design"),
       naoLib: sumifFrente(linhas, frente, "cts_nao_liberados"),
-    },
-    bugs: bugsPorFrente(planKey, frente, falhas, falhasUat),
-  }));
-
-  const totalCenarios = blocos.reduce(
-    (acc, b) => {
-      acc.ttl += b.cenarios.ttl;
-      acc.plan += b.cenarios.plan;
-      acc.finalizado += b.cenarios.finalizado;
-      acc.falha += b.cenarios.falha;
-      acc.bloqueado += b.cenarios.bloqueado;
-      acc.liberado += b.cenarios.liberado;
-      acc.design += b.cenarios.design;
-      acc.naoLib += b.cenarios.naoLib;
-      return acc;
-    },
-    {
-      ttl: 0,
-      plan: 0,
-      finalizado: 0,
-      falha: 0,
-      bloqueado: 0,
-      liberado: 0,
-      design: 0,
-      naoLib: 0,
-    },
-  );
-
-  const bugsTotal = blocos.reduce(
-    (acc, b) => {
-      acc.total += b.bugs.total;
-      acc.fechados += b.bugs.fechados;
-      acc.abertosDev += b.bugs.abertosDev;
-      acc.fechadosDev += b.bugs.fechadosDev;
-      acc.abertosCliente += b.bugs.abertosCliente;
-      acc.fechadosCliente += b.bugs.fechadosCliente;
-      acc.reteste += b.bugs.reteste;
-      acc.outrosUat += b.bugs.outrosUat;
-      return acc;
-    },
-    {
-      total: 0,
-      fechados: 0,
-      abertosDev: 0,
-      fechadosDev: 0,
-      abertosCliente: 0,
-      fechadosCliente: 0,
-      reteste: 0,
-      outrosUat: 0,
-    },
-  );
+    };
+    const bugs = bugsPorFrente(planKey, frente, falhas, falhasUat);
+    return { frente, cenarios, bugs, indicadores: indicadoresDoBloco(cenarios, bugs) };
+  });
 
   return {
     planKey,
     blocos,
-    total: { ...totalCenarios, bugs: bugsTotal },
+    total: somarBlocos(blocos),
+    sobreposicao: haSobreposicaoFrentes(frentes),
   };
 }

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { fmtDateTime } from "../../api";
 
 function toInputDate(value: string | undefined): string {
   if (!value) return "";
@@ -13,25 +12,19 @@ function toInputDate(value: string | undefined): string {
 export function PlanPeriodSyncMeta({
   periodoInicio,
   periodoFim,
-  ultimaAtualizacao,
   onSavePeriodo,
   onClearPeriodoError,
   periodoSaving,
   periodoError,
-  onAtualizar,
-  atualizando,
   onPeriodDirtyChange,
   periodLabel = "Período planejado",
 }: {
   periodoInicio: string;
   periodoFim: string;
-  ultimaAtualizacao: string | null;
   onSavePeriodo: (inicio: string, fim: string) => void | Promise<void>;
   onClearPeriodoError?: () => void;
   periodoSaving?: boolean;
   periodoError?: string | null;
-  onAtualizar: () => void;
-  atualizando: boolean;
   onPeriodDirtyChange?: (dirty: boolean) => void;
   periodLabel?: string;
 }) {
@@ -68,8 +61,7 @@ export function PlanPeriodSyncMeta({
 
   return (
     <div className="plan-module-meta">
-      <div className="plan-module-meta-stack">
-        <div className="plan-meta-card plan-meta-card--period">
+      <div className="plan-meta-card plan-meta-card--period">
           <span className="plan-meta-label">{periodLabel}</span>
           <div className="plan-meta-period">
             <input
@@ -103,15 +95,6 @@ export function PlanPeriodSyncMeta({
             />
           </div>
           {periodoError && <span className="plan-meta-period-error">{periodoError}</span>}
-        </div>
-        <div className="plan-meta-card plan-meta-card--sync">
-          <button type="button" className="plan-meta-sync-btn" onClick={onAtualizar} disabled={atualizando}>
-            {atualizando ? "Atualizando…" : "Atualizar"}
-          </button>
-          <span className="plan-meta-sync-time">
-            Última Atualização: {ultimaAtualizacao ? fmtDateTime(ultimaAtualizacao) : "—"}
-          </span>
-        </div>
       </div>
     </div>
   );

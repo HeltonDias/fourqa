@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { envValue } from "../azure/config.js";
-import { dbReady, getMeta, parsePageQuery, queryExecucoes, queryFalhas } from "../db.js";
+import { parsePageQuery } from "../http/pageQuery.js";
+import { getStores, persistenceReady } from "../persistence/provider.js";
 import { DEFAULT_PLAN_KEY } from "../domain/formulas.js";
 import { PlanningPeriodError } from "../domain/planPeriod.js";
 import { confirmOrRevise, getPlanningView, savePlanningCell } from "../services/planningService.js";
@@ -14,6 +15,15 @@ import { getSyncState, startSync, SyncConfigError } from "../services/syncServic
 
 export const apiRouter = Router();
 
+const stores = await getStores();
+const getMeta = async (key: string) => stores.meta.get(key);
+
+async function ready(res: { status(code: number): { json(body: unknown): void } }): Promise<boolean> {
+  if (await persistenceReady()) return true;
+  res.status(503).json({ error: "Banco indisponível." });
+  return false;
+}
+
 function respondPlanningPeriodError(
   res: { status(code: number): { json(body: unknown): void } },
   err: unknown,
@@ -25,10 +35,10 @@ function respondPlanningPeriodError(
   return false;
 }
 
-function planKeyFromQuery(q: unknown): string {
+async function planKeyFromQuery(q: unknown): Promise<string> {
   if (typeof q === "string" && q.trim()) return q.trim();
   try {
-    return getMeta("kpi_plan_key") || DEFAULT_PLAN_KEY;
+    return (await getMeta("kpi_plan_key")) || DEFAULT_PLAN_KEY;
   } catch {
     return DEFAULT_PLAN_KEY;
   }
@@ -48,44 +58,33 @@ function requireWriteAuth(req: { header(name: string): string | undefined }, res
   res.status(401).json({ error: "Não autorizado." });
 }
 
-apiRouter.get("/health", (_req, res) => {
-  const ready = dbReady();
-  res.json({ ok: ready, database: ready ? "ready" : "unavailable" });
+apiRouter.get("/health", async (_req, res) => {
+  const ok = await persistenceReady();
+  res.json({ ok, database: ok ? "ready" : "unavailable" });
 });
 
-apiRouter.get("/meta", (_req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({
-      error: "Banco não inicializado. Execute: npm run import:planilha",
-    });
-    return;
-  }
+apiRouter.get("/meta", async (_req, res) => {
+  if (!(await ready(res))) return;
   try {
-    res.json(getHome().periodo);
+    res.json((await getHome()).periodo);
   } catch (err) {
     if (respondPlanningPeriodError(res, err)) return;
     throw err;
   }
 });
 
-apiRouter.get("/home", (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.get("/home", async (req, res) => {
+  if (!(await ready(res))) return;
   try {
-    res.json(getHome(planKeyFromQuery(req.query.planKey)));
+    res.json(await getHome(await planKeyFromQuery(req.query.planKey)));
   } catch (err) {
     if (respondPlanningPeriodError(res, err)) return;
     throw err;
   }
 });
 
-apiRouter.put("/cabecalho", requireWriteAuth, (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.put("/cabecalho", requireWriteAuth, async (req, res) => {
+  if (!(await ready(res))) return;
   const { title, subtitle } = (req.body ?? {}) as { title?: unknown; subtitle?: unknown };
   if (typeof title !== "string" || !title.trim() || typeof subtitle !== "string") {
     res.status(400).json({ error: "Informe o título (obrigatório) e o subtítulo." });
@@ -95,36 +94,30 @@ apiRouter.put("/cabecalho", requireWriteAuth, (req, res) => {
     res.status(400).json({ error: "Título até 200 e subtítulo até 300 caracteres." });
     return;
   }
-  res.json(setCabecalho(title, subtitle));
+  res.json(await setCabecalho(title, subtitle));
 });
 
-apiRouter.put("/periodo", requireWriteAuth, (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.put("/periodo", requireWriteAuth, async (req, res) => {
+  if (!(await ready(res))) return;
   const { inicio, fim } = (req.body ?? {}) as { inicio?: unknown; fim?: unknown };
   if (typeof inicio !== "string" || typeof fim !== "string") {
     res.status(400).json({ error: "Informe início e fim." });
     return;
   }
   try {
-    res.json(setPeriodoPlano(inicio, fim));
+    res.json(await setPeriodoPlano(inicio, fim));
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : "Não foi possível gravar o período." });
   }
 });
 
-apiRouter.get("/planejamento", (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.get("/planejamento", async (req, res) => {
+  if (!(await ready(res))) return;
   const version = Number(req.query.version);
   try {
     res.json(
-      getPlanningView(
-        planKeyFromQuery(req.query.planKey),
+      await getPlanningView(
+        await planKeyFromQuery(req.query.planKey),
         Number.isFinite(version) && version > 0 ? version : undefined,
       ),
     );
@@ -134,15 +127,12 @@ apiRouter.get("/planejamento", (req, res) => {
   }
 });
 
-apiRouter.post("/planejamento/revisao", requireWriteAuth, (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.post("/planejamento/revisao", requireWriteAuth, async (req, res) => {
+  if (!(await ready(res))) return;
   const body = (req.body ?? {}) as { reason?: unknown; adoptSource?: unknown };
   try {
     res.json(
-      confirmOrRevise(planKeyFromQuery(req.query.planKey), {
+      await confirmOrRevise(await planKeyFromQuery(req.query.planKey), {
         reason: typeof body.reason === "string" ? body.reason : "",
         adoptSource: body.adoptSource !== false,
       }),
@@ -152,11 +142,8 @@ apiRouter.post("/planejamento/revisao", requireWriteAuth, (req, res) => {
   }
 });
 
-apiRouter.put("/planejamento/celula", requireWriteAuth, (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.put("/planejamento/celula", requireWriteAuth, async (req, res) => {
+  if (!(await ready(res))) return;
   const body = (req.body ?? {}) as {
     suiteId?: unknown;
     field?: unknown;
@@ -170,7 +157,7 @@ apiRouter.put("/planejamento/celula", requireWriteAuth, (req, res) => {
   }
   try {
     res.json(
-      savePlanningCell(planKeyFromQuery(req.query.planKey), {
+      await savePlanningCell(await planKeyFromQuery(req.query.planKey), {
         suiteId: typeof body.suiteId === "number" ? body.suiteId : null,
         field,
         date: typeof body.date === "string" ? body.date : undefined,
@@ -182,19 +169,13 @@ apiRouter.put("/planejamento/celula", requireWriteAuth, (req, res) => {
   }
 });
 
-apiRouter.get("/status-frente", (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
-  res.json(getStatusPorFrente(planKeyFromQuery(req.query.planKey)));
+apiRouter.get("/status-frente", async (req, res) => {
+  if (!(await ready(res))) return;
+  res.json(await getStatusPorFrente(await planKeyFromQuery(req.query.planKey)));
 });
 
-apiRouter.post("/sync", requireWriteAuth, (_req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.post("/sync", requireWriteAuth, async (_req, res) => {
+  if (!(await ready(res))) return;
   try {
     const { started, state } = startSync();
     res.status(started ? 202 : 200).json({ started, state });
@@ -212,22 +193,16 @@ apiRouter.get("/sync/status", (_req, res) => {
   res.json(getSyncState());
 });
 
-apiRouter.get("/execucoes", (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.get("/execucoes", async (req, res) => {
+  if (!(await ready(res))) return;
   const page = parsePageQuery(req.query);
-  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : planKeyFromQuery(undefined);
-  res.json(queryExecucoes({ ...page, planKey }));
+  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : await planKeyFromQuery(undefined);
+  res.json(await stores.azureSnapshot.queryExecucoes({ ...page, planKey }));
 });
 
-apiRouter.get("/falhas", (req, res) => {
-  if (!dbReady()) {
-    res.status(503).json({ error: "Execute npm run import:planilha" });
-    return;
-  }
+apiRouter.get("/falhas", async (req, res) => {
+  if (!(await ready(res))) return;
   const page = parsePageQuery(req.query);
-  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : planKeyFromQuery(undefined);
-  res.json(queryFalhas({ ...page, planKey }));
+  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : await planKeyFromQuery(undefined);
+  res.json(await stores.azureSnapshot.queryFalhas({ ...page, planKey }));
 });

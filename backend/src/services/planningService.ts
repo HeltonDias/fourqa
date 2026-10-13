@@ -1,4 +1,6 @@
-import { getDb, getMeta, listExecucoesAll, listPlanejamentoBase } from "../db.js";
+import { getStores } from "../persistence/provider.js";
+import type { LegacyPlanRow, PlanningItemWrite } from "../persistence/contracts.js";
+import { isLegacyPlanOwner } from "../domain/legacyPlanOwner.js";
 import { assertStoredPlanningPeriod } from "../domain/planPeriod.js";
 import { inferDimensions, type DetectedDimension } from "../domain/dimensions.js";
 import { metricasDosPontos } from "../domain/formulas.js";
@@ -14,6 +16,20 @@ import {
   type ScopeRef,
 } from "../domain/planning.js";
 import type { ExecucaoRow } from "../types.js";
+
+const stores = await getStores();
+const getMeta = async (key: string) => stores.meta.get(key);
+const listExecucoesAll = async (planKey: string) => stores.azureSnapshot.listExecucoes(planKey);
+const listPlanejamentoBase = async () => stores.legacyPlan.listBase();
+const {
+  latestRevision,
+  revisionByVersion,
+  listRevisions,
+  loadScope,
+  loadSchedule,
+  commitRevision,
+  saveCell,
+} = stores.planning;
 
 export type PlanningItemView = {
   suiteId: number | null;
@@ -100,10 +116,6 @@ function dimsOf(row: ExecucaoRow): Record<string, string> {
   }
 }
 
-function samePlan(a: string, b: string): boolean {
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
-}
-
 function isLegacyTotalsRow(processo: string | null): boolean {
   return /valores\s+totais/i.test(processo ?? "");
 }
@@ -112,14 +124,13 @@ function isLegacyTotalsRow(processo: string | null): boolean {
  * planejamento_linhas não tem plan_key. Só entra no plano cujo dono está em
  * workbook_meta.planejamento_legado_plan_key. Sem essa meta, o legado não tem proprietário.
  */
-function legacyBaseForPlan(planKey: string): ReturnType<typeof listPlanejamentoBase> {
-  const owner = getMeta("planejamento_legado_plan_key")?.trim() ?? "";
-  if (!owner || !samePlan(planKey, owner)) return [];
-  return listPlanejamentoBase().filter((row) => !isLegacyTotalsRow(row.processo));
+async function legacyBaseForPlan(planKey: string): Promise<LegacyPlanRow[]> {
+  if (!isLegacyPlanOwner(planKey, await getMeta("planejamento_legado_plan_key"))) return [];
+  return (await listPlanejamentoBase()).filter((row) => !isLegacyTotalsRow(row.processo));
 }
 
-function catalog(planKey: string, rows: ExecucaoRow[]): DetectedDimension[] {
-  const raw = getMeta(`dimensoes_catalog:${planKey}`);
+async function catalog(planKey: string, rows: ExecucaoRow[]): Promise<DetectedDimension[]> {
+  const raw = await getMeta(`dimensoes_catalog:${planKey}`);
   if (raw) {
     try {
       const parsed = JSON.parse(raw) as DetectedDimension[];
@@ -131,73 +142,15 @@ function catalog(planKey: string, rows: ExecucaoRow[]): DetectedDimension[] {
   return inferDimensions(rows);
 }
 
-type RevisionRow = {
-  id: number;
-  version: number;
-  created_at: string;
-  reason: string;
-  baseline_origin: string;
-  scope_snapshot: number;
-};
-
-const REVISION_SQL = `SELECT r.id, r.version, r.created_at, r.reason, r.baseline_origin, r.scope_snapshot
-         FROM planning_revision r
-         JOIN planning p ON p.id = r.planning_id
-         WHERE p.plan_key = ?`;
-
-function latestRevision(planKey: string): RevisionRow | null {
-  return (getDb().prepare(`${REVISION_SQL} ORDER BY r.version DESC LIMIT 1`).get(planKey) as RevisionRow | undefined) ?? null;
-}
-
-function revisionByVersion(planKey: string, version: number): RevisionRow | null {
-  return (getDb().prepare(`${REVISION_SQL} AND r.version = ?`).get(planKey, version) as RevisionRow | undefined) ?? null;
-}
-
-function listRevisions(planKey: string): { version: number; createdAt: string; reason: string }[] {
-  return (
-    getDb()
-      .prepare(
-        `SELECT r.version, r.created_at, r.reason
-         FROM planning_revision r
-         JOIN planning p ON p.id = r.planning_id
-         WHERE p.plan_key = ?
-         ORDER BY r.version`,
-      )
-      .all(planKey) as { version: number; created_at: string; reason: string }[]
-  ).map((row) => ({ version: row.version, createdAt: row.created_at, reason: row.reason }));
-}
-
-function loadScope(revisionId: number): ScopeRef[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT plan_id, suite_id, test_point_id, test_case_id, label
-       FROM planning_scope_item WHERE revision_id = ?`,
-    )
-    .all(revisionId) as {
-    plan_id: number | null;
-    suite_id: number | null;
-    test_point_id: number | null;
-    test_case_id: number | null;
-    label: string | null;
-  }[];
-  return rows.map((row) => ({
-    planId: row.plan_id,
-    suiteId: row.suite_id,
-    testPointId: row.test_point_id,
-    testCaseId: row.test_case_id,
-    label: row.label,
-  }));
-}
-
-export function getPlanningView(planKey: string, version?: number): PlanningView {
-  assertStoredPlanningPeriod(getMeta("data_inicio"), getMeta("data_fim"));
-  const execRows = listExecucoesAll(planKey);
+export async function getPlanningView(planKey: string, version?: number): Promise<PlanningView> {
+  assertStoredPlanningPeriod(await getMeta("data_inicio"), await getMeta("data_fim"));
+  const execRows = await listExecucoesAll(planKey);
   const asOf = hojeLocal();
-  const revision = version != null ? revisionByVersion(planKey, version) : latestRevision(planKey);
-  const latest = latestRevision(planKey);
+  const revision = version != null ? await revisionByVersion(planKey, version) : await latestRevision(planKey);
+  const latest = await latestRevision(planKey);
   const editable = Boolean(revision && latest && revision.id === latest.id && revision.scope_snapshot === 1);
   const snapshot = Boolean(revision && revision.scope_snapshot === 1);
-  const baselineScope = revision && snapshot ? loadScope(revision.id) : [];
+  const baselineScope = revision && snapshot ? await loadScope(revision.id) : [];
   const sourceScope: ScopeRef[] = execRows
     .filter((row) => row.test_point_id != null)
     .map((row) => ({
@@ -221,7 +174,7 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
         removedSuites: 0,
       };
 
-  const legacyRows = legacyBaseForPlan(planKey);
+  const legacyRows = await legacyBaseForPlan(planKey);
   const legacy = new Map(legacyRows.map((row) => [(row.processo ?? "").trim().toLowerCase(), row]));
 
   const groups = new Map<string, ExecucaoRow[]>();
@@ -235,42 +188,17 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
   const allocBySuite = new Map<string, Record<string, number>>();
   const periodBySuite = new Map<string, { start: string | null; end: string | null; qty: number | null; name: string | null }>();
   if (revision) {
-    const items = getDb()
-      .prepare(
-        `SELECT id, suite_id, suite_name, planned_start, planned_end, baseline_quantity
-         FROM planning_item WHERE revision_id = ?`,
-      )
-      .all(revision.id) as {
-      id: number;
-      suite_id: number | null;
-      suite_name: string | null;
-      planned_start: string | null;
-      planned_end: string | null;
-      baseline_quantity: number | null;
-    }[];
-    const allocs = getDb()
-      .prepare(
-        `SELECT a.item_id, a.alloc_date, a.planned_quantity
-         FROM planning_allocation a
-         JOIN planning_item i ON i.id = a.item_id
-         WHERE i.revision_id = ?`,
-      )
-      .all(revision.id) as { item_id: number; alloc_date: string; planned_quantity: number }[];
-    const byItem = new Map<number, Record<string, number>>();
-    for (const alloc of allocs) {
-      const map = byItem.get(alloc.item_id) ?? {};
-      map[alloc.alloc_date] = alloc.planned_quantity;
-      byItem.set(alloc.item_id, map);
-    }
-    for (const item of items) {
-      const key = item.suite_id != null ? `id:${item.suite_id}` : `name:${(item.suite_name ?? "").trim().toLowerCase()}`;
+    for (const item of await loadSchedule(revision.id)) {
+      const key = item.suiteId != null ? `id:${item.suiteId}` : `name:${(item.suiteName ?? "").trim().toLowerCase()}`;
       periodBySuite.set(key, {
-        start: item.planned_start,
-        end: item.planned_end,
-        qty: item.baseline_quantity,
-        name: item.suite_name,
+        start: item.plannedStart,
+        end: item.plannedEnd,
+        qty: item.baselineQuantity,
+        name: item.suiteName,
       });
-      allocBySuite.set(key, byItem.get(item.id) ?? {});
+      const allocations: Record<string, number> = {};
+      for (const alloc of item.allocations) allocations[alloc.date] = alloc.quantity;
+      allocBySuite.set(key, allocations);
     }
   }
 
@@ -463,7 +391,7 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
       inconsistentCount: inconsistent,
       scopeCheck: scopeNote(origin.baselineOrigin, snapshot, snapshot ? diff.addedCount : 0, snapshot ? diff.removedCount : 0),
     },
-    dimensions: catalog(planKey, execRows),
+    dimensions: await catalog(planKey, execRows),
     dates,
     items,
     integrity: {
@@ -475,7 +403,7 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
       reconstructed: false,
       note: "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas.",
     },
-    revisions: listRevisions(planKey),
+    revisions: await listRevisions(planKey),
     editable,
   };
 }
@@ -483,7 +411,7 @@ export function getPlanningView(planKey: string, version?: number): PlanningView
 function legacyPlanningView(input: {
   planKey: string;
   asOf: string;
-  legacyRows: ReturnType<typeof listPlanejamentoBase>;
+  legacyRows: LegacyPlanRow[];
   execRows: ExecucaoRow[];
   sourceCount: number;
 }): PlanningView {
@@ -607,8 +535,8 @@ function scopeNote(
   return scopeIntegrityMessage({ scopeSnapshotAvailable: snapshot, addedCount, removedCount });
 }
 
-function sourceScopeOf(planKey: string): ScopeRef[] {
-  return listExecucoesAll(planKey)
+async function sourceScopeOf(planKey: string): Promise<ScopeRef[]> {
+  return (await listExecucoesAll(planKey))
     .filter((row) => row.test_point_id != null)
     .map((row) => ({
       planId: row.plan_id,
@@ -619,98 +547,24 @@ function sourceScopeOf(planKey: string): ScopeRef[] {
     }));
 }
 
-export function confirmOrRevise(planKey: string, input: { reason: string; adoptSource: boolean }): PlanningView {
-  const db = getDb();
-  const current = latestRevision(planKey);
-  if (!input.adoptSource && (!current || current.scope_snapshot !== 1)) {
-    throw new Error("Confirme um baseline com snapshot antes de replanejar.");
-  }
-  const scope = input.adoptSource || !current ? sourceScopeOf(planKey) : loadScope(current.id);
-  const now = new Date().toISOString();
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const existing = db.prepare("SELECT id FROM planning WHERE plan_key = ?").get(planKey) as { id: number } | undefined;
-    const planningId =
-      existing?.id ?? Number(db.prepare("INSERT INTO planning (plan_key, created_at) VALUES (?, ?)").run(planKey, now).lastInsertRowid);
-    const version = (current?.version ?? 0) + 1;
-    const revisionId = Number(
-      db.prepare(
-        `INSERT INTO planning_revision (planning_id, version, created_at, reason, baseline_origin, scope_snapshot)
-         VALUES (?, ?, ?, ?, 'motor', 1)`,
-      ).run(planningId, version, now, input.reason.trim() || "Confirmação do baseline").lastInsertRowid,
-    );
-    const insertScope = db.prepare(
-      `INSERT INTO planning_scope_item (revision_id, plan_id, suite_id, test_point_id, test_case_id, label)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    );
-    for (const item of scope) {
-      insertScope.run(revisionId, item.planId, item.suiteId, item.testPointId, item.testCaseId, item.label ?? null);
-    }
-    if (!input.adoptSource && current) {
-      copySchedule(db, current.id, revisionId);
-    } else {
-      insertItemsFromScope(db, planKey, revisionId, scope, current?.id ?? null);
-    }
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
-  return getPlanningView(planKey);
+async function copiedSchedule(revisionId: number): Promise<PlanningItemWrite[]> {
+  return (await loadSchedule(revisionId)).map((row) => ({
+    suiteId: row.suiteId,
+    suiteName: row.suiteName,
+    plannedStart: row.plannedStart,
+    plannedEnd: row.plannedEnd,
+    baselineQuantity: row.baselineQuantity,
+    allocations: row.allocations.map((alloc) => ({ date: alloc.date, quantity: alloc.quantity })),
+  }));
 }
 
-function copySchedule(db: ReturnType<typeof getDb>, fromRevision: number, toRevision: number): void {
-  const items = db
-    .prepare(
-      `SELECT id, suite_id, suite_name, planned_start, planned_end, baseline_quantity
-       FROM planning_item WHERE revision_id = ?`,
-    )
-    .all(fromRevision) as {
-    id: number;
-    suite_id: number | null;
-    suite_name: string | null;
-    planned_start: string | null;
-    planned_end: string | null;
-    baseline_quantity: number | null;
-  }[];
-  const allocs = db
-    .prepare(
-      `SELECT a.item_id, a.alloc_date, a.planned_quantity
-       FROM planning_allocation a
-       JOIN planning_item i ON i.id = a.item_id
-       WHERE i.revision_id = ?`,
-    )
-    .all(fromRevision) as { item_id: number; alloc_date: string; planned_quantity: number }[];
-  const insertItem = db.prepare(
-    `INSERT INTO planning_item (revision_id, suite_id, suite_name, planned_start, planned_end, baseline_quantity)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
-  const insertAlloc = db.prepare(
-    `INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)`,
-  );
-  for (const item of items) {
-    const newId = Number(
-      insertItem.run(toRevision, item.suite_id, item.suite_name, item.planned_start, item.planned_end, item.baseline_quantity).lastInsertRowid,
-    );
-    for (const alloc of allocs.filter((row) => row.item_id === item.id)) {
-      insertAlloc.run(newId, alloc.alloc_date, alloc.planned_quantity);
-    }
-  }
-}
-
-function insertItemsFromScope(
-  db: ReturnType<typeof getDb>,
-  planKey: string,
-  revisionId: number,
-  scope: ScopeRef[],
-  previousRevisionId: number | null,
-): void {
+async function itemsForNewRevision(planKey: string, scope: ScopeRef[], previousRevisionId: number | null): Promise<PlanningItemWrite[]> {
   const names = new Map<number, string>();
-  for (const row of listExecucoesAll(planKey)) {
+  for (const row of await listExecucoesAll(planKey)) {
     if (row.suite_id != null && row.suite_name) names.set(row.suite_id, row.suite_name);
   }
   const legacy = new Map(
-    legacyBaseForPlan(planKey).map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
+    (await legacyBaseForPlan(planKey)).map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
   );
   const bySuite = new Map<string, { suiteId: number | null; count: number }>();
   for (const item of scope) {
@@ -721,82 +575,74 @@ function insertItemsFromScope(
   }
   const previous = new Map<string, { start: string | null; end: string | null; allocs: { date: string; quantity: number }[] }>();
   if (previousRevisionId != null) {
-    const prevItems = db
-      .prepare(`SELECT id, suite_id, planned_start, planned_end FROM planning_item WHERE revision_id = ?`)
-      .all(previousRevisionId) as { id: number; suite_id: number | null; planned_start: string | null; planned_end: string | null }[];
-    const prevAllocs = db
-      .prepare(
-        `SELECT a.item_id, a.alloc_date, a.planned_quantity
-         FROM planning_allocation a
-         JOIN planning_item i ON i.id = a.item_id
-         WHERE i.revision_id = ?`,
-      )
-      .all(previousRevisionId) as { item_id: number; alloc_date: string; planned_quantity: number }[];
-    for (const item of prevItems) {
-      if (item.suite_id == null) continue;
-      previous.set(`id:${item.suite_id}`, {
-        start: item.planned_start,
-        end: item.planned_end,
-        allocs: prevAllocs
-          .filter((row) => row.item_id === item.id)
-          .map((row) => ({ date: row.alloc_date, quantity: row.planned_quantity })),
+    for (const item of await loadSchedule(previousRevisionId)) {
+      if (item.suiteId == null) continue;
+      previous.set(`id:${item.suiteId}`, {
+        start: item.plannedStart,
+        end: item.plannedEnd,
+        allocs: item.allocations.map((row) => ({ date: row.date, quantity: row.quantity })),
       });
     }
   }
-  const insertItem = db.prepare(
-    `INSERT INTO planning_item (revision_id, suite_id, suite_name, planned_start, planned_end, baseline_quantity)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
-  const insertAlloc = db.prepare(
-    `INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)`,
-  );
+  const writes: PlanningItemWrite[] = [];
   for (const group of bySuite.values()) {
     const name = group.suiteId != null ? (names.get(group.suiteId) ?? null) : null;
     const kept = group.suiteId != null ? previous.get(`id:${group.suiteId}`) : undefined;
     const inherited = name ? legacy.get(name.trim().toLowerCase()) : undefined;
-    const newId = Number(
-      insertItem.run(
-        revisionId,
-        group.suiteId,
-        name,
-        kept?.start ?? (inherited?.data_inicio ? calendarDate(inherited.data_inicio) : null),
-        kept?.end ?? (inherited?.data_fim ? calendarDate(inherited.data_fim) : null),
-        group.count,
-      ).lastInsertRowid,
-    );
-    for (const alloc of kept?.allocs ?? []) insertAlloc.run(newId, alloc.date, alloc.quantity);
+    writes.push({
+      suiteId: group.suiteId,
+      suiteName: name,
+      plannedStart: kept?.start ?? (inherited?.data_inicio ? calendarDate(inherited.data_inicio) : null),
+      plannedEnd: kept?.end ?? (inherited?.data_fim ? calendarDate(inherited.data_fim) : null),
+      baselineQuantity: group.count,
+      allocations: (kept?.allocs ?? []).map((alloc) => ({ date: alloc.date, quantity: alloc.quantity })),
+    });
   }
+  return writes;
 }
 
-export function savePlanningCell(
+export async function confirmOrRevise(planKey: string, input: { reason: string; adoptSource: boolean }): Promise<PlanningView> {
+  const current = await latestRevision(planKey);
+  if (!input.adoptSource && (!current || current.scope_snapshot !== 1)) {
+    throw new Error("Confirme um baseline com snapshot antes de replanejar.");
+  }
+  const scope = input.adoptSource || !current ? await sourceScopeOf(planKey) : await loadScope(current.id);
+  const now = new Date().toISOString();
+  const items = !input.adoptSource && current
+    ? await copiedSchedule(current.id)
+    : await itemsForNewRevision(planKey, scope, current?.id ?? null);
+  await commitRevision({
+    planKey,
+    createdAt: now,
+    version: (current?.version ?? 0) + 1,
+    reason: input.reason.trim() || "Confirmação do baseline",
+    baselineOrigin: "motor",
+    scopeSnapshot: 1,
+    scope,
+    items,
+  });
+  return getPlanningView(planKey);
+}
+
+export async function savePlanningCell(
   planKey: string,
   input: { suiteId: number | null; field: "start" | "end" | "day"; date?: string; quantity?: number },
-): PlanningView {
-  const revision = latestRevision(planKey);
+): Promise<PlanningView> {
+  const revision = await latestRevision(planKey);
   if (!revision || revision.scope_snapshot !== 1) {
     throw new Error("Período e distribuição só podem ser editados num baseline confirmado.");
   }
-  const db = getDb();
-  const item = db
-    .prepare(
-      `SELECT id FROM planning_item
-       WHERE revision_id = ? AND ((suite_id = ?) OR (suite_id IS NULL AND ? IS NULL))`,
-    )
-    .get(revision.id, input.suiteId, input.suiteId) as { id: number } | undefined;
+  const item = (await loadSchedule(revision.id)).find((row) => row.suiteId === input.suiteId);
   if (!item) throw new Error("Suíte fora do baseline confirmado.");
   if (input.field === "day") {
     const day = calendarDate(input.date);
     const quantity = input.quantity;
     if (!day || quantity == null || !Number.isFinite(quantity) || quantity < 0) throw new Error("Informe data e quantidade.");
-    db.prepare("DELETE FROM planning_allocation WHERE item_id = ? AND alloc_date = ?").run(item.id, day);
-    if (quantity > 0) {
-      db.prepare("INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)").run(item.id, day, quantity);
-    }
+    await saveCell({ itemId: item.id, field: "day", date: day, quantity });
   } else {
     const day = input.date ? calendarDate(input.date) : null;
     if (input.date && !day) throw new Error("Data inválida.");
-    const column = input.field === "start" ? "planned_start" : "planned_end";
-    db.prepare(`UPDATE planning_item SET ${column} = ? WHERE id = ?`).run(day, item.id);
+    await saveCell({ itemId: item.id, field: input.field, date: day });
   }
   return getPlanningView(planKey);
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, fmtDateTime } from "../api";
 import { LoadState } from "../components/LoadState";
+import { PageHeader } from "../components/PageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
 import type { ExecucaoRow } from "../types";
 
@@ -91,22 +92,24 @@ export function ExecucoesPage() {
     <LoadState loading={loading && !data} error={error}>
       {data && (
         <div className="exec-page">
-          <header className="exec-head">
-            <div>
-              <h1>Execuções</h1>
-              <p className="muted">
-                Test Points retornados pelo Azure DevOps na última atualização ·{" "}
-                <strong>{total}</strong> registros
-              </p>
-            </div>
-            <input
-              type="search"
-              className="exec-search"
-              placeholder="Filtrar no servidor…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-          </header>
+          <PageHeader
+            title="Execuções"
+            description={
+              <>
+                Test Points retornados pelo Azure DevOps na última atualização · <strong>{total}</strong> registros
+              </>
+            }
+            actions={
+              <input
+                type="search"
+                className="exec-search"
+                placeholder="Filtrar no servidor…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                aria-label="Filtrar execuções"
+              />
+            }
+          />
 
           <div className="card exec-table-wrap">
             <table className="exec-table">
