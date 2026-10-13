@@ -222,36 +222,60 @@ export type PlanningProgressSnapshot = {
   situacao: "adiantado" | "dentro" | "atrasado";
 };
 
+export type FrenteStatus = "done" | "ok" | "warn" | "risk" | "na";
+
+export type FrenteIndicadores = {
+  planAteHoje: number;
+  na: number;
+  passeds: number;
+  gap: number;
+  pctPlan: number;
+  pctReal: number;
+  pctBugsDev: number;
+  pctBugsCliente: number;
+  bugsAbertos: number;
+  status: FrenteStatus;
+};
+
+export type StatusFrenteCenarios = {
+  ttl: number;
+  plan: number;
+  planAteHoje: number;
+  na: number;
+  passeds: number;
+  finalizado: number;
+  falha: number;
+  bloqueado: number;
+  liberado: number;
+  design: number;
+  naoLib: number;
+};
+
+export type StatusFrenteBugs = {
+  total: number;
+  fechados: number;
+  abertosDev: number;
+  fechadosDev: number;
+  abertosCliente: number;
+  fechadosCliente: number;
+  reteste: number;
+  outrosUat: number;
+  impactosDev: number;
+  impactosCliente: number;
+};
+
 export type StatusFrenteBloco = {
   frente: string;
-  cenarios: {
-    ttl: number;
-    plan: number;
-    finalizado: number;
-    falha: number;
-    bloqueado: number;
-    liberado: number;
-    design: number;
-    naoLib: number;
-  };
-  bugs: {
-    total: number;
-    fechados: number;
-    abertosDev: number;
-    fechadosDev: number;
-    abertosCliente: number;
-    fechadosCliente: number;
-    reteste: number;
-    outrosUat: number;
-  };
+  cenarios: StatusFrenteCenarios;
+  bugs: StatusFrenteBugs;
+  indicadores: FrenteIndicadores;
 };
 
 export type StatusFrenteDto = {
   planKey: string;
   blocos: StatusFrenteBloco[];
-  total: StatusFrenteBloco["cenarios"] & {
-    bugs: StatusFrenteBloco["bugs"];
-  };
+  total: Omit<StatusFrenteBloco, "frente">;
+  sobreposicao: boolean;
 };
 
 export type ExecucaoRow = {
