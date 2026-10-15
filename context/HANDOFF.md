@@ -21,3 +21,5 @@ Atualizar só se a tarefa alterou arquitetura/contrato: data, caminhos modificad
 - TLS verifica o certificado. CA extra: `DATABASE_SSL_CA_FILE` (PEM em `certs/`, fora do Git). Caminho: `backend/src/db/postgres/pool.ts`.
 - Dados Azure operacionais ficam no cache em memória no desenvolvimento local. Na Vercel o snapshot vai para `execucoes`/`falhas`. Ver `docs/vercel.md`.
 - RLS do Supabase de desenvolvimento está ligado. `anon` e `authenticated` não leem as tabelas. A role do backend continua com acesso.
+- Preview protegido: `https://fourqa-km4ml23vn-heltonmarques-8008.vercel.app`. Projeto Vercel `fourqa`. Branch `feat/supabase-migration`. Ver `docs/vercel.md`.
+- Próximo objetivo: RETOMAR O DESENVOLVIMENTO FUNCIONAL DO FOURQA.
