@@ -164,4 +164,20 @@ describe("SqlitePlanningStore", { concurrency: 1 }, () => {
     assert.equal(updated?.plannedStart, "2026-11-01");
     assert.equal(updated?.plannedEnd, "2026-11-20");
   });
+
+  it("normaliza responsável e prioridade e não corta texto longo", () => {
+    const revision = sqlitePlanningStore.latestRevision("PlanoA");
+    const itemId = sqlitePlanningStore.loadSchedule(revision?.id ?? 0)[0]?.id ?? 0;
+    sqlitePlanningStore.saveCell({ itemId, field: "responsavel", value: "  Ana  " });
+    sqlitePlanningStore.saveCell({ itemId, field: "prioridade", value: "   " });
+    const saved = sqlitePlanningStore.loadSchedule(revision?.id ?? 0)[0];
+    assert.equal(saved?.responsavel, "Ana");
+    assert.equal(saved?.prioridade, null);
+    assert.throws(
+      () => sqlitePlanningStore.saveCell({ itemId, field: "prioridade", value: "x".repeat(81) }),
+      /80 caracteres/,
+    );
+    assert.equal(sqlitePlanningStore.loadSchedule(revision?.id ?? 0)[0]?.prioridade, null);
+    assert.equal(sqlitePlanningStore.loadSchedule(revision?.id ?? 0)[0]?.responsavel, "Ana");
+  });
 });

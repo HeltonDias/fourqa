@@ -4,7 +4,7 @@ Aplicação web que acompanha a execução de QA a partir do Azure DevOps. A pla
 
 ## Fontes de verdade
 
-- **Test points, bugs e árvore de suítes:** Azure DevOps, gravados no SQLite só depois de `validateSyncResult`.
+- **Test points, bugs e árvore de suítes:** Azure DevOps. Na API PostgreSQL o lote operacional fica no cache em memória; `AZURE_CACHE_READ=0` grava o snapshot legado em `execucoes` e `falhas`.
 - **Regras de status:** `classifyExecution` no backend. O frontend não reclassifica. Ver [docs/adr/002-status.md](docs/adr/002-status.md).
 - **Hierarquia:** detectada na árvore. Frente e Prioridade não têm nível fixo. Ver [docs/adr/001-hierarquia-dinamica.md](docs/adr/001-hierarquia-dinamica.md).
 - **Configuração do plano:** `.env` (`SYNC_TEST_PLANS`, `SYNC_KPI_PLAN_KEY`). O frontend não guarda PlanKey.
@@ -30,9 +30,15 @@ npm run dev
 - UI: http://localhost:5173
 - API: http://localhost:3001
 
-O backend cria o banco vazio em `data/fourqa.db` (migrations em `backend/src/db/migrate.ts`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha. O caminho pode ser alterado com `FOURQA_DB`.
+A API exige `DB_PROVIDER=postgres` e `DATABASE_URL`. O schema fica nas migrations `backend/src/db/postgres/migrations` e não é aplicado no boot. No Windows, a partir da raiz:
 
-`DB_PROVIDER` escolhe a persistência. Ausente ou `sqlite` usa o arquivo local. `postgres` usa `DATABASE_URL` e não abre o SQLite. A URL fica só no `.env`, que o Git ignora.
+```bash
+npm.cmd run db:postgres:preflight -w backend
+npm.cmd run db:postgres:migrate -w backend
+npm.cmd run db:postgres:verify -w backend
+```
+
+SQLite permanece para testes, backup e importação histórica (`data/fourqa.db`, alterável com `FOURQA_DB`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha. A URL fica só no `.env`, que o Git ignora.
 
 ## Testes e build
 

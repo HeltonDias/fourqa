@@ -31,6 +31,7 @@ function exec(partial: Partial<ExecucaoInsert> = {}): ExecucaoInsert {
     last_test_run_id: null,
     last_result_id: null,
     test_case_link: null,
+    case_priority: null,
     test_case_tags: null,
     ...partial,
   };

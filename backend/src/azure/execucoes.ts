@@ -18,6 +18,12 @@ import { emptyToNull, mapInBatches, normalize, type ProgressReporter } from "./u
 
 const SUITE_CONCURRENCY = 4;
 const POINTS_PAGE = 1000;
+/** Campo padrão de prioridade do item de trabalho. O domínio guarda só o valor. */
+export const CASE_PRIORITY_REFERENCE = "Microsoft.VSTS.Common.Priority";
+
+export function readCasePriority(point: TestPoint): string | null {
+  return emptyToNull(valueToText(workItemProperty(point, CASE_PRIORITY_REFERENCE)));
+}
 
 export type ExecucaoInsert = Omit<ExecucaoRow, "id">;
 
@@ -97,7 +103,7 @@ async function getTestPoints(client: AzureClient, planId: number, suiteId: numbe
   for (let skip = 0; ; skip += POINTS_PAGE) {
     const data = await client.get<AzureList<TestPoint>>(
       client.url(`/_apis/test/Plans/${planId}/Suites/${suiteId}/points`, {
-        witFields: "System.Title,System.State,System.Tags",
+        witFields: `System.Title,System.State,System.Tags,${CASE_PRIORITY_REFERENCE}`,
         includePointDetails: true,
         $skip: skip,
         $top: POINTS_PAGE,
@@ -151,6 +157,7 @@ function buildRecord(
     test_point_id: Number(point.id ?? 0) || null,
     test_case_id: testCaseId || null,
     test_case_title: emptyToNull(valueToText(workItemProperty(point, "System.Title") ?? point.testCase?.name ?? "")),
+    case_priority: readCasePriority(point),
     // Mantém vazio: Tags não definem responsabilidade (igual ao script).
     responsabilidade: null,
     test_case_state: emptyToNull(valueToText(workItemProperty(point, "System.State"))),

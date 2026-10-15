@@ -10,6 +10,120 @@ export type ScopeRef = {
   label?: string | null;
 };
 
+/** Suíte com id agrupa. Sem suíte, cada Test Point fica só. Sem os dois, a linha não se mistura com outra. */
+export function scopeGroupKey(item: ScopeRef, index: number): string {
+  if (item.suiteId != null) return `suite:${item.suiteId}`;
+  if (item.testPointId != null) return `point:${item.testPointId}`;
+  return `loose:${index}`;
+}
+
+/** Copia a agenda sem suíte só no par único. Vários itens não herdam uns dos outros. */
+export function loneLooseFill<T>(previous: T[], nextGroups: number): T | undefined {
+  return previous.length === 1 && nextGroups === 1 ? previous[0] : undefined;
+}
+
+/** Chave da agenda. Nome e posição não entram. Sem suíte e sem Test Point, não há chave. */
+export function previousFillKey(item: { suiteId: number | null; testPointId: number | null }): string | null {
+  if (item.suiteId != null) return `suite:${item.suiteId}`;
+  if (item.testPointId != null) return `point:${item.testPointId}`;
+  return null;
+}
+
+/** Limite da coluna de texto na aba de planejamento. Acima disso a gravação falha, sem cortar. */
+export const SUITE_FILL_MAX_LENGTH = 80;
+
+/** Vazio e espaço viram null. O texto permanece livre: não há catálogo fixo. */
+export function normalizeSuiteFill(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > SUITE_FILL_MAX_LENGTH) {
+    throw new Error("Responsável e prioridade aceitam no máximo 80 caracteres.");
+  }
+  return trimmed;
+}
+
+export type ScheduleDraft = {
+  suiteId: number | null;
+  testPointId: number | null;
+  testCaseId: number | null;
+  suiteName: string | null;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  responsavel: string | null;
+  prioridade: string | null;
+  baselineQuantity: number;
+  allocations: { date: string; quantity: number }[];
+};
+
+/**
+ * Uma linha por suíte. Sem suíte, uma linha por Test Point.
+ * O Test Case pode repetir. O preenchimento anterior volta pela mesma chave.
+ */
+export function scheduleItemsForScope(input: {
+  scope: ScopeRef[];
+  suiteNames: ReadonlyMap<number, string>;
+  previous: ScheduleDraft[];
+  inherited?: (suiteName: string) => { start: string | null; end: string | null } | undefined;
+}): ScheduleDraft[] {
+  const groups = new Map<string, { suiteId: number | null; testPointId: number | null; testCaseId: number | null; count: number }>();
+  for (const [index, item] of input.scope.entries()) {
+    const key = scopeGroupKey(item, index);
+    const found = groups.get(key);
+    if (found) {
+      found.count += 1;
+      continue;
+    }
+    const withSuite = item.suiteId != null;
+    groups.set(key, {
+      suiteId: item.suiteId,
+      testPointId: withSuite ? null : item.testPointId,
+      testCaseId: withSuite ? null : item.testCaseId,
+      count: 1,
+    });
+  }
+  const previous = new Map<string, ScheduleDraft>();
+  const loosePrevious: ScheduleDraft[] = [];
+  for (const item of input.previous) {
+    const key = previousFillKey(item);
+    if (key) previous.set(key, item);
+    else loosePrevious.push(item);
+  }
+  const looseGroups = [...groups.values()].filter((group) => previousFillKey(group) == null);
+  const loneLoose = loneLooseFill(loosePrevious, looseGroups.length);
+  return [...groups.values()].map((group) => {
+    const key = previousFillKey(group);
+    const kept = key ? previous.get(key) : loneLoose;
+    const suiteName = group.suiteId != null ? (input.suiteNames.get(group.suiteId) ?? null) : null;
+    const inherited = suiteName ? input.inherited?.(suiteName) : undefined;
+    return {
+      suiteId: group.suiteId,
+      testPointId: group.testPointId,
+      testCaseId: group.testCaseId,
+      suiteName,
+      plannedStart: kept?.plannedStart ?? inherited?.start ?? null,
+      plannedEnd: kept?.plannedEnd ?? inherited?.end ?? null,
+      responsavel: group.suiteId != null ? (kept?.responsavel ?? null) : null,
+      prioridade: group.suiteId != null ? (kept?.prioridade ?? null) : null,
+      baselineQuantity: group.count,
+      allocations: (kept?.allocations ?? []).map((alloc) => ({ date: alloc.date, quantity: alloc.quantity })),
+    };
+  });
+}
+
+/** Com suíte, casa a suíte. Sem suíte, casa o Test Point. Vários itens sem os dois não são editáveis. */
+export function matchScheduleItem<T extends { suiteId: number | null; testPointId: number | null }>(
+  items: T[],
+  input: { suiteId: number | null; testPointId?: number | null },
+): T | undefined {
+  if (input.suiteId != null) return items.find((row) => row.suiteId === input.suiteId);
+  if (input.testPointId != null) {
+    return items.find((row) => row.suiteId == null && row.testPointId === input.testPointId);
+  }
+  const loose = items.filter((row) => row.suiteId == null && row.testPointId == null);
+  return loose.length === 1 ? loose[0] : undefined;
+}
+
 export type PointIntegrity = "consistent" | "inconsistent" | "unmapped";
 
 export type PlanningRevision = {

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { HierCellText } from "../HierCellText";
 import type { PlanningItem } from "../../types";
 import {
@@ -25,6 +25,37 @@ function idText(item: PlanningItem, col: IdCol): string {
   return item.dimensions[col.dimKey ?? ""] || "—";
 }
 
+function SuiteText({
+  value,
+  editable,
+  label,
+  onCommit,
+}: {
+  value: string;
+  editable: boolean;
+  label: string;
+  onCommit: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+  if (!editable) return <span>{value || "—"}</span>;
+  return (
+    <input
+      className="plan-edit"
+      type="text"
+      maxLength={80}
+      aria-label={label}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (draft !== value) onCommit(draft);
+      }}
+    />
+  );
+}
+
 function metricCell(baseClass: string, col: MetricCol, item: PlanningItem, variant: "plan" | "exec") {
   const value = col.pick(item);
   const has = value != null && value > 0;
@@ -44,10 +75,14 @@ export function PlanningAcompanhamentoTable({
   idCols,
   pageRows,
   allRows,
+  canEdit,
+  onSave,
 }: {
   idCols: IdCol[];
   pageRows: PlanningItem[];
   allRows: PlanningItem[];
+  canEdit: boolean;
+  onSave: (item: PlanningItem, field: "responsavel", value: string) => void;
 }) {
   const stickyWidth = idCols.reduce((sum, col) => sum + col.width, 0);
   const periodStartLeft = stickyWidth;
@@ -81,6 +116,9 @@ export function PlanningAcompanhamentoTable({
               <span className="plan-g-pin plan-g-pin-sticky" style={{ left: planRem(periodStartLeft + 8) }}>Período</span>
             </th>
             <th className="plan-g-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} />
+            <th className="plan-g-plan" colSpan={2}>
+              <span className="plan-g-pin" style={{ left: planRem(stickyBlock + 8) }}>Suíte</span>
+            </th>
             <th className="plan-g-plan" colSpan={PLAN_TRACK_COLS.length}>
               <span className="plan-g-pin" style={{ left: planRem(stickyBlock + 8) }}>Planejamento</span>
             </th>
@@ -106,6 +144,8 @@ export function PlanningAcompanhamentoTable({
             <th className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} title="Data fim">
               Fim
             </th>
+            <th className="plan-c-plan plan-split" title="Responsável próprio da suíte">Responsável</th>
+            <th className="plan-c-plan" title="Prioridade própria da suíte, somente leitura nesta visão">Prioridade</th>
             {PLAN_TRACK_COLS.map((col, index) => (
               <th key={col.key} className={`plan-c-plan${index === 0 ? " plan-split" : ""}`} title={col.title}>
                 {col.label}
@@ -121,7 +161,7 @@ export function PlanningAcompanhamentoTable({
         </thead>
         <tbody>
           {pageRows.map((item) => {
-            const key = `${item.suiteId ?? "s"}-${item.suiteName}`;
+            const key = `${item.suiteId ?? "s"}-${item.testPointId ?? "p"}-${item.suiteName}`;
             return (
               <tr key={key}>
                 {idCols.map((col) => {
@@ -147,6 +187,19 @@ export function PlanningAcompanhamentoTable({
                 <td className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)}>
                   {item.plannedEnd ? diaCheio(item.plannedEnd) : "—"}
                 </td>
+                <td className="plan-c-plan plan-split">
+                  {item.suiteId == null ? (
+                    "—"
+                  ) : (
+                    <SuiteText
+                      value={item.responsavel ?? ""}
+                      editable={canEdit}
+                      label={`Responsável de ${item.suiteName}`}
+                      onCommit={(value) => onSave(item, "responsavel", value)}
+                    />
+                  )}
+                </td>
+                <td className="plan-c-plan">{item.suiteId == null ? "—" : item.prioridade || "—"}</td>
                 {PLAN_TRACK_COLS.map((col, index) =>
                   metricCell(`plan-c-plan${index === 0 ? " plan-split" : ""}`, col, item, "plan"),
                 )}
@@ -171,6 +224,8 @@ export function PlanningAcompanhamentoTable({
             ))}
             <td className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)} />
             <td className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} />
+            <td className="plan-c-plan plan-split" />
+            <td className="plan-c-plan" />
             {PLAN_TRACK_COLS.map((col, index) => (
               <td key={col.key} className={`plan-num plan-c-plan${index === 0 ? " plan-split" : ""}`}>
                 {soma(allRows, col.pick)}

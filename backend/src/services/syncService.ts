@@ -1,10 +1,13 @@
 import { AzureClient, AzureHttpError } from "../azure/client.js";
+import { isAzureCacheMirrorEnabled } from "../azure/azureCacheMirror.js";
+import { persistValidatedSyncBatch } from "../azure/azureCacheConsistency.js";
+import { buildAzureRefreshDraft, defaultAzureRefreshPorts } from "../azure/azureDataRefresh.js";
+import { isAzureCacheReadEnabled } from "../azure/azureCacheReadSource.js";
+import { getInMemoryAzureCache } from "../azure/inMemoryAzureCache.js";
 import { loadSyncConfig, SyncConfigError, type SyncConfig } from "../azure/config.js";
-import { loadPlanExecutions, type ExecucaoInsert } from "../azure/execucoes.js";
-import { loadFalhas, type BugMeta, type FalhaInsert } from "../azure/falhas.js";
-import { calculateKpiImpactos, type KpiImpactos } from "../azure/kpis.js";
+import type { KpiImpactos } from "../azure/kpis.js";
 import { getStores } from "../persistence/provider.js";
-import { SyncValidationError, validateSyncResult } from "../domain/validateSync.js";
+import { SyncValidationError } from "../domain/validateSync.js";
 
 export { SyncConfigError };
 
@@ -78,59 +81,55 @@ export function startSync(): { started: boolean; state: SyncState } {
   return { started: true, state };
 }
 
-async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
+export async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
   const client = new AzureClient(cfg.azure);
   const report = (step: string, done?: number, total?: number) =>
     patch({ step, progress: done !== undefined && total !== undefined ? { done, total } : null });
 
-  const execucoes: ExecucaoInsert[] = [];
-  const suiteRefs: { suiteId: number; parentSuiteId: number | null }[] = [];
-  const dimensoesMeta: Record<string, string> = {};
-  let suites = 0;
-  for (const plan of cfg.plans) {
-    const load = await loadPlanExecutions(client, plan, cfg.hierarchy, report, cfg.validFronts);
-    execucoes.push(...load.rows);
-    suiteRefs.push(...load.suites);
-    suites += load.suitesProcessed;
-    dimensoesMeta[`dimensoes_catalog:${plan.planKey}`] = JSON.stringify(load.dimensions);
+  const cache = getInMemoryAzureCache();
+  const cacheRead = isAzureCacheReadEnabled();
+  let locked = false;
+  if (cacheRead) {
+    cache.beginRefresh();
+    locked = true;
   }
-  const planFalhas = await loadFalhas(client, cfg, report);
-  const falhas: FalhaInsert[] = planFalhas.flatMap((p) => p.rows);
-  const runs = planFalhas.reduce((n, p) => n + p.runCount, 0);
+  try {
+    const { draft, artifacts } = await buildAzureRefreshDraft(client, cfg, report, defaultAzureRefreshPorts);
 
-  const kpiPlan = planFalhas.find((p) => p.plan.planKey.toLowerCase() === cfg.kpiPlanKey.toLowerCase());
-  const bugMeta: Map<number, BugMeta> = kpiPlan?.bugMeta ?? new Map();
-  const kpiExecs = execucoes.filter((e) => e.plan_key?.toLowerCase() === cfg.kpiPlanKey.toLowerCase());
-  const kpi = await calculateKpiImpactos(client, kpiExecs, bugMeta, report);
+    report("Validando integridade antes de gravar");
+    report(cacheRead ? "Publicando a atualização" : "Gravando no banco de dados");
+    const stores = await getStores();
+    await persistValidatedSyncBatch(draft, artifacts, {
+      replaceSnapshot: async (input) => {
+        await stores.azureSnapshot.replaceSnapshot(input);
+      },
+      mirrorEnabled: isAzureCacheMirrorEnabled,
+      cacheReadEnabled: () => cacheRead,
+      setBatchMeta: async (meta) => {
+        await stores.meta.setMany(meta);
+      },
+      cache,
+    });
 
-  report("Validando integridade antes de gravar");
-  validateSyncResult({ execucoes, falhas, suites: suiteRefs });
-
-  report("Gravando no banco de dados");
-  await (await getStores()).azureSnapshot.replaceSnapshot({
-    execucoes,
-    falhas,
-    meta: {
-      [`${KPI_META_PREFIX}${cfg.kpiPlanKey}`]: JSON.stringify(kpi),
-      kpi_plan_key: cfg.kpiPlanKey,
-      ultima_sincronizacao_azure: new Date().toISOString(),
-      ...dimensoesMeta,
-    },
-  });
-
-  const finishedAt = new Date();
-  patch({
-    status: "success",
-    finishedAt: finishedAt.toISOString(),
-    step: "Concluído",
-    progress: null,
-    summary: {
-      execucoes: execucoes.length,
-      falhas: falhas.length,
-      suites,
-      runs,
-      kpi,
-      duracaoMs: finishedAt.getTime() - startedAt.getTime(),
-    },
-  });
+    const finishedAt = new Date();
+    patch({
+      status: "success",
+      finishedAt: finishedAt.toISOString(),
+      step: "Concluído",
+      progress: null,
+      summary: {
+        execucoes: artifacts.summary.execucoes,
+        falhas: artifacts.summary.falhas,
+        suites: artifacts.summary.suites,
+        runs: artifacts.summary.runs,
+        kpi: artifacts.summary.kpi,
+        duracaoMs: finishedAt.getTime() - startedAt.getTime(),
+      },
+    });
+  } catch (err) {
+    if (locked) cache.markRefreshFailed();
+    throw err;
+  } finally {
+    if (locked) cache.endRefresh();
+  }
 }

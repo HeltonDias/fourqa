@@ -10,7 +10,11 @@ import {
   classificationIntegrityMessage,
   datesBetween,
   diffScope,
+  matchScheduleItem,
+  normalizeSuiteFill,
+  previousFillKey,
   scheduleIntegrityMessage,
+  scheduleItemsForScope,
   scheduleOf,
   scopeIntegrityMessage,
   type ScopeRef,
@@ -33,7 +37,10 @@ const {
 
 export type PlanningItemView = {
   suiteId: number | null;
+  testPointId: number | null;
   suiteName: string;
+  responsavel: string | null;
+  prioridade: string | null;
   dimensions: Record<string, string>;
   plannedStart: string | null;
   plannedEnd: string | null;
@@ -178,23 +185,32 @@ export async function getPlanningView(planKey: string, version?: number): Promis
   const legacy = new Map(legacyRows.map((row) => [(row.processo ?? "").trim().toLowerCase(), row]));
 
   const groups = new Map<string, ExecucaoRow[]>();
-  for (const row of execRows) {
-    const key = row.suite_id != null ? `id:${row.suite_id}` : `name:${(row.suite_name ?? "").trim().toLowerCase()}`;
+  for (const [index, row] of execRows.entries()) {
+    const key = previousFillKey({ suiteId: row.suite_id, testPointId: row.suite_id == null ? row.test_point_id : null }) ?? `loose:${index}`;
     const list = groups.get(key) ?? [];
     list.push(row);
     groups.set(key, list);
   }
 
   const allocBySuite = new Map<string, Record<string, number>>();
-  const periodBySuite = new Map<string, { start: string | null; end: string | null; qty: number | null; name: string | null }>();
+  const periodBySuite = new Map<string, {
+    start: string | null;
+    end: string | null;
+    qty: number | null;
+    name: string | null;
+    responsavel: string | null;
+    prioridade: string | null;
+  }>();
   if (revision) {
     for (const item of await loadSchedule(revision.id)) {
-      const key = item.suiteId != null ? `id:${item.suiteId}` : `name:${(item.suiteName ?? "").trim().toLowerCase()}`;
+      const key = previousFillKey({ suiteId: item.suiteId, testPointId: item.testPointId ?? null }) ?? `loose:${item.id}`;
       periodBySuite.set(key, {
         start: item.plannedStart,
         end: item.plannedEnd,
         qty: item.baselineQuantity,
         name: item.suiteName,
+        responsavel: item.suiteId != null ? (item.responsavel ?? null) : null,
+        prioridade: item.suiteId != null ? (item.prioridade ?? null) : null,
       });
       const allocations: Record<string, number> = {};
       for (const alloc of item.allocations) allocations[alloc.date] = alloc.quantity;
@@ -227,8 +243,8 @@ export async function getPlanningView(planKey: string, version?: number): Promis
     inconsistent += points.filter((point) => point.integrity === "inconsistent").length;
     const metrics = metricasDosPontos(rows);
     const finalized = metrics.cts_passeds + metrics.cts_na + (Number(legacyRow?.cts_cancelados) || 0);
-    const suiteScope = baselineScope.filter((item) => item.suiteId === sample?.suite_id);
-    const suiteSource = sourceScope.filter((item) => item.suiteId === sample?.suite_id);
+    const suiteScope = scopeOfGroup(sample, baselineScope);
+    const suiteSource = scopeOfGroup(sample, sourceScope);
     const suiteDiff = snapshot ? diffScope(suiteScope, suiteSource) : null;
     const baselineCount = snapshot
       ? suiteScope.length
@@ -253,7 +269,10 @@ export async function getPlanningView(planKey: string, version?: number): Promis
     ].filter((line): line is string => Boolean(line));
     items.push({
       suiteId: sample?.suite_id ?? null,
+      testPointId: sample?.suite_id != null ? null : (sample?.test_point_id ?? null),
       suiteName: name || "(sem suíte)",
+      responsavel: sample?.suite_id != null ? (period?.responsavel ?? null) : null,
+      prioridade: sample?.suite_id != null ? (period?.prioridade ?? null) : null,
       dimensions: sample ? dimsOf(sample) : {},
       plannedStart: calendarDate(period?.start ?? legacyRow?.data_inicio),
       plannedEnd: calendarDate(period?.end ?? legacyRow?.data_fim),
@@ -282,16 +301,17 @@ export async function getPlanningView(planKey: string, version?: number): Promis
   }
 
   if (snapshot) {
-    const present = new Set(items.map((item) => item.suiteId));
-    const missing = new Map<number, ScopeRef[]>();
+    const present = new Set(items.map((item) => previousFillKey(item)).filter((key): key is string => key != null));
+    const missing = new Map<string, ScopeRef[]>();
     for (const ref of baselineScope) {
-      if (ref.suiteId == null || present.has(ref.suiteId)) continue;
-      const list = missing.get(ref.suiteId) ?? [];
+      const key = previousFillKey(ref);
+      if (!key || present.has(key)) continue;
+      const list = missing.get(key) ?? [];
       list.push(ref);
-      missing.set(ref.suiteId, list);
+      missing.set(key, list);
     }
-    for (const [suiteId, refs] of missing) {
-      const key = `id:${suiteId}`;
+    for (const [key, refs] of missing) {
+      const suiteId = refs[0]?.suiteId ?? null;
       const period = periodBySuite.get(key);
       const allocations = allocBySuite.get(key) ?? {};
       const allocList = Object.entries(allocations).map(([date, plannedQuantity]) => ({ date, plannedQuantity }));
@@ -303,7 +323,10 @@ export async function getPlanningView(planKey: string, version?: number): Promis
       ].filter((line): line is string => Boolean(line));
       items.push({
         suiteId,
-        suiteName: period?.name?.trim() || `Suíte ${suiteId}`,
+        testPointId: suiteId != null ? null : (refs[0]?.testPointId ?? null),
+        suiteName: period?.name?.trim() || (suiteId != null ? `Suíte ${suiteId}` : `Ponto ${refs[0]?.testPointId ?? ""}`),
+        responsavel: suiteId != null ? (period?.responsavel ?? null) : null,
+        prioridade: suiteId != null ? (period?.prioridade ?? null) : null,
         dimensions: {},
         plannedStart: calendarDate(period?.start),
         plannedEnd: calendarDate(period?.end),
@@ -434,7 +457,10 @@ function legacyPlanningView(input: {
     const schedule = scheduleIntegrityMessage(baselineCount, 0);
     return {
       suiteId: null,
+      testPointId: null,
       suiteName: (row.processo ?? "").trim() || "(sem nome)",
+      responsavel: null,
+      prioridade: null,
       dimensions: {
         ...(hasPriority && (row.prioridades ?? "").trim() ? { prioridades: row.prioridades!.trim() } : {}),
         ...(hasFront && (row.frente ?? "").trim() ? { frente: row.frente!.trim() } : {}),
@@ -547,12 +573,25 @@ async function sourceScopeOf(planKey: string): Promise<ScopeRef[]> {
     }));
 }
 
+function scopeOfGroup(sample: ExecucaoRow | undefined, scope: ScopeRef[]): ScopeRef[] {
+  if (!sample) return [];
+  if (sample.suite_id != null) return scope.filter((item) => item.suiteId === sample.suite_id);
+  if (sample.test_point_id != null) {
+    return scope.filter((item) => item.suiteId == null && item.testPointId === sample.test_point_id);
+  }
+  return [];
+}
+
 async function copiedSchedule(revisionId: number): Promise<PlanningItemWrite[]> {
   return (await loadSchedule(revisionId)).map((row) => ({
     suiteId: row.suiteId,
     suiteName: row.suiteName,
+    testPointId: row.testPointId ?? null,
+    testCaseId: row.testCaseId ?? null,
     plannedStart: row.plannedStart,
     plannedEnd: row.plannedEnd,
+    responsavel: row.responsavel ?? null,
+    prioridade: row.prioridade ?? null,
     baselineQuantity: row.baselineQuantity,
     allocations: row.allocations.map((alloc) => ({ date: alloc.date, quantity: alloc.quantity })),
   }));
@@ -566,39 +605,31 @@ async function itemsForNewRevision(planKey: string, scope: ScopeRef[], previousR
   const legacy = new Map(
     (await legacyBaseForPlan(planKey)).map((row) => [(row.processo ?? "").trim().toLowerCase(), row]),
   );
-  const bySuite = new Map<string, { suiteId: number | null; count: number }>();
-  for (const item of scope) {
-    const key = item.suiteId != null ? `id:${item.suiteId}` : "sem";
-    const found = bySuite.get(key) ?? { suiteId: item.suiteId, count: 0 };
-    found.count += 1;
-    bySuite.set(key, found);
-  }
-  const previous = new Map<string, { start: string | null; end: string | null; allocs: { date: string; quantity: number }[] }>();
-  if (previousRevisionId != null) {
-    for (const item of await loadSchedule(previousRevisionId)) {
-      if (item.suiteId == null) continue;
-      previous.set(`id:${item.suiteId}`, {
-        start: item.plannedStart,
-        end: item.plannedEnd,
-        allocs: item.allocations.map((row) => ({ date: row.date, quantity: row.quantity })),
-      });
-    }
-  }
-  const writes: PlanningItemWrite[] = [];
-  for (const group of bySuite.values()) {
-    const name = group.suiteId != null ? (names.get(group.suiteId) ?? null) : null;
-    const kept = group.suiteId != null ? previous.get(`id:${group.suiteId}`) : undefined;
-    const inherited = name ? legacy.get(name.trim().toLowerCase()) : undefined;
-    writes.push({
-      suiteId: group.suiteId,
-      suiteName: name,
-      plannedStart: kept?.start ?? (inherited?.data_inicio ? calendarDate(inherited.data_inicio) : null),
-      plannedEnd: kept?.end ?? (inherited?.data_fim ? calendarDate(inherited.data_fim) : null),
-      baselineQuantity: group.count,
-      allocations: (kept?.allocs ?? []).map((alloc) => ({ date: alloc.date, quantity: alloc.quantity })),
-    });
-  }
-  return writes;
+  const previous = previousRevisionId == null ? [] : await copiedSchedule(previousRevisionId);
+  return scheduleItemsForScope({
+    scope,
+    suiteNames: names,
+    previous: previous.map((item) => ({
+      suiteId: item.suiteId,
+      testPointId: item.testPointId ?? null,
+      testCaseId: item.testCaseId ?? null,
+      suiteName: item.suiteName,
+      plannedStart: item.plannedStart,
+      plannedEnd: item.plannedEnd,
+      responsavel: item.responsavel ?? null,
+      prioridade: item.prioridade ?? null,
+      baselineQuantity: item.baselineQuantity ?? 0,
+      allocations: item.allocations,
+    })),
+    inherited: (suiteName) => {
+      const row = legacy.get(suiteName.trim().toLowerCase());
+      if (!row) return undefined;
+      return {
+        start: row.data_inicio ? calendarDate(row.data_inicio) : null,
+        end: row.data_fim ? calendarDate(row.data_fim) : null,
+      };
+    },
+  });
 }
 
 export async function confirmOrRevise(planKey: string, input: { reason: string; adoptSource: boolean }): Promise<PlanningView> {
@@ -626,14 +657,36 @@ export async function confirmOrRevise(planKey: string, input: { reason: string; 
 
 export async function savePlanningCell(
   planKey: string,
-  input: { suiteId: number | null; field: "start" | "end" | "day"; date?: string; quantity?: number },
+  input: {
+    suiteId: number | null;
+    testPointId?: number | null;
+    field: "start" | "end" | "day" | "responsavel" | "prioridade";
+    date?: string;
+    quantity?: number;
+    value?: string;
+  },
 ): Promise<PlanningView> {
   const revision = await latestRevision(planKey);
   if (!revision || revision.scope_snapshot !== 1) {
     throw new Error("Período e distribuição só podem ser editados num baseline confirmado.");
   }
-  const item = (await loadSchedule(revision.id)).find((row) => row.suiteId === input.suiteId);
-  if (!item) throw new Error("Suíte fora do baseline confirmado.");
+  const schedule = await loadSchedule(revision.id);
+  const item = matchScheduleItem(
+    schedule.map((row) => ({ ...row, testPointId: row.testPointId ?? null })),
+    input,
+  );
+  if (!item) {
+    const loose = schedule.filter((row) => row.suiteId == null && row.testPointId == null);
+    if (input.suiteId == null && input.testPointId == null && loose.length > 1) {
+      throw new Error("Item sem suíte e sem Test Point não pode ser editado em conjunto.");
+    }
+    throw new Error("Suíte fora do baseline confirmado.");
+  }
+  if (input.field === "responsavel" || input.field === "prioridade") {
+    if (item.suiteId == null) throw new Error("Responsável e prioridade exigem Suite ID.");
+    await saveCell({ itemId: item.id, field: input.field, value: normalizeSuiteFill(input.value) });
+    return getPlanningView(planKey);
+  }
   if (input.field === "day") {
     const day = calendarDate(input.date);
     const quantity = input.quantity;

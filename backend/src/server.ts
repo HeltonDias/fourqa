@@ -3,8 +3,17 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { envValue } from "./azure/config.js";
-import { getStores } from "./persistence/provider.js";
-import { apiRouter } from "./routes/api.js";
+import { assertOperationalProvider } from "./persistence/operationalProvider.js";
+
+try {
+  assertOperationalProvider(envValue("DB_PROVIDER"));
+} catch (err) {
+  console.error(err instanceof Error ? err.message : "provider inválido");
+  process.exit(1);
+}
+
+const { getStores } = await import("./persistence/provider.js");
+const { apiRouter } = await import("./routes/api.js");
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;

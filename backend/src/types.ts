@@ -20,6 +20,8 @@ export type ExecucaoRow = {
   test_point_id: number | null;
   test_case_id: number | null;
   test_case_title: string | null;
+  /** Prioridade do Test Case na integração. Não entra no snapshot SQL. */
+  case_priority: string | null;
   responsabilidade: string | null;
   test_case_state: string | null;
   test_point_state: string | null;

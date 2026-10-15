@@ -22,6 +22,8 @@ export type MaybePromise<T> = T | Promise<T>;
 export interface MetaStore {
   get(key: string): MaybePromise<string | null>;
   set(key: string, value: string): MaybePromise<void>;
+  /** Grava o lote inteiro na mesma transação. Falha não deixa chave nova pela metade. */
+  setMany(entries: Record<string, string>): MaybePromise<void>;
 }
 
 export interface AzureSnapshotStore {

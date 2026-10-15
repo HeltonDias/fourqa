@@ -218,7 +218,12 @@ export function PlanejamentoPage() {
     }
   }
 
-  async function salvar(item: PlanningItem, field: "start" | "end" | "day", date: string, quantity?: number) {
+  async function salvar(
+    item: PlanningItem,
+    field: "start" | "end" | "day" | "responsavel" | "prioridade",
+    date: string,
+    quantity?: number,
+  ) {
     if (!view?.editable || busy) return;
     setActionError(null);
     pendingSaves.current += 1;
@@ -226,9 +231,11 @@ export function PlanejamentoPage() {
     try {
       const next = await api.salvarCelulaPlanejamento({
         suiteId: item.suiteId,
+        testPointId: item.testPointId,
         field,
-        date: date || undefined,
+        date: field === "responsavel" || field === "prioridade" ? undefined : date || undefined,
         quantity,
+        value: field === "responsavel" || field === "prioridade" ? date : undefined,
       });
       setView(next);
     } catch (err) {
@@ -301,7 +308,13 @@ export function PlanejamentoPage() {
                 inconsistentes={summary.inconsistentCount}
               />
 
-              <PlanningAcompanhamentoTable idCols={idColsAcc} pageRows={pageRowsAcc} allRows={rowsAcc} />
+              <PlanningAcompanhamentoTable
+                idCols={idColsAcc}
+                pageRows={pageRowsAcc}
+                allRows={rowsAcc}
+                canEdit={canEdit}
+                onSave={salvar}
+              />
 
               <PlanningPagination
                 page={safePageAcc}

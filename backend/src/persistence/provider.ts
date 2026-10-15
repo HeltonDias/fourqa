@@ -1,3 +1,4 @@
+import { applyExperimentalAzureCacheRead, isAzureCacheReadEnabled } from "../azure/azureCacheReadSource.js";
 import { envValue } from "../azure/config.js";
 import type { PersistenceStores } from "./contracts.js";
 
@@ -23,7 +24,7 @@ export function resolveDbProvider(value: string): "sqlite" | "postgres" {
   throw new PersistenceProviderError(`DB_PROVIDER "${value.trim()}" is not supported.`);
 }
 
-type Cached = { provider: "sqlite" | "postgres"; stores: PersistenceStores };
+type Cached = { provider: "sqlite" | "postgres"; readCache: boolean; stores: PersistenceStores };
 let cached: Cached | null = null;
 
 async function sqliteStores(): Promise<PersistenceStores> {
@@ -49,7 +50,7 @@ async function postgresStores(): Promise<PersistenceStores> {
     throw new PersistenceProviderError(publicDbError(err));
   }
   if (!url) throw new PersistenceProviderError("DATABASE_URL is required when DB_PROVIDER=postgres");
-  const [{ migratePostgres }, meta, azure, legacy, planning] = await Promise.all([
+  const [{ assertPostgresSchema }, meta, azure, legacy, planning] = await Promise.all([
     import("../db/postgres/migrate.js"),
     import("../db/postgres/postgresMetaStore.js"),
     import("../db/postgres/postgresAzureSnapshotStore.js"),
@@ -57,7 +58,7 @@ async function postgresStores(): Promise<PersistenceStores> {
     import("../db/postgres/postgresPlanningStore.js"),
   ]);
   try {
-    await migratePostgres();
+    await assertPostgresSchema();
   } catch (err) {
     throw new PersistenceProviderError(publicDbError(err));
   }
@@ -71,9 +72,11 @@ async function postgresStores(): Promise<PersistenceStores> {
 
 export async function getStores(): Promise<PersistenceStores> {
   const provider = resolveDbProvider(envValue("DB_PROVIDER"));
-  if (cached?.provider === provider) return cached.stores;
-  const stores = provider === "sqlite" ? await sqliteStores() : await postgresStores();
-  cached = { provider, stores };
+  const readCache = isAzureCacheReadEnabled();
+  if (cached?.provider === provider && cached.readCache === readCache) return cached.stores;
+  const base = provider === "sqlite" ? await sqliteStores() : await postgresStores();
+  const stores = applyExperimentalAzureCacheRead(base);
+  cached = { provider, readCache, stores };
   return stores;
 }
 

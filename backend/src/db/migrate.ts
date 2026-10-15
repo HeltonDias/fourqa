@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 7;
 
 const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
   {
@@ -164,6 +164,42 @@ const MIGRATIONS: { version: number; up: (db: DatabaseSync) => void }[] = [
         "planejamento_legado_plan_key",
         "EndToEnd",
       );
+    },
+  },
+  {
+    version: 6,
+    up: (db) => {
+      const cols = db.prepare("PRAGMA table_info(planning_item)").all() as { name: string }[];
+      if (cols.length === 0) return;
+      const add = (column: string) => {
+        if (!cols.some((entry) => entry.name === column)) {
+          db.exec(`ALTER TABLE planning_item ADD COLUMN ${column} INTEGER`);
+        }
+      };
+      add("test_point_id");
+      add("test_case_id");
+      db.exec(
+        `CREATE UNIQUE INDEX IF NOT EXISTS uq_plan_item_suite
+         ON planning_item (revision_id, suite_id) WHERE suite_id IS NOT NULL`,
+      );
+      db.exec(
+        `CREATE UNIQUE INDEX IF NOT EXISTS uq_plan_item_point
+         ON planning_item (revision_id, test_point_id) WHERE suite_id IS NULL AND test_point_id IS NOT NULL`,
+      );
+    },
+  },
+  {
+    version: 7,
+    up: (db) => {
+      const cols = db.prepare("PRAGMA table_info(planning_item)").all() as { name: string }[];
+      if (cols.length === 0) return;
+      const add = (column: string) => {
+        if (!cols.some((entry) => entry.name === column)) {
+          db.exec(`ALTER TABLE planning_item ADD COLUMN ${column} TEXT`);
+        }
+      };
+      add("responsavel");
+      add("prioridade");
     },
   },
 ];

@@ -1,6 +1,9 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import { AzureCacheUnavailableError } from "../azure/azureCacheReadSource.js";
 import { envValue } from "../azure/config.js";
+import { decideWriteAuth } from "../http/writeAuth.js";
 import { parsePageQuery } from "../http/pageQuery.js";
+import { planKeyFromRaw } from "../persistence/planKey.js";
 import { getStores, persistenceReady } from "../persistence/provider.js";
 import { DEFAULT_PLAN_KEY } from "../domain/formulas.js";
 import { PlanningPeriodError } from "../domain/planPeriod.js";
@@ -36,23 +39,28 @@ function respondPlanningPeriodError(
 }
 
 async function planKeyFromQuery(q: unknown): Promise<string> {
-  if (typeof q === "string" && q.trim()) return q.trim();
+  let fallback = DEFAULT_PLAN_KEY;
   try {
-    return (await getMeta("kpi_plan_key")) || DEFAULT_PLAN_KEY;
+    fallback = (await getMeta("kpi_plan_key")) || DEFAULT_PLAN_KEY;
   } catch {
-    return DEFAULT_PLAN_KEY;
+    fallback = DEFAULT_PLAN_KEY;
   }
+  return planKeyFromRaw(q, fallback);
 }
 
-/** Se FOURQA_API_TOKEN estiver vazio, escrita fica aberta (desenvolvimento local). */
+/** Escrita fechada sem FOURQA_API_TOKEN, salvo FOURQA_ALLOW_OPEN_WRITES=1. */
 function requireWriteAuth(req: { header(name: string): string | undefined }, res: { status(code: number): { json(body: unknown): void } }, next: () => void): void {
-  const token = envValue("FOURQA_API_TOKEN");
-  if (!token) {
+  const decision = decideWriteAuth({
+    configuredToken: envValue("FOURQA_API_TOKEN"),
+    allowOpenWrites: envValue("FOURQA_ALLOW_OPEN_WRITES") === "1",
+    authorizationHeader: req.header("authorization"),
+  });
+  if (decision === "allow") {
     next();
     return;
   }
-  if (req.header("authorization") === `Bearer ${token}`) {
-    next();
+  if (decision === "unconfigured") {
+    res.status(503).json({ error: "Escrita desabilitada. Configure FOURQA_API_TOKEN ou FOURQA_ALLOW_OPEN_WRITES=1 neste ambiente." });
     return;
   }
   res.status(401).json({ error: "Não autorizado." });
@@ -146,11 +154,20 @@ apiRouter.put("/planejamento/celula", requireWriteAuth, async (req, res) => {
   if (!(await ready(res))) return;
   const body = (req.body ?? {}) as {
     suiteId?: unknown;
+    testPointId?: unknown;
     field?: unknown;
     date?: unknown;
     quantity?: unknown;
+    value?: unknown;
   };
-  const field = body.field === "start" || body.field === "end" || body.field === "day" ? body.field : null;
+  const field =
+    body.field === "start" ||
+    body.field === "end" ||
+    body.field === "day" ||
+    body.field === "responsavel" ||
+    body.field === "prioridade"
+      ? body.field
+      : null;
   if (!field) {
     res.status(400).json({ error: "Campo inválido." });
     return;
@@ -159,9 +176,11 @@ apiRouter.put("/planejamento/celula", requireWriteAuth, async (req, res) => {
     res.json(
       await savePlanningCell(await planKeyFromQuery(req.query.planKey), {
         suiteId: typeof body.suiteId === "number" ? body.suiteId : null,
+        testPointId: typeof body.testPointId === "number" ? body.testPointId : null,
         field,
         date: typeof body.date === "string" ? body.date : undefined,
         quantity: typeof body.quantity === "number" ? body.quantity : undefined,
+        value: typeof body.value === "string" ? body.value : undefined,
       }),
     );
   } catch (err) {
@@ -196,13 +215,21 @@ apiRouter.get("/sync/status", (_req, res) => {
 apiRouter.get("/execucoes", async (req, res) => {
   if (!(await ready(res))) return;
   const page = parsePageQuery(req.query);
-  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : await planKeyFromQuery(undefined);
+  const planKey = await planKeyFromQuery(req.query.planKey);
   res.json(await stores.azureSnapshot.queryExecucoes({ ...page, planKey }));
 });
 
 apiRouter.get("/falhas", async (req, res) => {
   if (!(await ready(res))) return;
   const page = parsePageQuery(req.query);
-  const planKey = typeof req.query.planKey === "string" ? req.query.planKey : await planKeyFromQuery(undefined);
+  const planKey = await planKeyFromQuery(req.query.planKey);
   res.json(await stores.azureSnapshot.queryFalhas({ ...page, planKey }));
+});
+
+apiRouter.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AzureCacheUnavailableError) {
+    res.status(503).json({ error: err.message, unavailable: true });
+    return;
+  }
+  next(err);
 });

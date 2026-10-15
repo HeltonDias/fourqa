@@ -143,7 +143,10 @@ export type HomeGraficos = {
 
 export type PlanningItem = {
   suiteId: number | null;
+  testPointId?: number | null;
   suiteName: string;
+  responsavel?: string | null;
+  prioridade?: string | null;
   dimensions: Record<string, string>;
   plannedStart: string | null;
   plannedEnd: string | null;
@@ -291,6 +294,7 @@ export type ExecucaoRow = {
   test_point_id: number | null;
   test_case_id: number | null;
   test_case_title: string | null;
+  case_priority: string | null;
   responsabilidade: string | null;
   test_case_state: string | null;
   test_point_state: string | null;

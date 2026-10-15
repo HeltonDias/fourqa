@@ -72,9 +72,11 @@ export const api = {
     postJson<PlanningView>("/api/planejamento/revisao", body),
   salvarCelulaPlanejamento: (body: {
     suiteId: number | null;
-    field: "start" | "end" | "day";
+    testPointId?: number | null;
+    field: "start" | "end" | "day" | "responsavel" | "prioridade";
     date?: string;
     quantity?: number;
+    value?: string;
   }) => put<PlanningView>("/api/planejamento/celula", body),
   statusFrente: () => get<StatusFrenteDto>("/api/status-frente"),
   execucoes: (params: { limit?: number; offset?: number; q?: string } = {}) =>

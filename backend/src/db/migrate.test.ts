@@ -12,6 +12,12 @@ describe("migrate", () => {
     assert.ok(cols.some((c) => c.name === "dimensions_json"));
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[];
     assert.ok(tables.some((t) => t.name === "planning_allocation"));
+    const itemCols = db.prepare("PRAGMA table_info(planning_item)").all() as { name: string }[];
+    assert.ok(itemCols.some((column) => column.name === "test_point_id"));
+    assert.ok(itemCols.some((column) => column.name === "responsavel"));
+    assert.ok(itemCols.some((column) => column.name === "prioridade"));
+    const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all() as { name: string }[];
+    assert.ok(indexes.some((index) => index.name === "uq_plan_item_suite"));
     migrate(db);
     assert.equal(schemaVersion(db), SCHEMA_VERSION);
   });

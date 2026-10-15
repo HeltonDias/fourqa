@@ -56,7 +56,7 @@ export function PlanningGridTable({
   allPageSelected: boolean;
   onToggleAll: () => void;
   onToggleOne: (key: string) => void;
-  onSave: (item: PlanningItem, field: "start" | "end" | "day", date: string, quantity?: number) => void;
+  onSave: (item: PlanningItem, field: "start" | "end" | "day" | "prioridade", date: string, quantity?: number) => void;
   onCellDirtyChange?: (cellKey: string, dirty: boolean) => void;
 }) {
   const todayRef = useRef<HTMLTableCellElement | null>(null);
@@ -100,7 +100,7 @@ export function PlanningGridTable({
               <span className="plan-g-pin plan-g-pin-sticky" style={{ left: periodStartLeft + 8 }}>Período</span>
             </th>
             <th className="plan-g-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} />
-            <th className="plan-g-plan" colSpan={2}>
+            <th className="plan-g-plan" colSpan={3}>
               <span className="plan-g-pin" style={{ left: stickyWithPeriod + 8 }}>Planejamento</span>
             </th>
             {months.length === 0 && (
@@ -151,7 +151,8 @@ export function PlanningGridTable({
             <th className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} title="Data fim">
               Fim
             </th>
-            <th className="plan-c-plan plan-split" title="Quantidade do baseline confirmado">Qtd plan</th>
+            <th className="plan-c-plan plan-split" title="Prioridade própria da suíte">Prioridade</th>
+            <th className="plan-c-plan" title="Quantidade do baseline confirmado">Qtd plan</th>
             <th className="plan-c-plan" title="Soma da distribuição diária">Distrib.</th>
             {dates.length === 0 && <th className="plan-c-dayhead plan-split" />}
             {dates.map((date, index) => {
@@ -174,8 +175,8 @@ export function PlanningGridTable({
         </thead>
         <tbody>
           {pageRows.map((item) => {
-            const key = `${item.suiteId ?? "s"}-${item.suiteName}`;
-            const rowId = String(item.suiteId ?? item.suiteName);
+            const key = `${item.suiteId ?? "s"}-${item.testPointId ?? "p"}-${item.suiteName}`;
+            const rowId = String(item.suiteId ?? item.testPointId ?? item.suiteName);
             return (
               <tr key={key} className={selected.has(key) ? "plan-selected" : undefined}>
                 <td className="plan-sticky plan-checkcol" style={checkStyle}>
@@ -221,7 +222,21 @@ export function PlanningGridTable({
                     onCommit={(date) => onSave(item, "end", date)}
                   />
                 </td>
-                <td className={`plan-num plan-c-plan plan-split${item.baselineCount === 0 ? " plan-zero" : ""}`}>{num(item.baselineCount)}</td>
+                <td className="plan-c-plan plan-split">
+                  {item.suiteId == null ? (
+                    "—"
+                  ) : (
+                    <TextCell
+                      cellKey={`${rowId}:prioridade`}
+                      value={item.prioridade ?? ""}
+                      editable={canEdit}
+                      label={`Prioridade de ${item.suiteName}`}
+                      onDirtyChange={onCellDirtyChange}
+                      onCommit={(value) => onSave(item, "prioridade", value)}
+                    />
+                  )}
+                </td>
+                <td className={`plan-num plan-c-plan${item.baselineCount === 0 ? " plan-zero" : ""}`}>{num(item.baselineCount)}</td>
                 <td className={`plan-num plan-c-plan${item.distributedCount === 0 ? " plan-zero" : ""}`}>{num(item.distributedCount)}</td>
                 {dates.length === 0 && <td className="plan-c-day plan-split" />}
                 {dates.map((date, index) => {
@@ -261,7 +276,8 @@ export function PlanningGridTable({
             ))}
             <td className="plan-c-period plan-sticky plan-split plan-g-period-start" style={periodSticky(periodStartLeft)} />
             <td className="plan-c-period plan-sticky plan-g-period-end" style={periodSticky(periodEndLeft)} />
-            <td className="plan-num plan-c-plan plan-split">{soma(allRows, (item) => item.baselineCount)}</td>
+            <td className="plan-c-plan plan-split" />
+            <td className="plan-num plan-c-plan">{soma(allRows, (item) => item.baselineCount)}</td>
             <td className="plan-num plan-c-plan">{soma(allRows, (item) => item.distributedCount)}</td>
             {dates.length === 0 && <td className="plan-c-day plan-split" />}
             {dates.map((date, index) => {
@@ -298,6 +314,45 @@ function toDateInputValue(value: string | null): string {
   const br = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (br) return `${br[3]}-${br[2]}-${br[1]}`;
   return "";
+}
+
+function TextCell({
+  cellKey,
+  value,
+  editable,
+  label,
+  onCommit,
+  onDirtyChange,
+}: {
+  cellKey: string;
+  value: string;
+  editable: boolean;
+  label: string;
+  onCommit: (value: string) => void;
+  onDirtyChange?: (cellKey: string, dirty: boolean) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const dirty = draft !== value;
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+  useEffect(() => {
+    onDirtyChange?.(cellKey, dirty);
+  }, [cellKey, dirty, onDirtyChange]);
+  if (!editable) return <span>{value || "—"}</span>;
+  return (
+    <input
+      className="plan-edit"
+      type="text"
+      maxLength={80}
+      aria-label={label}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (draft !== value) onCommit(draft);
+      }}
+    />
+  );
 }
 
 function DateCell({

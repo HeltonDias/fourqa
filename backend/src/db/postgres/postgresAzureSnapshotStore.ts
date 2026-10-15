@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import type { AzureSnapshotStore } from "../../persistence/contracts.js";
 import type { ExecucaoRow, FalhaRow } from "../../types.js";
+import { requiredPlanKey } from "../../persistence/planKey.js";
 import type { AzureSnapshot, PageParams, PageResult } from "../sqliteAzureSnapshotStore.js";
 import { asNumber, asNumberOrNull, asText, bind, query, withTransaction } from "./pool.js";
 
@@ -96,12 +97,8 @@ async function queryPage<T>(
   params: PageParams,
   map: (row: Record<string, unknown>) => T,
 ): Promise<PageResult<T>> {
-  const where: string[] = [];
-  const args: unknown[] = [];
-  if (params.planKey) {
-    args.push(params.planKey);
-    where.push(`plan_key = $${args.length}`);
-  }
+  const where = ["plan_key = $1"];
+  const args: unknown[] = [requiredPlanKey(params.planKey)];
   if (params.q) {
     const like = likeParam(params.q);
     const parts = columns.map((column) => {

@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { normalizeSuiteFill } from "../../domain/planning.js";
 import type { PlanningStore } from "../../persistence/contracts.js";
 import type {
   CommitRevisionInput,
@@ -69,7 +70,7 @@ async function loadScope(revisionId: number): Promise<PlanningScopeWrite[]> {
 
 async function loadSchedule(revisionId: number): Promise<PlanningScheduleItem[]> {
   const items = await query<Record<string, unknown>>(
-    `SELECT id, suite_id, suite_name, planned_start, planned_end, baseline_quantity
+    `SELECT id, suite_id, suite_name, test_point_id, test_case_id, planned_start, planned_end, baseline_quantity, responsavel, prioridade
      FROM planning_item WHERE revision_id = $1`,
     [revisionId],
   );
@@ -86,8 +87,12 @@ async function loadSchedule(revisionId: number): Promise<PlanningScheduleItem[]>
       id,
       suiteId: asNumberOrNull(item.suite_id),
       suiteName: asText(item.suite_name),
+      testPointId: asNumberOrNull(item.test_point_id),
+      testCaseId: asNumberOrNull(item.test_case_id),
       plannedStart: asText(item.planned_start),
       plannedEnd: asText(item.planned_end),
+      responsavel: asText(item.responsavel),
+      prioridade: asText(item.prioridade),
       baselineQuantity: asNumberOrNull(item.baseline_quantity),
       allocations: allocs
         .filter((row) => asNumber(row.item_id) === id)
@@ -127,9 +132,22 @@ async function commitRevision(input: CommitRevisionInput): Promise<number> {
     for (const item of input.items) {
       const itemId = await insertReturningId(
         client,
-        `INSERT INTO planning_item (revision_id, suite_id, suite_name, planned_start, planned_end, baseline_quantity)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [revisionId, bind(item.suiteId), bind(item.suiteName), bind(item.plannedStart), bind(item.plannedEnd), bind(item.baselineQuantity)],
+        `INSERT INTO planning_item (
+          revision_id, suite_id, suite_name, test_point_id, test_case_id,
+          planned_start, planned_end, baseline_quantity, responsavel, prioridade
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [
+          revisionId,
+          bind(item.suiteId),
+          bind(item.suiteName),
+          bind(item.testPointId),
+          bind(item.testCaseId),
+          bind(item.plannedStart),
+          bind(item.plannedEnd),
+          bind(item.baselineQuantity),
+          bind(normalizeSuiteFill(item.responsavel)),
+          bind(normalizeSuiteFill(item.prioridade)),
+        ],
       );
       for (const alloc of item.allocations) {
         await client.query(
@@ -143,20 +161,40 @@ async function commitRevision(input: CommitRevisionInput): Promise<number> {
 }
 
 async function saveCell(input: PlanningCellWrite): Promise<void> {
-  if (input.field === "day") {
-    await withTransaction(async (client) => {
-      await client.query("DELETE FROM planning_allocation WHERE item_id = $1 AND alloc_date = $2", [input.itemId, input.date]);
-      if (input.quantity > 0) {
-        await client.query(
-          "INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES ($1, $2, $3)",
-          [input.itemId, input.date, input.quantity],
-        );
-      }
-    });
-    return;
+  switch (input.field) {
+    case "day": {
+      await withTransaction(async (client) => {
+        await client.query("DELETE FROM planning_allocation WHERE item_id = $1 AND alloc_date = $2", [input.itemId, input.date]);
+        if (input.quantity > 0) {
+          await client.query(
+            "INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES ($1, $2, $3)",
+            [input.itemId, input.date, input.quantity],
+          );
+        }
+      });
+      return;
+    }
+    case "responsavel": {
+      await query("UPDATE planning_item SET responsavel = $1 WHERE id = $2", [bind(normalizeSuiteFill(input.value)), input.itemId]);
+      return;
+    }
+    case "prioridade": {
+      await query("UPDATE planning_item SET prioridade = $1 WHERE id = $2", [bind(normalizeSuiteFill(input.value)), input.itemId]);
+      return;
+    }
+    case "start": {
+      await query("UPDATE planning_item SET planned_start = $1 WHERE id = $2", [bind(input.date), input.itemId]);
+      return;
+    }
+    case "end": {
+      await query("UPDATE planning_item SET planned_end = $1 WHERE id = $2", [bind(input.date), input.itemId]);
+      return;
+    }
+    default: {
+      const unreachable: never = input;
+      throw new Error(`Campo de planejamento não suportado (${JSON.stringify(unreachable)})`);
+    }
   }
-  const column = input.field === "start" ? "planned_start" : "planned_end";
-  await query(`UPDATE planning_item SET ${column} = $1 WHERE id = $2`, [bind(input.date), input.itemId]);
 }
 
 export const postgresPlanningStore = {

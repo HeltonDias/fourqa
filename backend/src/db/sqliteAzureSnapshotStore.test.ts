@@ -38,6 +38,7 @@ function exec(partial: Partial<Omit<ExecucaoRow, "id">>): Omit<ExecucaoRow, "id"
     last_test_run_id: null,
     last_result_id: null,
     test_case_link: null,
+    case_priority: null,
     test_case_tags: null,
     ...partial,
   };
@@ -166,8 +167,9 @@ describe("sqliteAzureSnapshotStore", { concurrency: 1 }, () => {
       sqliteAzureSnapshotStore.listFalhas("PlanoB").map((row) => row.bug_id),
       [90],
     );
-    const all = sqliteAzureSnapshotStore.queryExecucoes({ limit: 50, offset: 0, q: "" });
+    const all = sqliteAzureSnapshotStore.queryExecucoes({ planKey: "PlanoB", limit: 50, offset: 0, q: "" });
     assert.equal(all.total, 1);
+    assert.equal(all.rows.every((row) => row.plan_key === "PlanoB"), true);
     assert.equal(sqliteMetaStore.get("kpi_plan_key"), "PlanoB");
     assert.equal(sqliteMetaStore.get("ultima_sincronizacao_azure"), "2026-10-08T12:00:00.000Z");
     assert.equal(sqliteMetaStore.get("data_inicio"), "2026-10-12");
@@ -200,5 +202,45 @@ describe("sqliteAzureSnapshotStore", { concurrency: 1 }, () => {
     assert.equal(sqliteMetaStore.get("kpi_plan_key"), "PlanoB");
     assert.equal(sqliteMetaStore.get("data_inicio"), "2026-10-12");
     assert.equal(sqliteMetaStore.get("planejamento_legado_plan_key"), "LegadoA");
+  });
+
+  it("não pagina execuções nem falhas sem plano e não mistura PlanKeys", () => {
+    sqliteAzureSnapshotStore.replaceSnapshot({
+      execucoes: [
+        exec({ plan_key: "PlanoA", suite_name: "A", test_point_id: 1, test_case_title: "caso A" }),
+        exec({ plan_key: "PlanoB", suite_name: "B", test_point_id: 2, test_case_title: "caso B" }),
+      ],
+      falhas: [
+        falha({ plan_key: "PlanoA", bug_id: 1, titulo: "falha A" }),
+        falha({ plan_key: "PlanoB", bug_id: 2, titulo: "falha B" }),
+      ],
+      meta: { kpi_plan_key: "PlanoA" },
+    });
+
+    assert.throws(
+      () => sqliteAzureSnapshotStore.queryExecucoes({ limit: 50, offset: 0, q: "" }),
+      /planKey obrigatório/,
+    );
+    assert.throws(
+      () => sqliteAzureSnapshotStore.queryExecucoes({ planKey: "", limit: 50, offset: 0, q: "" }),
+      /planKey obrigatório/,
+    );
+    assert.throws(
+      () => sqliteAzureSnapshotStore.queryFalhas({ planKey: "   ", limit: 50, offset: 0, q: "" }),
+      /planKey obrigatório/,
+    );
+
+    const execucoesA = sqliteAzureSnapshotStore.queryExecucoes({ planKey: "PlanoA", limit: 50, offset: 0, q: "" });
+    assert.equal(execucoesA.total, 1);
+    assert.deepEqual(execucoesA.rows.map((row) => row.plan_key), ["PlanoA"]);
+
+    const falhasB = sqliteAzureSnapshotStore.queryFalhas({ planKey: "PlanoB", limit: 50, offset: 0, q: "" });
+    assert.equal(falhasB.total, 1);
+    assert.deepEqual(falhasB.rows.map((row) => row.plan_key), ["PlanoB"]);
+
+    const ausente = sqliteAzureSnapshotStore.queryExecucoes({ planKey: "Inexistente", limit: 50, offset: 0, q: "" });
+    assert.equal(ausente.total, 0);
+    assert.equal(ausente.rows.length, 0);
+    assert.equal(sqliteAzureSnapshotStore.queryFalhas({ planKey: "Inexistente", limit: 50, offset: 0, q: "" }).total, 0);
   });
 });

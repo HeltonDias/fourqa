@@ -1,5 +1,6 @@
 import { getDb } from "../db.js";
 import type { AzureSnapshotStore } from "../persistence/contracts.js";
+import { requiredPlanKey } from "../persistence/planKey.js";
 import type { ExecucaoRow, FalhaRow } from "../types.js";
 
 export type AzureSnapshot = {
@@ -90,12 +91,8 @@ export function listFalhas(planKey: string): FalhaRow[] {
 }
 
 function queryPage<T>(table: "execucoes" | "falhas", columns: string[], params: PageParams): PageResult<T> {
-  const where: string[] = [];
-  const args: (string | number)[] = [];
-  if (params.planKey) {
-    where.push("plan_key = ?");
-    args.push(params.planKey);
-  }
+  const where = ["plan_key = ?"];
+  const args: (string | number)[] = [requiredPlanKey(params.planKey)];
   if (params.q) {
     where.push(`(${columns.map((c) => `${c} LIKE ? ESCAPE '\\'`).join(" OR ")})`);
     const like = likeParam(params.q);

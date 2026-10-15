@@ -17,6 +17,7 @@ const COLUNAS: { campo: string; render: (r: ExecucaoRow) => ReactNode; texto: (r
   col("TestPointId", (r) => r.test_point_id),
   col("TestCaseId", (r) => r.test_case_id),
   col("TestCaseTitle", (r) => r.test_case_title),
+  col("Prioridade", (r) => r.case_priority),
   col("Responsabilidade", (r) => r.responsabilidade),
   col("TestCaseState", (r) => r.test_case_state),
   col("TestPointState", (r) => r.test_point_state),

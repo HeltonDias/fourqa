@@ -141,7 +141,7 @@ export function shortDim(label: string): string {
 }
 
 export function rowKey(item: PlanningItem): string {
-  return `${item.suiteId ?? "s"}-${item.suiteName}`;
+  return `${item.suiteId ?? "s"}-${item.testPointId ?? "p"}-${item.suiteName}`;
 }
 
 export function isPriority(col: { kind: string; label: string; dimKey?: string }): boolean {

@@ -1,3 +1,4 @@
+import { normalizeSuiteFill } from "../domain/planning.js";
 import { getDb } from "../db.js";
 import type { PlanningStore } from "../persistence/contracts.js";
 
@@ -27,8 +28,12 @@ export type PlanningAllocationWrite = {
 export type PlanningItemWrite = {
   suiteId: number | null;
   suiteName: string | null;
+  testPointId?: number | null;
+  testCaseId?: number | null;
   plannedStart: string | null;
   plannedEnd: string | null;
+  responsavel?: string | null;
+  prioridade?: string | null;
   baselineQuantity: number | null;
   allocations: PlanningAllocationWrite[];
 };
@@ -50,7 +55,8 @@ export type CommitRevisionInput = {
 
 export type PlanningCellWrite =
   | { itemId: number; field: "day"; date: string; quantity: number }
-  | { itemId: number; field: "start" | "end"; date: string | null };
+  | { itemId: number; field: "start" | "end"; date: string | null }
+  | { itemId: number; field: "responsavel" | "prioridade"; value: string | null };
 
 const REVISION_SQL = `SELECT r.id, r.version, r.created_at, r.reason, r.baseline_origin, r.scope_snapshot
          FROM planning_revision r
@@ -105,16 +111,20 @@ export function loadSchedule(revisionId: number): PlanningScheduleItem[] {
   const db = getDb();
   const items = db
     .prepare(
-      `SELECT id, suite_id, suite_name, planned_start, planned_end, baseline_quantity
+      `SELECT id, suite_id, suite_name, test_point_id, test_case_id, planned_start, planned_end, baseline_quantity, responsavel, prioridade
        FROM planning_item WHERE revision_id = ?`,
     )
     .all(revisionId) as {
     id: number;
     suite_id: number | null;
     suite_name: string | null;
+    test_point_id: number | null;
+    test_case_id: number | null;
     planned_start: string | null;
     planned_end: string | null;
     baseline_quantity: number | null;
+    responsavel: string | null;
+    prioridade: string | null;
   }[];
   const allocs = db
     .prepare(
@@ -128,8 +138,12 @@ export function loadSchedule(revisionId: number): PlanningScheduleItem[] {
     id: item.id,
     suiteId: item.suite_id,
     suiteName: item.suite_name,
+    testPointId: item.test_point_id,
+    testCaseId: item.test_case_id,
     plannedStart: item.planned_start,
     plannedEnd: item.planned_end,
+    responsavel: item.responsavel,
+    prioridade: item.prioridade,
     baselineQuantity: item.baseline_quantity,
     allocations: allocs
       .filter((row) => row.item_id === item.id)
@@ -160,15 +174,28 @@ export function commitRevision(input: CommitRevisionInput): number {
       insertScope.run(revisionId, item.planId, item.suiteId, item.testPointId, item.testCaseId, item.label ?? null);
     }
     const insertItem = db.prepare(
-      `INSERT INTO planning_item (revision_id, suite_id, suite_name, planned_start, planned_end, baseline_quantity)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO planning_item (
+        revision_id, suite_id, suite_name, test_point_id, test_case_id,
+        planned_start, planned_end, baseline_quantity, responsavel, prioridade
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     const insertAlloc = db.prepare(
       `INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)`,
     );
     for (const item of input.items) {
       const itemId = Number(
-        insertItem.run(revisionId, item.suiteId, item.suiteName, item.plannedStart, item.plannedEnd, item.baselineQuantity).lastInsertRowid,
+        insertItem.run(
+          revisionId,
+          item.suiteId,
+          item.suiteName,
+          item.testPointId ?? null,
+          item.testCaseId ?? null,
+          item.plannedStart,
+          item.plannedEnd,
+          item.baselineQuantity,
+          normalizeSuiteFill(item.responsavel),
+          normalizeSuiteFill(item.prioridade),
+        ).lastInsertRowid,
       );
       for (const alloc of item.allocations) insertAlloc.run(itemId, alloc.date, alloc.quantity);
     }
@@ -187,26 +214,46 @@ export function commitRevision(input: CommitRevisionInput): number {
  */
 export function saveCell(input: PlanningCellWrite): void {
   const db = getDb();
-  if (input.field === "day") {
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      db.prepare("DELETE FROM planning_allocation WHERE item_id = ? AND alloc_date = ?").run(input.itemId, input.date);
-      if (input.quantity > 0) {
-        db.prepare("INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)").run(
-          input.itemId,
-          input.date,
-          input.quantity,
-        );
+  switch (input.field) {
+    case "day": {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare("DELETE FROM planning_allocation WHERE item_id = ? AND alloc_date = ?").run(input.itemId, input.date);
+        if (input.quantity > 0) {
+          db.prepare("INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)").run(
+            input.itemId,
+            input.date,
+            input.quantity,
+          );
+        }
+        db.exec("COMMIT");
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
       }
-      db.exec("COMMIT");
-    } catch (err) {
-      db.exec("ROLLBACK");
-      throw err;
+      return;
     }
-    return;
+    case "responsavel": {
+      db.prepare("UPDATE planning_item SET responsavel = ? WHERE id = ?").run(normalizeSuiteFill(input.value), input.itemId);
+      return;
+    }
+    case "prioridade": {
+      db.prepare("UPDATE planning_item SET prioridade = ? WHERE id = ?").run(normalizeSuiteFill(input.value), input.itemId);
+      return;
+    }
+    case "start": {
+      db.prepare("UPDATE planning_item SET planned_start = ? WHERE id = ?").run(input.date, input.itemId);
+      return;
+    }
+    case "end": {
+      db.prepare("UPDATE planning_item SET planned_end = ? WHERE id = ?").run(input.date, input.itemId);
+      return;
+    }
+    default: {
+      const unreachable: never = input;
+      throw new Error(`Campo de planejamento não suportado (${JSON.stringify(unreachable)})`);
+    }
   }
-  const column = input.field === "start" ? "planned_start" : "planned_end";
-  db.prepare(`UPDATE planning_item SET ${column} = ? WHERE id = ?`).run(input.date, input.itemId);
 }
 
 export const sqlitePlanningStore = {
