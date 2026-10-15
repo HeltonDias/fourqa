@@ -14,6 +14,22 @@ export const postgresMigrations: { version: number; file: string }[] = [
 
 export const POSTGRES_SCHEMA_VERSION = postgresMigrations[postgresMigrations.length - 1]?.version ?? 0;
 
+/** Tabelas do FourQA anteriores ao ledger. schema_migrations não entra aqui. */
+export const POSTGRES_APP_TABLES = [
+  "workbook_meta",
+  "planejamento_linhas",
+  "execucoes",
+  "falhas",
+  "planning",
+  "planning_revision",
+  "planning_item",
+  "planning_scope_item",
+  "planning_allocation",
+] as const;
+
+export const LEDGER_MISSING_MESSAGE =
+  "schema_migrations ausente com tabelas FourQA já existentes. Não aplique 001 sobre objetos existentes.";
+
 const MISSING_SCHEMA = "Esquema PostgreSQL ausente. Rode db:postgres migrate antes de subir a API.";
 
 export const APPLIED_VERSIONS_SQL = "SELECT version FROM schema_migrations ORDER BY version";
@@ -159,8 +175,17 @@ export async function assertPostgresSchema(): Promise<void> {
   }
 }
 
+async function publicTableNames(): Promise<Set<string>> {
+  const current = await poolQuery("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  return new Set(current.rows.map((row) => String(row.tablename)));
+}
+
 export async function migratePostgres(): Promise<void> {
   const pool = getPool();
+  const present = await publicTableNames();
+  if (!present.has("schema_migrations") && POSTGRES_APP_TABLES.some((table) => present.has(table))) {
+    throw new Error(LEDGER_MISSING_MESSAGE);
+  }
   await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version integer PRIMARY KEY,
     applied_at text NOT NULL

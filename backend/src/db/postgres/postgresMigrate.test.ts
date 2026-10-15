@@ -32,7 +32,7 @@ function poolReturning(versions: number[] | "missing" | Error) {
   });
 }
 
-function scriptedMigrations(initial: number[], options?: { failSql?: string; suiteConflicts?: boolean }) {
+function scriptedMigrations(initial: number[], options?: { failSql?: string; suiteConflicts?: boolean; publicTables?: string[] }) {
   const versions = [...initial];
   const log: string[] = [];
   let began = 0;
@@ -53,6 +53,7 @@ function scriptedMigrations(initial: number[], options?: { failSql?: string; sui
   bindPostgresTestPool({
     async query(sql: string) {
       log.push(sql);
+      if (sql.includes("pg_tables")) return { rows: (options?.publicTables ?? []).map((tablename) => ({ tablename })) };
       if (sql.includes("FROM schema_migrations")) return { rows: versions.map((version) => ({ version })) };
       if (sql.includes("information_schema.columns")) {
         return { rows: [{ column_name: "suite_id" }, { column_name: "test_point_id" }] };
@@ -144,6 +145,13 @@ describe("migrações PostgreSQL", () => {
     await assert.rejects(() => migratePostgres(), /Migração 002 bloqueada/);
     assert.equal(conflict.began(), 0);
     assert.deepEqual(conflict.versions, [1]);
+  });
+
+  it("não aplica 001 sobre tabelas existentes sem schema_migrations", async () => {
+    const occupied = scriptedMigrations([], { publicTables: ["planning", "planning_item"] });
+    await assert.rejects(() => migratePostgres(), /schema_migrations ausente com tabelas FourQA/);
+    assert.equal(occupied.began(), 0);
+    assert.equal(occupied.log.some((sql) => sql.includes("CREATE TABLE IF NOT EXISTS schema_migrations")), false);
   });
 
   it("desfaz a migration que falha e preserva a anterior", async () => {

@@ -96,17 +96,27 @@ export function postgresConnectionConfig(connectionString: string, caPem?: strin
     throw new Error("DATABASE_URL inválida");
   }
   if (!host) throw new Error("DATABASE_URL inválida");
+  const serverless = process.env.VERCEL === "1";
   return {
     connectionString: stripSslParams(connectionString),
-    max: 10,
-    idleTimeoutMillis: 30_000,
+    max: serverless ? 1 : 10,
+    idleTimeoutMillis: serverless ? 5_000 : 30_000,
+    allowExitOnIdle: serverless ? true : undefined,
     connectionTimeoutMillis: 15_000,
-    application_name: "fourqa",
+    application_name: serverless ? "fourqa-vercel" : "fourqa",
     ssl: sslConfig(host, mode, sslFlag, caPem),
   };
 }
 
+/** PEM inline para a Vercel, onde não há caminho local de certificado. */
 export function postgresCaPem(connectionString: string): string | undefined {
+  const inline = envValue("DATABASE_SSL_CA");
+  if (inline) {
+    if (!inline.includes("BEGIN CERTIFICATE")) {
+      throw new Error("Certificado CA do PostgreSQL não está em PEM");
+    }
+    return inline;
+  }
   const configured = envValue("DATABASE_SSL_CA_FILE");
   if (configured) return readPostgresCaPem(configured);
   let rootCert = "";

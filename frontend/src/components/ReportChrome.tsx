@@ -1,5 +1,6 @@
 import { fmtDate, fmtDateTime } from "../api";
 import { useReportChrome } from "../context/ReportChromeContext";
+import { useState } from "react";
 import { ReportTitles } from "./ReportTitles";
 import { SyncMessage } from "./SyncMessage";
 
@@ -14,7 +15,10 @@ export function ReportChrome() {
     handleAtualizar,
     syncing,
     now,
+    refreshHome,
   } = useReportChrome();
+  const [accessToken, setAccessToken] = useState("");
+  const needsAccessToken = homeError === "Não autorizado.";
 
   const title = home?.title ?? (homeLoading ? "Carregando…" : "STATUS REPORT QA");
   const subtitle =
@@ -77,6 +81,31 @@ export function ReportChrome() {
               : "—"}
         </p>
         <SyncMessage sync={sync} error={syncError ?? homeError} />
+        {needsAccessToken ? (
+          <form
+            className="access-gate"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const value = accessToken.trim();
+              if (!value) return;
+              localStorage.setItem("fourqa_token", value);
+              setAccessToken("");
+              refreshHome();
+            }}
+          >
+            <p>Informe o token de acesso. Ele fica só neste navegador.</p>
+            <input
+              type="password"
+              name="fourqa-access-token"
+              autoComplete="off"
+              value={accessToken}
+              onChange={(event) => setAccessToken(event.target.value)}
+            />
+            <button type="submit" className="btn-primary">
+              Entrar
+            </button>
+          </form>
+        ) : null}
       </div>
 
       <hr className="report-chrome-divider" />

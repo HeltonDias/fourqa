@@ -106,6 +106,16 @@ describe("PostgreSQL real", { skip: url ? false : "TEST_DATABASE_URL ausente", c
     assert.equal(added.rows.length, 0);
   });
 
+  it("não aplica 001 quando já existem tabelas sem schema_migrations", async () => {
+    await resetSchema();
+    await admin.query("CREATE TABLE workbook_meta (key text PRIMARY KEY, value text)");
+    await assert.rejects(() => migratePostgres(), /schema_migrations ausente com tabelas FourQA/);
+    const tables = await admin.query<{ tablename: string }>(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1",
+    );
+    assert.deepEqual(tables.rows.map((row) => row.tablename), ["workbook_meta"]);
+  });
+
   it("bloqueia a 002 quando a suíte já está duplicada", async () => {
     await resetSchema();
     await admin.query(readFileSync(postgresMigrations[0]!.file, "utf8"));

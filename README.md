@@ -63,4 +63,12 @@ npm run build
 - Não há login de usuários. Não publique o FourQA na internet só com o token vazio.
 - O health check responde `{ ok, database }` e não devolve caminho de arquivo.
 
+## Vercel
+
+O Preview usa o frontend Vite em `frontend/dist` e o Express em `api/[...path].mjs`. Na Vercel o snapshot Azure fica no PostgreSQL. Variáveis, pooler, sync e proteção estão em [docs/vercel.md](docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
+
 Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.
+
+## Vercel
+
+O Preview usa o frontend estático e uma Function Express em `/api`. Na Vercel o snapshot do Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção do Preview: [docs/vercel.md](docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.

@@ -6,9 +6,8 @@ import type { AzureSnapshot } from "../db/sqliteAzureSnapshotStore.js";
 export type SyncPersistDeps = {
   replaceSnapshot: (input: AzureSnapshot) => Promise<void>;
   mirrorEnabled: () => boolean;
-  /** Ligado: publica o cache e grava só as metas. Não chama replaceSnapshot. */
+  /** Ligado: publica só o cache. Não grava meta nem linhas no SQL. */
   cacheReadEnabled?: () => boolean;
-  setBatchMeta?: (meta: Record<string, string>) => Promise<void>;
   cache: InMemoryAzureCache;
 };
 
@@ -20,6 +19,8 @@ export type SyncPersistDeps = {
  * 4. Sucesso sem espelho: cache anterior fica stale; a leitura usa o banco.
  * 5. Sucesso com espelho: commit da mesma geração; falha no espelho marca stale
  *    e o sync continua sucesso, sem reverter o banco.
+ * 6. Modo cache não grava meta de lote no SQL. Meta sem as linhas faria a Vercel
+ *    ler KPI novo sobre execuções velhas.
  */
 export async function persistValidatedSyncBatch(
   draft: AzureRefreshDraft,
@@ -27,11 +28,6 @@ export async function persistValidatedSyncBatch(
   deps: SyncPersistDeps,
 ): Promise<void> {
   if (deps.cacheReadEnabled?.()) {
-    if (!deps.setBatchMeta) throw new Error("Metas do refresh são obrigatórias no modo cache.");
-    // O banco confirma o lote antes da memória. Falha aqui não publica geração nova.
-    // A transação SQL não desfaz o cache: se a publicação falhar depois, o status
-    // fica erro e o próximo refresh bem-sucedido realinha meta e cache.
-    await deps.setBatchMeta(artifacts.workbookMeta);
     deps.cache.commitSuccessfulRefresh(draft, artifacts);
     return;
   }

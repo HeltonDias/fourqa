@@ -30,6 +30,15 @@ describe("superfície de responsável e prioridade", () => {
     const execucoes = source("frontend/src/pages/ExecucoesPage.tsx");
     assert.match(execucoes, /case_priority/);
     assert.equal(execucoes.includes("Prioridade própria da suíte"), false);
+    const emptyState = source("frontend/src/components/LoadState.tsx");
+    assert.match(emptyState, /Use Atualizar para carregar os dados do Azure/);
+    assert.equal(emptyState.includes("import:planilha"), false);
+    const entry = source("frontend/src/main.tsx");
+    const vite = source("frontend/vite.config.ts");
+    assert.match(entry, /import\.meta\.env\.DEV/);
+    assert.match(entry, /localStorage\.setItem\("fourqa_token"/);
+    assert.match(vite, /configureServer/);
+    assert.equal(vite.includes("FOURQA_ALLOW_OPEN_WRITES"), false);
     for (const page of [
       "frontend/src/pages/StatusPage.tsx",
       "frontend/src/pages/ReportPage.tsx",

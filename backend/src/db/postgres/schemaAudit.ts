@@ -3,25 +3,16 @@ import {
   assessMigrationHistory,
   findPlanningIdentityConflicts,
   formatVersions,
+  LEDGER_MISSING_MESSAGE,
   planningItemColumnNames,
+  POSTGRES_APP_TABLES,
   POSTGRES_SCHEMA_VERSION,
   readAppliedVersions,
   type DbQuery,
   type IdentityConflict,
 } from "./migrate.js";
 
-export const EXPECTED_TABLES = [
-  "workbook_meta",
-  "planejamento_linhas",
-  "execucoes",
-  "falhas",
-  "planning",
-  "planning_revision",
-  "planning_item",
-  "planning_scope_item",
-  "planning_allocation",
-  "schema_migrations",
-] as const;
+export const EXPECTED_TABLES = [...POSTGRES_APP_TABLES, "schema_migrations"] as const;
 
 const FILL_COLUMNS = ["responsavel", "prioridade"] as const;
 const IDENTITY_COLUMNS = ["test_point_id", "test_case_id"] as const;
@@ -109,10 +100,16 @@ export async function inspectPreflight(query: DbQuery): Promise<PreflightReport>
   const tables = await tableNames(query);
   const versions = tables.has("schema_migrations") ? await readAppliedVersions(query) : "missing";
   const applied = versions === "missing" ? null : versions;
+  const occupied = POSTGRES_APP_TABLES.filter((table) => tables.has(table));
+  const ledgerMissingWithTables = !tables.has("schema_migrations") && occupied.length > 0;
   const fresh = assessMigrationHistory([]);
   let pending = fresh.status === "ok" ? fresh.pending : [];
   let historyMessage: string | null = null;
-  if (applied) {
+  if (ledgerMissingWithTables) {
+    pending = [];
+    historyMessage = LEDGER_MISSING_MESSAGE;
+    failReasons.push(LEDGER_MISSING_MESSAGE);
+  } else if (applied) {
     const assessment = assessMigrationHistory(applied);
     if (assessment.status === "ok") pending = assessment.pending;
     else {
@@ -131,6 +128,7 @@ export async function inspectPreflight(query: DbQuery): Promise<PreflightReport>
   for (const table of EXPECTED_TABLES) {
     if (!tables.has(table)) {
       counts[table] = "ausente";
+      if (!(table === "schema_migrations" && ledgerMissingWithTables)) failReasons.push(`tabela ausente: ${table}`);
       continue;
     }
     const current = await query(`SELECT COUNT(*)::int AS n FROM ${table}`);

@@ -343,14 +343,11 @@ describe("leitura experimental pelo cache", () => {
       },
       mirrorEnabled: () => false,
       cacheReadEnabled: () => true,
-      setBatchMeta: async (batch) => {
-        for (const [key, value] of Object.entries(batch)) await meta.set(key, value);
-      },
       cache,
     });
     assert.equal(replaced, 0);
     assert.equal(await meta.get("cabecalho_titulo"), "Home");
-    assert.equal(await meta.get("kpi_plan_key"), "EndToEnd");
+    assert.equal(await meta.get("kpi_plan_key"), null);
     assert.equal((await source.listExecucoes("EndToEnd"))[0]?.test_point_id, 2);
     assert.equal(snap.calls, 0);
     assert.throws(() => source.replaceSnapshot({ execucoes: [], falhas: [], meta: {} }), /snapshot desligada/);

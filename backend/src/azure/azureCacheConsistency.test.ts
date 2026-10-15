@@ -132,43 +132,35 @@ describe("persistValidatedSyncBatch", () => {
     const cache = new InMemoryAzureCache();
     cache.beginRefresh();
     let replaced = 0;
-    const meta: Record<string, string> = {};
     await persistValidatedSyncBatch(draft(), artifacts(), {
       replaceSnapshot: async () => {
         replaced += 1;
       },
       mirrorEnabled: () => true,
       cacheReadEnabled: () => true,
-      setBatchMeta: async (batch) => {
-        Object.assign(meta, batch);
-      },
       cache,
     });
     assert.equal(replaced, 0);
-    assert.equal(meta.kpi_plan_key, "EndToEnd");
+    assert.equal(cache.readGeneration()?.meta.kpi_plan_key, "EndToEnd");
     assert.equal(cache.getPlan("EndToEnd").state, "loaded");
     assert.throws(() => cache.beginRefresh(), /já em andamento/);
     cache.endRefresh();
   });
 
-  it("falha nas metas não publica o cache e propaga o erro", async () => {
+  it("modo cache publica na memória mesmo se o snapshot SQL falharia", async () => {
     const cache = new InMemoryAzureCache();
     cache.commitSuccessfulRefresh(draft("PlanoA"), artifacts("PlanoA"));
-    await assert.rejects(
-      () => persistValidatedSyncBatch(draft("PlanoB"), artifacts("PlanoB"), {
-        replaceSnapshot: async () => {
-          throw new Error("não devia gravar snapshot");
-        },
-        mirrorEnabled: () => false,
-        cacheReadEnabled: () => true,
-        setBatchMeta: async () => {
-          throw new Error("meta rejeitada");
-        },
-        cache,
-      }),
-      /meta rejeitada/,
-    );
-    assert.equal(cache.getPlan("PlanoA").state, "loaded");
-    assert.equal(cache.getPlan("PlanoB").state, "empty");
+    cache.beginRefresh();
+    await persistValidatedSyncBatch(draft("PlanoB"), artifacts("PlanoB"), {
+      replaceSnapshot: async () => {
+        throw new Error("não devia gravar snapshot");
+      },
+      mirrorEnabled: () => false,
+      cacheReadEnabled: () => true,
+      cache,
+    });
+    assert.equal(cache.getPlan("PlanoA").state, "empty");
+    assert.equal(cache.getPlan("PlanoB").state, "loaded");
+    assert.equal(cache.readGeneration()?.meta.kpi_plan_key, "PlanoB");
   });
 });

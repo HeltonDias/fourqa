@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { AzureCacheUnavailableError } from "../azure/azureCacheReadSource.js";
 import { envValue } from "../azure/config.js";
-import { decideWriteAuth } from "../http/writeAuth.js";
+import { decideReadAuth, decideWriteAuth, openWritesAllowed } from "../http/writeAuth.js";
 import { parsePageQuery } from "../http/pageQuery.js";
 import { planKeyFromRaw } from "../persistence/planKey.js";
 import { getStores, persistenceReady } from "../persistence/provider.js";
@@ -17,6 +17,46 @@ import {
 import { getSyncState, startSync, SyncConfigError } from "../services/syncService.js";
 
 export const apiRouter = Router();
+
+function readsAreProtected(): boolean {
+  return process.env.VERCEL === "1" && envValue("FOURQA_PROTECT_READS") !== "0";
+}
+
+function writeDecision(req: { header(name: string): string | undefined }) {
+  return decideWriteAuth({
+    configuredToken: envValue("FOURQA_API_TOKEN"),
+    allowOpenWrites: openWritesAllowed({
+      vercel: process.env.VERCEL === "1",
+      allowOpenWritesFlag: envValue("FOURQA_ALLOW_OPEN_WRITES"),
+    }),
+    authorizationHeader: req.header("authorization"),
+  });
+}
+
+apiRouter.use((req, res, next) => {
+  if (!readsAreProtected() || req.path === "/health") {
+    next();
+    return;
+  }
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    next();
+    return;
+  }
+  const decision = decideReadAuth({
+    protectReads: true,
+    configuredToken: envValue("FOURQA_API_TOKEN"),
+    authorizationHeader: req.header("authorization"),
+  });
+  if (decision === "allow") {
+    next();
+    return;
+  }
+  if (decision === "unconfigured") {
+    res.status(503).json({ error: "Acesso desabilitado. Configure FOURQA_API_TOKEN neste ambiente." });
+    return;
+  }
+  res.status(401).json({ error: "Não autorizado." });
+});
 
 const stores = await getStores();
 const getMeta = async (key: string) => stores.meta.get(key);
@@ -50,11 +90,7 @@ async function planKeyFromQuery(q: unknown): Promise<string> {
 
 /** Escrita fechada sem FOURQA_API_TOKEN, salvo FOURQA_ALLOW_OPEN_WRITES=1. */
 function requireWriteAuth(req: { header(name: string): string | undefined }, res: { status(code: number): { json(body: unknown): void } }, next: () => void): void {
-  const decision = decideWriteAuth({
-    configuredToken: envValue("FOURQA_API_TOKEN"),
-    allowOpenWrites: envValue("FOURQA_ALLOW_OPEN_WRITES") === "1",
-    authorizationHeader: req.header("authorization"),
-  });
+  const decision = writeDecision(req);
   if (decision === "allow") {
     next();
     return;
@@ -196,7 +232,7 @@ apiRouter.get("/status-frente", async (req, res) => {
 apiRouter.post("/sync", requireWriteAuth, async (_req, res) => {
   if (!(await ready(res))) return;
   try {
-    const { started, state } = startSync();
+    const { started, state } = await startSync();
     res.status(started ? 202 : 200).json({ started, state });
   } catch (err) {
     if (err instanceof SyncConfigError) {
@@ -208,8 +244,8 @@ apiRouter.post("/sync", requireWriteAuth, async (_req, res) => {
   }
 });
 
-apiRouter.get("/sync/status", (_req, res) => {
-  res.json(getSyncState());
+apiRouter.get("/sync/status", async (_req, res) => {
+  res.json(await getSyncState());
 });
 
 apiRouter.get("/execucoes", async (req, res) => {

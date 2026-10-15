@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { isAzureCacheReadEnabled } from "../azure/azureCacheReadSource.js";
+import { assertVercelCacheMode, isAzureCacheReadEnabled } from "../azure/azureCacheReadSource.js";
 import { assertOperationalProvider } from "./operationalProvider.js";
 
-describe("provider operacional", () => {
+describe("provider operacional", { concurrency: 1 }, () => {
   it("a API recusa SQLite e provider vazio", () => {
     assert.throws(() => assertOperationalProvider(""), /DB_PROVIDER=postgres/);
     assert.throws(() => assertOperationalProvider("sqlite"), /DB_PROVIDER=postgres/);
@@ -25,6 +25,30 @@ describe("provider operacional", () => {
       else process.env.DB_PROVIDER = previousProvider;
       if (previousFlag === undefined) delete process.env.AZURE_CACHE_READ;
       else process.env.AZURE_CACHE_READ = previousFlag;
+    }
+  });
+
+  it("na Vercel o padrão é o snapshot SQL", () => {
+    const previousProvider = process.env.DB_PROVIDER;
+    const previousFlag = process.env.AZURE_CACHE_READ;
+    const previousVercel = process.env.VERCEL;
+    process.env.DB_PROVIDER = "postgres";
+    process.env.VERCEL = "1";
+    process.env.AZURE_CACHE_READ = "";
+    try {
+      assert.equal(isAzureCacheReadEnabled(), false);
+      process.env.AZURE_CACHE_READ = "0";
+      assert.equal(isAzureCacheReadEnabled(), false);
+      process.env.AZURE_CACHE_READ = "1";
+      assert.equal(isAzureCacheReadEnabled(), true);
+      assert.throws(() => assertVercelCacheMode(), /não é permitido na Vercel/);
+    } finally {
+      if (previousProvider === undefined) delete process.env.DB_PROVIDER;
+      else process.env.DB_PROVIDER = previousProvider;
+      if (previousFlag === undefined) delete process.env.AZURE_CACHE_READ;
+      else process.env.AZURE_CACHE_READ = previousFlag;
+      if (previousVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previousVercel;
     }
   });
 

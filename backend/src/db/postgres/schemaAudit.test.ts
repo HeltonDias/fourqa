@@ -106,4 +106,35 @@ describe("preflight e verify", () => {
     assert.match(text, /tabela ausente: execucoes/);
     assert.match(text, /consulta de schema falhou: planning_item/);
   });
+
+  it("falha quando uma tabela esperada não existe", async () => {
+    const report = await inspectPreflight(queryOf({
+      versions: [1],
+      columns: BASE_COLUMNS,
+      indexes: ["idx_plan_item_rev"],
+      tables: EXPECTED_TABLES.filter((table) => table !== "execucoes"),
+    }));
+    assert.equal(report.precheck, "FAIL");
+    assert.equal(report.counts.execucoes, "ausente");
+    const text = formatPreflight(report);
+    assert.match(text, /tabela ausente: execucoes/);
+    assert.match(text, /count execucoes = ausente/);
+    assert.match(text, /versions = \[1\]/);
+    assert.equal(text.split("tabela ausente: execucoes").length, 2);
+  });
+
+  it("não trata ledger ausente com tabelas FourQA como banco novo", async () => {
+    const report = await inspectPreflight(queryOf({
+      tables: ["planning", "planning_item", "execucoes"],
+      columns: BASE_COLUMNS,
+    }));
+    assert.equal(report.precheck, "FAIL");
+    assert.deepEqual(report.pending, []);
+    assert.equal(report.counts.schema_migrations, "ausente");
+    const text = formatPreflight(report);
+    assert.match(text, /schema_migrations ausente com tabelas FourQA já existentes/);
+    assert.equal(text.includes("tabela ausente: schema_migrations"), false);
+    assert.match(text, /tabela ausente: workbook_meta/);
+    assert.equal(text.includes("pending = [1,2,3]"), false);
+  });
 });

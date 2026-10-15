@@ -7,12 +7,24 @@ import { requiredPlanKey } from "../persistence/planKey.js";
 import type { InMemoryAzureCache } from "./inMemoryAzureCache.js";
 import { getInMemoryAzureCache } from "./inMemoryAzureCache.js";
 
-/** Cache ligado com AZURE_CACHE_READ=1, desligado com 0. No PostgreSQL da API, o padrão é ligado. */
+/**
+ * Cache ligado com AZURE_CACHE_READ=1, desligado com 0.
+ * No PostgreSQL local o padrão é ligado. Na Vercel o padrão é o snapshot SQL:
+ * instâncias não compartilham memória.
+ */
 export function isAzureCacheReadEnabled(): boolean {
   const flag = envValue("AZURE_CACHE_READ");
+  if (process.env.VERCEL === "1") return flag === "1";
   if (flag === "1") return true;
   if (flag === "0") return false;
   return envValue("DB_PROVIDER").trim().toLowerCase() === "postgres";
+}
+
+/** O cache volátil não pode ser a fonte operacional de uma Function. */
+export function assertVercelCacheMode(): void {
+  if (process.env.VERCEL === "1" && envValue("AZURE_CACHE_READ") === "1") {
+    throw new Error("AZURE_CACHE_READ=1 não é permitido na Vercel. O snapshot operacional fica no PostgreSQL.");
+  }
 }
 
 /** O modo cache ainda não tem geração. Não é o mesmo que um plano carregado sem linhas. */

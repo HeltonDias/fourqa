@@ -118,7 +118,9 @@ export function createFakePostgres() {
       return value === undefined ? [] : [{ value }];
     }
     if (sql.startsWith("INSERT INTO workbook_meta")) {
-      state.workbook_meta.set(String(params[0]), String(params[1]));
+      const key = String(params[0]);
+      if (sql.includes("ON CONFLICT") && sql.includes("DO NOTHING") && state.workbook_meta.has(key)) return [];
+      state.workbook_meta.set(key, String(params[1]));
       return [];
     }
     if (sql.startsWith("SELECT id FROM planning")) {

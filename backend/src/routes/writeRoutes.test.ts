@@ -12,7 +12,7 @@ const dir = mkdtempSync(path.join(tmpdir(), "fourqa-write-http-"));
 process.env.FOURQA_DB = path.join(dir, "fourqa.db");
 process.env.DB_PROVIDER = "sqlite";
 process.env.AZURE_CACHE_READ = "1";
-delete process.env.FOURQA_API_TOKEN;
+process.env.FOURQA_API_TOKEN = "";
 delete process.env.FOURQA_ALLOW_OPEN_WRITES;
 
 const { apiRouter } = await import("./api.js");
@@ -31,13 +31,15 @@ async function call(path: string, init?: RequestInit): Promise<{ status: number;
 
 describe("rotas de escrita e cache vazio", { concurrency: 1 }, () => {
   before(() => {
-    delete process.env.FOURQA_API_TOKEN;
+    process.env.FOURQA_API_TOKEN = "";
     delete process.env.FOURQA_ALLOW_OPEN_WRITES;
   });
 
   after(() => {
     server.close();
     delete process.env.AZURE_CACHE_READ;
+    delete process.env.VERCEL;
+    delete process.env.FOURQA_PROTECT_READS;
     getDb().close();
     rmSync(dir, { recursive: true, force: true });
   });
@@ -66,7 +68,7 @@ describe("rotas de escrita e cache vazio", { concurrency: 1 }, () => {
       body: JSON.stringify({ title: "", subtitle: "" }),
     });
     assert.equal(opened.status, 400);
-    delete process.env.FOURQA_API_TOKEN;
+    process.env.FOURQA_API_TOKEN = "";
   });
 
   it("opt-in local libera a escrita sem token", async () => {
@@ -105,5 +107,40 @@ describe("rotas de escrita e cache vazio", { concurrency: 1 }, () => {
     const other = await call("/api/falhas?planKey=Outro");
     assert.equal(other.status, 200);
     assert.equal(other.body.total, 0);
+  });
+
+  it("na Vercel a leitura exige token e a escrita aberta continua fechada", async () => {
+    const previousVercel = process.env.VERCEL;
+    const previousReads = process.env.FOURQA_PROTECT_READS;
+    const previousToken = process.env.FOURQA_API_TOKEN;
+    const previousOpen = process.env.FOURQA_ALLOW_OPEN_WRITES;
+    process.env.VERCEL = "1";
+    process.env.FOURQA_PROTECT_READS = "1";
+    process.env.FOURQA_API_TOKEN = "segredo-vercel";
+    delete process.env.FOURQA_ALLOW_OPEN_WRITES;
+    try {
+      const closed = await call("/api/execucoes?planKey=Vazio");
+      assert.equal(closed.status, 401);
+      const health = await call("/api/health");
+      assert.equal(health.status, 200);
+      const authed = await call("/api/execucoes?planKey=Vazio", {
+        headers: { Authorization: "Bearer segredo-vercel" },
+      });
+      assert.notEqual(authed.status, 401);
+      process.env.FOURQA_API_TOKEN = "";
+      process.env.FOURQA_ALLOW_OPEN_WRITES = "1";
+      const write = await call("/api/sync", { method: "POST" });
+      assert.equal(write.status, 503);
+      assert.match(write.body.error ?? "", /Escrita desabilitada/);
+    } finally {
+      if (previousVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previousVercel;
+      if (previousReads === undefined) delete process.env.FOURQA_PROTECT_READS;
+      else process.env.FOURQA_PROTECT_READS = previousReads;
+      if (previousToken === undefined) process.env.FOURQA_API_TOKEN = "";
+      else process.env.FOURQA_API_TOKEN = previousToken;
+      if (previousOpen === undefined) delete process.env.FOURQA_ALLOW_OPEN_WRITES;
+      else process.env.FOURQA_ALLOW_OPEN_WRITES = previousOpen;
+    }
   });
 });

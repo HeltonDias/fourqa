@@ -14,9 +14,7 @@ export function LoadState({
     return (
       <div className="state-box error">
         <p>{error}</p>
-        <p className="hint">
-          Execute <code>npm run import:planilha</code> e <code>npm run dev</code> na raiz do projeto.
-        </p>
+        <p className="hint">Use Atualizar para carregar os dados do Azure.</p>
       </div>
     );
   return <>{children}</>;

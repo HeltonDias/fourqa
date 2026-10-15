@@ -14,9 +14,10 @@
 ## Ao encerrar uma tarefa grande
 Atualizar só se a tarefa alterou arquitetura/contrato: data, caminhos modificados, decisão, testes, próxima ação (máximo 10 linhas). Não registrar histórico de ferramentas, trechos extensos de código, dados sensíveis ou logs. Abrir chat novo usando objetivo + este handoff apenas quando útil.
 
-## Conexão PostgreSQL (13/10/2026)
-- Decisão: TLS verifica o certificado do servidor. `rejectUnauthorized: false` só com `sslmode=no-verify`.
-- CA extra, se a trust store do Node falhar: `DATABASE_SSL_CA_FILE` (PEM em `certs/`, fora do Git).
-- Caminho: `backend/src/db/postgres/pool.ts`. SQLite e os contratos de persistência permanecem.
-- Backup verificado em `../fourqa-backups/fourqa-20261013-1451.db`. SQLite ativo continua `data/fourqa.db`.
-- Importação real ainda não executada. `import-sqlite` e `validate` aceitam `--source`. Conteúdo divergente aborta sem apagar o Postgres. A validação não exige o fixture PlanTeste.
+## Fase Supabase (15/10/2026)
+- PostgreSQL é o provider operacional. A API exige `DB_PROVIDER=postgres`. Schema esperado e final = 3. O Supabase de desenvolvimento está na versão 3.
+- 001 é o baseline. 002 grava a identidade do item (`test_point_id`, `test_case_id`). 003 grava responsável e prioridade da suíte.
+- SQLite permanece para testes, backup e importação histórica. Backup pré-migração: `../fourqa-backups/fourqa-supabase-20261015-1503.dump`.
+- TLS verifica o certificado. CA extra: `DATABASE_SSL_CA_FILE` (PEM em `certs/`, fora do Git). Caminho: `backend/src/db/postgres/pool.ts`.
+- Dados Azure operacionais ficam no cache em memória no desenvolvimento local. Na Vercel o snapshot vai para `execucoes`/`falhas`. Ver `docs/vercel.md`.
+- RLS do Supabase de desenvolvimento está ligado. `anon` e `authenticated` não leem as tabelas. A role do backend continua com acesso.

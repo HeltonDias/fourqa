@@ -21,7 +21,7 @@ function rejectsUnauthorized(ssl: PoolConfig["ssl"]): boolean {
   return typeof ssl === "object" && ssl !== null && ssl.rejectUnauthorized === true;
 }
 
-describe("postgres TLS", () => {
+describe("postgres TLS", { concurrency: 1 }, () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
@@ -126,5 +126,32 @@ describe("postgres TLS", () => {
         return true;
       },
     );
+  });
+
+  it("na Vercel o pool fica em uma conexão e o PEM pode vir da variável", () => {
+    const previousVercel = process.env.VERCEL;
+    const previousCa = process.env.DATABASE_SSL_CA;
+    const previousFile = process.env.DATABASE_SSL_CA_FILE;
+    process.env.VERCEL = "1";
+    process.env.DATABASE_SSL_CA_FILE = "";
+    const pem = "-----BEGIN CERTIFICATE-----\nQUM=\n-----END CERTIFICATE-----\n";
+    process.env.DATABASE_SSL_CA = pem;
+    try {
+      const config = postgresConnectionConfig(pooler);
+      assert.equal(config.max, 1);
+      assert.equal(config.idleTimeoutMillis, 5_000);
+      assert.equal(config.allowExitOnIdle, true);
+      assert.equal(config.application_name, "fourqa-vercel");
+      assert.equal(postgresCaPem(pooler), pem.trim());
+      process.env.DATABASE_SSL_CA = "nao-e-pem";
+      assert.throws(() => postgresCaPem(pooler), /não está em PEM/);
+    } finally {
+      if (previousVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = previousVercel;
+      if (previousCa === undefined) delete process.env.DATABASE_SSL_CA;
+      else process.env.DATABASE_SSL_CA = previousCa;
+      if (previousFile === undefined) delete process.env.DATABASE_SSL_CA_FILE;
+      else process.env.DATABASE_SSL_CA_FILE = previousFile;
+    }
   });
 });

@@ -7,6 +7,11 @@ data/
 !.env.example
 certs/
 *.log
+*.dump
+*.backup
+.preflight-target.sha256
+fourqa-supabase-*.sql
+.vercel/
 .DS_Store
 
 # Planilha pode conter PAT/credenciais (Config_Teste)
