@@ -27,7 +27,8 @@
   "functions": {
     "api/[...path].mjs": {
       "maxDuration": 300,
-      "includeFiles": "backend/dist/**"
+          "includeFiles": "backend/dist/**",
+          "excludeFiles": "{.env,.env.*,certs/**,**/*.pem}"
     }
   }
 }

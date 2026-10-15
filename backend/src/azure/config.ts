@@ -73,14 +73,20 @@ function readEnvFile(): Map<string, string> {
   return out;
 }
 
+/** Na Vercel só vale o ambiente do projeto. O arquivo .env local não entra no runtime. */
+function fileEnv(): Map<string, string> {
+  if (process.env.VERCEL === "1") return new Map();
+  return readEnvFile();
+}
+
 /** Lê uma variável do ambiente ou do .env, sem lançar se o Azure não estiver configurado. */
 export function envValue(name: string): string {
-  return (process.env[name] ?? readEnvFile().get(name) ?? "").trim();
+  return (process.env[name] ?? fileEnv().get(name) ?? "").trim();
 }
 
 export function loadSyncConfig(): SyncConfig {
-  const fileEnv = readEnvFile();
-  const env = (name: string) => (process.env[name] ?? fileEnv.get(name) ?? "").trim();
+  const file = fileEnv();
+  const env = (name: string) => (process.env[name] ?? file.get(name) ?? "").trim();
 
   const missing = ["AZURE_DEVOPS_ORG", "AZURE_DEVOPS_PROJECT", "AZURE_DEVOPS_PAT"].filter((n) => !env(n));
   if (missing.length > 0) {

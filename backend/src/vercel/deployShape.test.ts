@@ -17,6 +17,7 @@ describe("formato de deploy Vercel", () => {
     assert.equal(vercel.rewrites.some((rule) => rule.source.includes("(?!api/)")), true);
     assert.equal(vercel.rewrites.some((rule) => rule.destination === "/api"), false);
     assert.equal(vercel.functions["api/[...path].mjs"]?.maxDuration, 300);
+    assert.match(JSON.stringify(vercel.functions["api/[...path].mjs"]), /\.env/);
 
     const entry = readFileSync(path.join(root, "api", "[...path].mjs"), "utf8");
     assert.match(entry, /backend\/dist\/app\.js/);

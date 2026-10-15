@@ -23,13 +23,13 @@ Obrigatórias em runtime na Vercel:
 
 Usadas quando existem no projeto: `AZURE_DEVOPS_API_VERSION`, `SYNC_HIERARQUIA_SUITES`, `SYNC_RESPONSABILIDADES`, `SYNC_FRENTES_VALIDAS`, `SYNC_LIMPAR_ANTES`, `SYNC_CRIAR_CABECALHO`, `FRONTEND_ORIGIN`.
 
-Não defina `AZURE_CACHE_READ` (o vazio já grava no PostgreSQL). Não defina `FOURQA_ALLOW_OPEN_WRITES`. `FOURQA_PROTECT_READS=0` abre a leitura e não serve para Preview. `DATABASE_SSL_CA` é obrigatório neste banco. Nenhuma variável `VITE_` leva segredo.
+Na Vercel o arquivo `.env` não é lido. As variáveis vêm só do ambiente Preview do projeto. Não defina `AZURE_CACHE_READ` nem `FOURQA_ALLOW_OPEN_WRITES`. `FOURQA_PROTECT_READS=0` não serve para Preview. `DATABASE_SSL_CA` é obrigatório neste banco. Nenhuma variável `VITE_` leva segredo.
 
 `/api/health` fica público e não devolve dados de negócio. Os demais GET exigem `Authorization: Bearer`. O navegador grava o token em `localStorage.fourqa_token`; ele não entra no bundle.
 
 A proteção do projeto `fourqa` (conta `heltonmarques-8008`) é Vercel Authentication, cobrindo previews e URLs de deployment. O token da aplicação não substitui essa barreira.
 
-O repositório GitHub não está ligado ao projeto. Ligá-lo publicaria a branch de produção, e isso não está autorizado. `vercel.json` desliga deploy automático de `main` e `master` quando o commit implantado contém essa regra. O Preview sobe pela CLI, sem `--prod`.
+O repositório GitHub não está ligado ao projeto. Ligá-lo publicaria a branch de produção, e isso não está autorizado. `vercel.json` desliga deploy automático de `main` e `master` quando o commit implantado contém essa regra. O Preview sobe pela CLI, sem `--prod`. O primeiro deploy de um projeto vazio é marcado como Production pela Vercel; o alias público desse deploy foi removido. Os seguintes, sem `--prod`, ficam em Preview.
 
 ## Rollback
 
