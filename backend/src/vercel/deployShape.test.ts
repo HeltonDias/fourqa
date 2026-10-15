@@ -15,6 +15,7 @@ describe("formato de deploy Vercel", () => {
     };
     assert.equal(vercel.outputDirectory, "frontend/dist");
     assert.equal(vercel.rewrites.some((rule) => rule.source.includes("(?!api/)")), true);
+    assert.equal(vercel.rewrites.some((rule) => rule.source === "/api/:path*" && rule.destination === "/api/index?rest=:path*"), true);
     assert.equal(vercel.rewrites.some((rule) => rule.destination === "/api"), false);
     assert.equal(vercel.functions["api/[...path].mjs"]?.maxDuration, 300);
     assert.match(JSON.stringify(vercel.functions["api/[...path].mjs"]), /\.env/);

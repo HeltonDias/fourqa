@@ -34,11 +34,25 @@ app.use((_req, res, next) => {
 app.use(cors({ origin: allowedOrigins() }));
 app.use(express.json());
 
-/** A Function da Vercel pode entregar só o trecho depois de /api. O app local já recebe /api. */
+/** A Function da Vercel pode receber o caminho reescrito. O app local já recebe /api. */
 if (process.env.VERCEL === "1") {
   app.use((req, _res, next) => {
+    const header = req.headers["x-forwarded-uri"] ?? req.headers["x-vercel-original-url"] ?? req.headers["x-invoke-path"];
+    const hinted = Array.isArray(header) ? header[0] : header;
+    if (hinted && hinted.startsWith("/")) req.url = hinted;
     const raw = req.url ?? "/";
-    const pathOnly = raw.split("?")[0] ?? "/";
+    const queryAt = raw.indexOf("?");
+    const pathOnly = (queryAt >= 0 ? raw.slice(0, queryAt) : raw) || "/";
+    const params = new URLSearchParams(queryAt >= 0 ? raw.slice(queryAt + 1) : "");
+    const rest = params.get("rest");
+    if (rest && (pathOnly === "/api/index" || pathOnly === "/index" || pathOnly === "/api")) {
+      params.delete("rest");
+      const qs = params.toString();
+      const suffix = rest.startsWith("/") ? rest : `/${rest}`;
+      req.url = `/api${suffix}${qs ? `?${qs}` : ""}`;
+      next();
+      return;
+    }
     if (pathOnly === "/api" || pathOnly.startsWith("/api/")) {
       next();
       return;
