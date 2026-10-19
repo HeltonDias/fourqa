@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { classifyExecution, type StatusCenario } from "./formulas.js";
+import type { ExecucaoRow } from "../types.js";
+import {
+  classifyExecution,
+  finalizadosComCancelados,
+  metricasDosPontos,
+  totalRealizadoLinha,
+  type StatusCenario,
+} from "./formulas.js";
 
 function row(outcome: string, testCaseState = "", testPointState = "") {
   return { outcome, test_case_state: testCaseState, test_point_state: testPointState };
@@ -47,5 +54,44 @@ describe("classifyExecution", () => {
     }
     const soma = [...buckets.values()].reduce((a, n) => a + n, 0);
     assert.equal(soma, casos.length);
+  });
+});
+
+function ponto(outcome: string, testCaseState = "", testPointState = ""): ExecucaoRow {
+  return { outcome, test_case_state: testCaseState, test_point_state: testPointState } as ExecucaoRow;
+}
+
+describe("finalizados do Report e da aba Status", () => {
+  const mistos = [
+    ponto("Passed", "Closed"),
+    ponto("Passed", "QA"),
+    ponto("NotApplicable"),
+    ponto("Failed", "BUG"),
+    ponto("Blocked"),
+    ponto("", "Design"),
+    ponto("", "QA", "Ready"),
+    ponto("", "QA", "NotReady"),
+  ];
+
+  it("o Report soma só Passed e N/A, mesmo com cancelados legados", () => {
+    const metrics = metricasDosPontos(mistos);
+    assert.equal(totalRealizadoLinha(metrics), 3);
+    assert.equal(metrics.cts_passeds + metrics.cts_na + metrics.cts_falhados + metrics.cts_bloqueados + metrics.cts_liberados + metrics.cts_design + metrics.cts_nao_liberados, mistos.length);
+  });
+
+  it("Pendentes é o complemento e cancelados não entram na partição", () => {
+    const metrics = metricasDosPontos(mistos);
+    const total = mistos.length;
+    const finalizados = totalRealizadoLinha(metrics);
+    const pendentes = total - finalizados;
+    assert.equal(pendentes, metrics.cts_falhados + metrics.cts_bloqueados + metrics.cts_liberados + metrics.cts_nao_liberados + metrics.cts_design);
+    assert.equal(finalizados + pendentes, total);
+  });
+
+  it("a aba Status continua somando os cancelados legados", () => {
+    const metrics = metricasDosPontos([ponto("Passed"), ponto("NotApplicable")]);
+    assert.equal(finalizadosComCancelados(metrics, 4), 6);
+    assert.equal(totalRealizadoLinha(metrics), 2);
+    assert.equal(finalizadosComCancelados(metrics, 0), 2);
   });
 });

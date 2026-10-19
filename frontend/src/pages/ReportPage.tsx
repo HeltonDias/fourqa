@@ -90,14 +90,17 @@ export function ReportPage() {
 
           <section className="mid-panels">
             <ScenarioStatusPanel
-              ttl={data.ttlCts}
-              plan={data.totais.ctsPlanAteHoje}
-              final={data.totais.totalRealizado}
+              total={data.ttlCts}
+              planejados={data.totais.ctsPlanAteHoje}
+              finalizados={data.totais.totalRealizado}
+              pendentes={data.ttlCts - data.totais.totalRealizado}
+              passed={data.totais.passeds}
+              na={data.totais.na}
               falha={data.totais.falhados}
               bloq={data.totais.bloqueados}
               lib={data.totais.liberados}
-              design={data.totais.design}
               naoLib={data.totais.naoLiberados}
+              design={data.totais.design}
             />
 
             <ImpactResponsaveisPanel
@@ -133,12 +136,12 @@ export function ReportPage() {
                     <th className="col-metric">GAP</th>
                     <th className="col-metric col-divider" title="CTs Passeds">Passed</th>
                     <th className="col-metric" title="CTs N/A">N/A</th>
-                    <th className="col-metric" title="CTs com ressalvas">Ress.</th>
                     <th className="col-metric" title="CTs falhados">Falh.</th>
                     <th className="col-metric" title="CTs bloqueados">Bloq.</th>
                     <th className="col-metric" title="Liberados">Lib.</th>
-                    <th className="col-metric">Design</th>
                     <th className="col-metric" title="Não liberado">Não Lib.</th>
+                    <th className="col-metric">Design</th>
+                    <th className="col-metric" title="CTs com ressalvas">Ress.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -182,12 +185,12 @@ export function ReportPage() {
                       <td className="col-metric">{s.gap}</td>
                       <td className="col-metric col-divider">{s.cts_passeds}</td>
                       <td className="col-metric">{s.cts_na}</td>
-                      <td className="col-metric">{s.cts_cancelados}</td>
                       <td className="col-metric">{s.cts_falhados}</td>
                       <td className="col-metric">{s.cts_bloqueados}</td>
                       <td className="col-metric">{s.cts_liberados}</td>
-                      <td className="col-metric">{s.cts_design}</td>
                       <td className="col-metric">{s.cts_nao_liberados}</td>
+                      <td className="col-metric">{s.cts_design}</td>
+                      <td className="col-metric">{s.cts_cancelados}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -211,12 +214,12 @@ export function ReportPage() {
                     <td>{totals.gap}</td>
                     <td className="col-divider">{totals.cts_passeds}</td>
                     <td>{totals.cts_na}</td>
-                    <td>{totals.cts_cancelados}</td>
                     <td>{totals.cts_falhados}</td>
                     <td>{totals.cts_bloqueados}</td>
                     <td>{totals.cts_liberados}</td>
-                    <td>{totals.cts_design}</td>
                     <td>{totals.cts_nao_liberados}</td>
+                    <td>{totals.cts_design}</td>
+                    <td>{totals.cts_cancelados}</td>
                   </tr>
                 </tfoot>
               </table>

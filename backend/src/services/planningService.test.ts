@@ -172,6 +172,26 @@ describe("isolamento do planejamento legado por PlanKey", { concurrency: 1 }, ()
     assert.equal(endToEnd.items.some((item) => item.suiteName === "Processo/Function 1"), false);
   });
 
+  it("o planejamento legado continua incluindo cancelados no finalizado", async () => {
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO planejamento_linhas
+        (row_num, frente, processo, qtd_cts_plan, data_inicio, data_fim, cts_cancelados, replanejamento)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(90, "FRENTE-PLAN", "Suite Plan Canc", 1, "2026-09-07", "2026-09-11", 5, 0);
+    db.prepare(
+      `INSERT INTO execucoes (plan_key, suite_id, suite_name, test_point_id, outcome)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run("PlanCanc", 90, "Suite Plan Canc", 9001, "Passed");
+    sqliteMetaStore.set("planejamento_legado_plan_key", "PlanCanc");
+
+    const view = await getPlanningView("PlanCanc");
+    assert.equal(view.revision?.baselineOrigin, "legacy");
+    assert.equal(view.summary.finalizedCount, 6);
+
+    sqliteMetaStore.set("planejamento_legado_plan_key", "EndToEnd");
+  });
+
   it("resolução do legado não usa nome de plano como fallback", () => {
     const source = readFileSync(new URL("./planningService.ts", import.meta.url), "utf8");
     const start = source.indexOf("function legacyBaseForPlan");

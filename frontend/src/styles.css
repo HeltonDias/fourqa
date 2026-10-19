@@ -785,10 +785,19 @@ body {
 
 .scenario-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-rows: 1fr;
   gap: 0.55rem;
   flex: 1;
+}
+
+.scenario-grid.scenario-grid-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.scenario-grid.scenario-grid-detail {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 0.55rem;
 }
 
 .scenario-panel .impact-card-value {
@@ -907,6 +916,39 @@ body {
 }
 .impact-card.status-card--naolib .impact-card-icon {
   background: #e2e8f0;
+  color: #475569;
+}
+.impact-card.status-card--pendentes {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.impact-card.status-card--pendentes .impact-card-icon {
+  background: #ffedd5;
+  color: #c2410c;
+}
+.impact-card.status-card--pendentes .impact-card-label {
+  color: #9a3412;
+}
+.impact-card.status-card--passed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.impact-card.status-card--passed .impact-card-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+.impact-card.status-card--passed .impact-card-label {
+  color: #166534;
+}
+.impact-card.status-card--na {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.impact-card.status-card--na .impact-card-icon {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.impact-card.status-card--na .impact-card-label {
   color: #475569;
 }
 .impact-card.status-card--naolib .impact-card-label {
@@ -1080,8 +1122,13 @@ body {
 
 @media (max-width: 720px) {
   .scenario-grid,
+  .scenario-grid.scenario-grid-summary,
   .impact-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scenario-grid.scenario-grid-detail {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 
@@ -1439,6 +1486,8 @@ body {
 /* Painéis do meio: cards compactos em linha única */
 .mid-panels {
   align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
 .mid-panels .scenario-panel,
@@ -1512,6 +1561,123 @@ body {
 
 .mid-panels .impact-card--total .impact-card-value {
   font-size: 1.45rem;
+}
+
+/* Segunda linha: ícone no canto superior esquerdo, título ao lado, valor abaixo. */
+.mid-panels .scenario-panel {
+  container: scenario-panel / inline-size;
+  min-width: 0;
+}
+
+.mid-panels .scenario-grid.scenario-grid-detail {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin-top: 0.45rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.mid-panels .scenario-grid-detail .status-detail-card {
+  container: status-detail / inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.14rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.24rem 0.1rem 0.18rem;
+  text-align: left;
+  overflow: hidden;
+}
+
+.mid-panels .scenario-grid-detail .status-detail-head {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.1rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.mid-panels .scenario-grid-detail .impact-card-icon {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 12px;
+  align-self: flex-start;
+}
+
+.mid-panels .scenario-grid-detail .impact-card-icon svg,
+.mid-panels .scenario-grid-detail .impact-card-icon .impact-card-img {
+  width: 7px;
+  height: 7px;
+}
+
+.mid-panels .scenario-grid-detail .impact-card-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding-top: 1px;
+  font-size: 0.60rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  transform: translateY(2px);
+}
+
+.mid-panels .scenario-grid-detail .impact-card-value {
+  width: 100%;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.98rem;
+  line-height: 1;
+  text-align: left;
+}
+
+@container status-detail (max-width: 62px) {
+  .mid-panels .scenario-grid-detail .impact-card-label {
+    font-size: 0.54rem;
+    letter-spacing: -0.035em;
+  }
+
+  .mid-panels .scenario-grid-detail .impact-card-value {
+    font-size: 0.86rem;
+  }
+}
+
+@container status-detail (min-width: 96px) {
+  .mid-panels .scenario-grid-detail .impact-card-label {
+    font-size: 0.72rem;
+    letter-spacing: -0.01em;
+  }
+
+  .mid-panels .scenario-grid-detail .impact-card-value {
+    font-size: 1.12rem;
+  }
+}
+
+@container scenario-panel (max-width: 20rem) {
+  .mid-panels .scenario-grid.scenario-grid-detail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .mid-panels .scenario-grid-detail .impact-card-label {
+    font-size: 0.68rem;
+    letter-spacing: -0.02em;
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .mid-panels .scenario-grid-detail .impact-card-value {
+    font-size: 1rem;
+  }
 }
 
 /* Load / maintenance */

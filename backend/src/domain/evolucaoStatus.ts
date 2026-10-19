@@ -12,7 +12,10 @@ export type EvolucaoStatus = "done" | "ok" | "warn" | "risk" | "na";
 export function statusEvolucao(input: {
   gap: number;
   ttlCts: number;
-  /** Passed + N/A + cancelados. */
+  /**
+   * Contagem já calculada pelo chamador.
+   * O Report envia Passed + N/A. A aba Status ainda envia Passed + N/A + cancelados.
+   */
   finalizados: number;
   na: number;
 }): EvolucaoStatus {

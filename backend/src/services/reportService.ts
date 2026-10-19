@@ -6,6 +6,7 @@ import {
   classificarImpactosKpi,
   countFalhas,
   DEFAULT_PLAN_KEY,
+  finalizadosComCancelados,
   impactoTotalTestPoint,
   metricasDosPontos,
   sumifFrente,
@@ -49,7 +50,7 @@ function buildReportSuites(linhas: Awaited<ReturnType<typeof buildPlanejamento>>
     const processo = row.processo ?? "";
     const ttlCts = Number(row.qtd_cts_plan) || 0;
     const fin = row.total_realizado;
-    // Home K20 = Planejamento T8 (BACKLOG) = CTS PLAN DIA − (Passed + N/A + Cancelados)
+    // GAP do Report = planejado até hoje − (Passed + N/A). Cancelados não entram.
     const gap = (Number(row.cts_plan_dia) || 0) - fin;
     const denom = ttlCts || 1;
     return {
@@ -130,7 +131,7 @@ async function buildPlanejamento(planKey: string, execRows: ExecucaoRow[], dimen
       cts_plan_dia: planejadoAteHoje(qtd, data_inicio, data_fim),
       cts_cancelados,
       ...m,
-      total_realizado: totalRealizadoLinha(m, cts_cancelados),
+      total_realizado: totalRealizadoLinha(m),
       classificacao: s.classificacao,
       planejamentoOrigem: datasConfirmadas
         ? ("confirmado" as const)
@@ -487,7 +488,13 @@ export async function getStatusPorFrente(planKey = DEFAULT_PLAN_KEY): Promise<St
       planAteHoje: sumifFrente(linhas, frente, "cts_plan_dia"),
       na: sumifFrente(linhas, frente, "cts_na"),
       passeds: sumifFrente(linhas, frente, "cts_passeds"),
-      finalizado: sumifFrente(linhas, frente, "total_realizado"),
+      finalizado: finalizadosComCancelados(
+        {
+          cts_passeds: sumifFrente(linhas, frente, "cts_passeds"),
+          cts_na: sumifFrente(linhas, frente, "cts_na"),
+        },
+        sumifFrente(linhas, frente, "cts_cancelados"),
+      ),
       falha: sumifFrente(linhas, frente, "cts_falhados"),
       bloqueado: sumifFrente(linhas, frente, "cts_bloqueados"),
       liberado: sumifFrente(linhas, frente, "cts_liberados"),

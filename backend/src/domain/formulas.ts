@@ -150,10 +150,21 @@ export function metricasDosPontos(rows: ExecucaoRow[]) {
   return out;
 }
 
-export function totalRealizadoLinha(
-  metrics: ReturnType<typeof metricasPorProcesso>,
-  cts_cancelados: number,
-): number {
+type ContagemPassedNa = {
+  cts_passeds: number;
+  cts_na: number;
+};
+
+/** Finalizados do Report: Passed + N/A. Cancelados legados ficam fora desta conta. */
+export function totalRealizadoLinha(metrics: ContagemPassedNa): number {
+  return metrics.cts_passeds + metrics.cts_na;
+}
+
+/**
+ * Finalizados da aba Status nesta etapa: Passed + N/A + cancelados legados.
+ * Não usar no Report. O Planejamento mantém a mesma soma no próprio serviço.
+ */
+export function finalizadosComCancelados(metrics: ContagemPassedNa, cts_cancelados: number): number {
   return metrics.cts_passeds + metrics.cts_na + (cts_cancelados ?? 0);
 }
 
