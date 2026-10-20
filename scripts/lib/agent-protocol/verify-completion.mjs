@@ -1,5 +1,6 @@
 import { validateLedger, findLedgerById } from "./ledger.mjs";
 import { loadRun, shouldBlockCompletion } from "./run-state.mjs";
+import { validateIntentPlan } from "./intent-to-delivery.mjs";
 import { delegationSatisfied } from "./orchestration.mjs";
 
 export function verifyProtocolCompletion(root) {
@@ -17,6 +18,28 @@ export function verifyProtocolCompletion(root) {
   const run = loadRun(root);
   if (!run) {
     return { ok: true, blocked: false, reason: "sem agent-run.json ativo (sessão informal)" };
+  }
+
+  if (run.intent) {
+    const iv = validateIntentPlan(run.intent);
+    if (!iv.ok) {
+      return {
+        ok: false,
+        blocked: true,
+        reason: "Intent-to-Delivery inválido",
+        evidence: iv.errors.join("; "),
+        followup: "Reexecute npm run agent:intent com a mensagem do usuário.",
+      };
+    }
+    if (run.current_state === "REGISTRADO" && !run.states_completed.includes("EXISTENCIA_VERIFICADA")) {
+      return {
+        ok: false,
+        blocked: true,
+        reason: "REGISTRADO sem EXISTENCIA_VERIFICADA",
+        evidence: run.intent.intent_id ?? "",
+        followup: "Classifique critérios JA_IMPLEMENTADO|PARCIAL|PENDENTE com evidência antes de encerrar.",
+      };
+    }
   }
 
   if (run.current_state === "BLOQUEADO") {

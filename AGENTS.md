@@ -2,6 +2,17 @@
 
 Monorepo **Node 22**: API Express + SPA React/Vite. Planejamento de produto e requisitos ficam em `.cursor/docs/`; regras obrigatórias em `.cursor/rules/` (não repetir aqui).
 
+## Intent-to-Delivery (todo pedido, inclusive celular)
+
+O usuário envia **intenção em linguagem natural** — sem spec técnica, sem escolher agente. O Cursor interpreta, planeja, implementa, testa e entrega.
+
+```bash
+npm run agent:intent -- --message "seu pedido informal"        # plano JSON
+npm run agent:intent -- --message "..." --init                 # + agent-run.json
+```
+
+Antes de codar: critérios de aceite verificáveis, contexto seletivo, `EXISTENCIA_VERIFICADA`, tier N0–N3, fatias pequenas, aprovação humana só se negócio/segurança/produção/custo. Pedido vago → investigar primeiro. Redundante → não duplicar código. Regras: `.cursor/rules/03-intent-to-delivery.mdc`.
+
 ## Executor
 
 O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo.
@@ -23,7 +34,7 @@ BMAD (`bmad-build-auto`) só se workflow BMAD for necessário — não padrão.
 
 Detalhes: `.cursor/docs/AGENT_PROTOCOL.md`. Estado vivo: `.cursor/agent-run.json` (não commitar). Histórico: `.cursor/docs/CHANGE_LEDGER.jsonl`.
 
-1. **RECEBIDO** — interpretar pedido; localizar `US-…` / `RPT-…`, trecho em `REQUIREMENTS.md`, ADR e `OPEN-…` em `DECISIONS.md`.
+1. **RECEBIDO** — Intent-to-Delivery: `agent:intent` ou interpretação equivalente; localizar `US-…` / `RPT-…`, trecho em `REQUIREMENTS.md`, ADR e `OPEN-…` em `DECISIONS.md`.
 2. **CONTEXTO_VALIDADO** — `npm run agent:ledger:validate`; histórico seletivo via `ledger-tail` (CLI); código/testes por busca direcionada — **não** carregar `REQUIREMENTS.md` inteiro nem ledger completo.
 3. **EXISTENCIA_VERIFICADA** — classificar cada critério: `JA_IMPLEMENTADO` | `PARCIAL` | `PENDENTE` com evidência (símbolo/teste/rota). Se tudo já implementado → registrar no ledger e **encerrar sem PR**.
 4. **ESCOPO_DEFINIDO** → **IMPLEMENTADO** — branch isolada; só o gap; `git status --short` antes de editar.

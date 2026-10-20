@@ -19,6 +19,7 @@ import { validateLedger, appendLedger, readLedger } from "./lib/agent-protocol/l
 import { verifyProtocolCompletion } from "./lib/agent-protocol/verify-completion.mjs";
 import { verifyPullRequest } from "./lib/agent-protocol/delivery.mjs";
 import { STATES } from "./lib/agent-protocol/constants.mjs";
+import { interpretIntent, applyIntentToRun } from "./lib/agent-protocol/intent-to-delivery.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -52,6 +53,27 @@ async function main() {
       advanceState(run, state);
       saveRun(root, run);
       console.log(`estado: ${run.current_state}`);
+      break;
+    }
+    case "intent": {
+      const message = arg("--message") ?? rest.filter((x) => !x.startsWith("--")).join(" ").trim();
+      if (!message) {
+        console.error('Uso: intent --message "pedido informal" [--init]');
+        process.exit(1);
+      }
+      const plan = interpretIntent(message);
+      const init = arg("--init") === "1" || rest.includes("--init");
+      if (init) {
+        const taskId = arg("--id") ?? `intent-${Date.now()}`;
+        const run = createRun(root, { task_id: taskId, description: plan.goal, branch: arg("--branch") });
+        applyIntentToRun(run, plan);
+        if (!run.efficiency) run.efficiency = initEfficiency();
+        captureCursorTelemetry(run);
+        saveRun(root, run);
+        console.log(JSON.stringify({ task_id: taskId, ...plan }, null, 2));
+      } else {
+        console.log(JSON.stringify(plan, null, 2));
+      }
       break;
     }
     case "classify": {
@@ -162,7 +184,7 @@ async function main() {
     }
     default:
       console.error(
-        `Comandos: init | classify | advance | gates [--phase iterate|release] | gate | delivery-verify | ledger-validate | ledger-tail | ledger-append | verify | show`,
+        `Comandos: intent | init | classify | advance | gates [--phase iterate|release] | gate | delivery-verify | ledger-validate | ledger-tail | ledger-append | verify | show`,
       );
       process.exit(1);
   }
