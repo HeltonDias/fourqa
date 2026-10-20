@@ -1,5 +1,6 @@
 import { validateLedger, findLedgerById } from "./ledger.mjs";
 import { loadRun, shouldBlockCompletion } from "./run-state.mjs";
+import { delegationSatisfied } from "./orchestration.mjs";
 
 export function verifyProtocolCompletion(root) {
   const ledger = validateLedger(root);
@@ -25,6 +26,17 @@ export function verifyProtocolCompletion(root) {
       reason: run.blocked?.reason ?? "BLOQUEADO",
       evidence: run.blocked?.evidence ?? "",
       followup: "Tarefa BLOQUEADA. Apresente evidência ao usuário; não declare sucesso.",
+    };
+  }
+
+  const deleg = delegationSatisfied(run);
+  if (!deleg.ok) {
+    return {
+      ok: false,
+      blocked: true,
+      reason: `Delegação obrigatória pendente: ${deleg.missing}`,
+      evidence: JSON.stringify(run.delegation),
+      followup: `Execute ou registre delegation_done.${deleg.missing}=true após ${deleg.missing}.`,
     };
   }
 

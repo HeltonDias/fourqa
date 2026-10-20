@@ -6,12 +6,16 @@ Monorepo **Node 22**: API Express + SPA React/Vite. Planejamento de produto e re
 
 O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo.
 
-| Quando | Quem |
-|--------|------|
-| Mudança cross-module (domínio, persistência, Azure, contrato HTTP) | Delegar **uma vez** `impact-analyst` (`.cursor/agents/impact-analyst.md`) antes de codar |
-| Após mudança de risco (fórmulas, sync, auth, migração) | Delegar **uma vez** `qa-verifier` (`.cursor/agents/qa-verifier.md`) ou rodar os mesmos checks localmente |
-| Loop não assistido de feature/bug (BMAD) | `bmad-build-auto` — exige `_bmad/` e `uv` no ambiente |
-| Ajuste local óbvio | Agente principal direto; sem delegação cerimonial |
+Classifique **antes** de codar (`npm run agent:classify -- --cross 1` etc.). Detalhes: `.cursor/docs/AGENT_PROTOCOL.md`.
+
+| Nível | Quando | Delegação |
+|-------|--------|-----------|
+| **N0** | Já implementado (evidência em código/teste) | Nenhuma; sem PR |
+| **N1** | Alteração localizada | Agente principal só |
+| **N2** | Cross-module / risco moderado | **Uma vez** `impact-analyst` |
+| **N3** | Fórmula, persistência, segurança, contrato HTTP, .NET | `impact-analyst` + `qa-verifier` |
+
+BMAD (`bmad-build-auto`) só se workflow BMAD for necessário — não padrão.
 
 `regras` e skills de party/brainstorm são **opcionais**; não usar por padrão.
 
@@ -20,10 +24,10 @@ O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR
 Detalhes: `.cursor/docs/AGENT_PROTOCOL.md`. Estado vivo: `.cursor/agent-run.json` (não commitar). Histórico: `.cursor/docs/CHANGE_LEDGER.jsonl`.
 
 1. **RECEBIDO** — interpretar pedido; localizar `US-…` / `RPT-…`, trecho em `REQUIREMENTS.md`, ADR e `OPEN-…` em `DECISIONS.md`.
-2. **CONTEXTO_VALIDADO** — consultar ledger, código e testes; não confiar só em texto/markdown.
+2. **CONTEXTO_VALIDADO** — `npm run agent:ledger:validate`; histórico seletivo via `ledger-tail` (CLI); código/testes por busca direcionada — **não** carregar `REQUIREMENTS.md` inteiro nem ledger completo.
 3. **EXISTENCIA_VERIFICADA** — classificar cada critério: `JA_IMPLEMENTADO` | `PARCIAL` | `PENDENTE` com evidência (símbolo/teste/rota). Se tudo já implementado → registrar no ledger e **encerrar sem PR**.
 4. **ESCOPO_DEFINIDO** → **IMPLEMENTADO** — branch isolada; só o gap; `git status --short` antes de editar.
-5. **TESTADO** — `npm run agent:gates` (grava evidência; falha → autocorreção, máx. 2 tentativas por assinatura).
+5. **TESTADO** — iteração: `npm run agent:gates -- --phase iterate`; antes do PR: `npm run agent:gates` (release = CI completo). Falha → autocorreção localizada, máx. 2 tentativas por assinatura.
 6. **REVISADO** — `impact-analyst` / `qa-verifier` quando aplicável.
 7. **ENTREGA_VERIFICADA** — `npm run agent:delivery-verify` (PR real + checks remotos quando credencial existir).
 8. **REGISTRADO** — append no `CHANGE_LEDGER.jsonl`; `npm run agent:ledger:validate`.
@@ -53,7 +57,10 @@ Explorar código: preferir `graphify query` se `graphify-out/graph.json` existir
 npm install
 npm run typecheck
 npm test              # produto (backend)
-npm run test:agents   # smoke BMAD / _bmad
+npm run test:agents   # smoke BMAD + selftests protocolo
+npm run agent:classify
+npm run agent:gates -- --phase iterate   # durante implementação
+npm run agent:gates                      # release (obrigatório no PR)
 npm run build
 npm run dev           # API :3001 + Vite :5173
 ```

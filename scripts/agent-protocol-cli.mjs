@@ -8,8 +8,13 @@ import {
   advanceState,
   recordGate,
   allGatesPassed,
+  markReleaseGates,
 } from "./lib/agent-protocol/run-state.mjs";
-import { runAllGates, runGate } from "./lib/agent-protocol/gates.mjs";
+import { runAllGates, runGate, runGateNames, gatesForTier, allReleaseGatesPassed } from "./lib/agent-protocol/gates.mjs";
+import { classifyTask } from "./lib/agent-protocol/classify.mjs";
+import { applyClassification, delegationPlan } from "./lib/agent-protocol/orchestration.mjs";
+import { ledgerTail } from "./lib/agent-protocol/ledger-query.mjs";
+import { bumpEfficiency, captureCursorTelemetry, initEfficiency } from "./lib/agent-protocol/efficiency.mjs";
 import { validateLedger, appendLedger, readLedger } from "./lib/agent-protocol/ledger.mjs";
 import { verifyProtocolCompletion } from "./lib/agent-protocol/verify-completion.mjs";
 import { verifyPullRequest } from "./lib/agent-protocol/delivery.mjs";
@@ -49,20 +54,56 @@ async function main() {
       console.log(`estado: ${run.current_state}`);
       break;
     }
-    case "gates": {
+    case "classify": {
+      const signals = {
+        already_implemented: arg("--already") === "1",
+        cross_module: arg("--cross") === "1",
+        multiple_modules: arg("--multi") === "1",
+        domain_formula: arg("--formula") === "1",
+        persistence: arg("--persistence") === "1",
+        security: arg("--security") === "1",
+        api_contract: arg("--api") === "1",
+        dotnet_migration: arg("--dotnet") === "1",
+      };
+      const result = classifyTask(signals);
       const run = loadRun(root);
-      const results = runAllGates(root);
+      if (run) {
+        applyClassification(run, signals);
+        if (!run.efficiency) run.efficiency = initEfficiency();
+        captureCursorTelemetry(run);
+        saveRun(root, run);
+      }
+      console.log(JSON.stringify({ ...result, delegation: delegationPlan(result.tier) }, null, 2));
+      break;
+    }
+    case "ledger-tail": {
+      const limit = Number(arg("--limit") ?? 5);
+      const rows = ledgerTail(root, { limit, id: arg("--id"), idPrefix: arg("--prefix") });
+      console.log(JSON.stringify(rows, null, 2));
+      break;
+    }
+    case "gates": {
+      const phase = arg("--phase") ?? "release";
+      const run = loadRun(root);
+      const tier = run?.tier ?? arg("--tier") ?? "N2";
+      const names = phase === "release" ? gatesForTier(tier, "release") : gatesForTier(tier, "iterate");
+      const results = phase === "release" ? runAllGates(root) : runGateNames(names, root);
       if (run) {
         for (const [name, result] of Object.entries(results)) recordGate(run, name, result);
-        if (allGatesPassed(run)) advanceState(run, "TESTADO");
+        bumpEfficiency(run, phase === "release" ? "gate_runs_release" : "gate_runs_iterate");
+        if (phase === "release") {
+          markReleaseGates(run);
+          if (allReleaseGatesPassed(run)) advanceState(run, "TESTADO");
+        }
+        captureCursorTelemetry(run);
         saveRun(root, run);
       }
       const failed = Object.entries(results).find(([, r]) => r.status === "fail");
       if (failed) {
-        console.error(`gate falhou: ${failed[0]}`);
+        console.error(`gate falhou: ${failed[0]} (${phase})`);
         process.exit(1);
       }
-      console.log("gates: OK");
+      console.log(`gates (${phase}, ${tier}): OK`);
       break;
     }
     case "gate": {
@@ -120,7 +161,9 @@ async function main() {
       break;
     }
     default:
-      console.error(`Comandos: init | advance | gates | gate | delivery-verify | ledger-validate | ledger-append | verify | show`);
+      console.error(
+        `Comandos: init | classify | advance | gates [--phase iterate|release] | gate | delivery-verify | ledger-validate | ledger-tail | ledger-append | verify | show`,
+      );
       process.exit(1);
   }
 }
