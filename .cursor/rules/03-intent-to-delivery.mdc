@@ -1,0 +1,18 @@
+---
+description: Intent-to-Delivery — mensagens informais viram entrega verificável
+alwaysApply: true
+---
+
+# Intent-to-Delivery (permanente)
+
+Usuário comunica **intenção** (celular, linguagem natural). Agente faz engenharia e **comprova** entrega.
+
+1. Rodar mentalmente `npm run agent:intent -- --message "<pedido>"` (ou equivalente) antes de codar: critérios de aceite, tier, investigar antes de código, aprovações humanas.
+2. Seguir máquina de estados em `AGENT_PROTOCOL.md`; não pedir spec técnica ao usuário.
+3. Pedido vago (ex. “melhora X”) → **investigar e delimitar** antes de mudar comportamento.
+4. Redundante / “de novo” → `EXISTENCIA_VERIFICADA` primeiro; `JA_IMPLEMENTADO` → sem PR.
+5. Arquitetura grande → fatias e PRs pequenos.
+6. Ambiguidade de **negócio, segurança, produção, custo** → uma pergunta indispensável; técnica reversível → decidir, registrar no ledger.
+7. Sucesso só com evidência externa (gates, testes, PR/checks) — hook `agent:verify` continua valendo.
+
+Detalhes: `.cursor/docs/AGENT_PROTOCOL.md` seção Intent-to-Delivery.

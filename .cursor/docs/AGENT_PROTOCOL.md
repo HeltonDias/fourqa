@@ -57,6 +57,26 @@ npm run agent:verify
 
 `efficiency` em `agent-run.json`: subagentes, recuperações, runs iterate/release. Tokens só se `CURSOR_USAGE_TOTAL_TOKENS` / `CURSOR_SESSION_TOKENS` existir.
 
+## Intent-to-Delivery
+
+Mensagem informal → plano executável (`scripts/lib/agent-protocol/intent-to-delivery.mjs`). Não substitui a máquina de estados; preenche `RECEBIDO` e `acceptance[]` em `agent-run.json`.
+
+```bash
+npm run agent:intent -- --message "Melhora o Report."
+npm run agent:intent -- --message "..." --init
+```
+
+| Campo no plano | Uso |
+|----------------|-----|
+| `acceptance_criteria` | Critérios verificáveis |
+| `existence_strategy` / `existence_preflight` | Como checar JA_IMPLEMENTADO |
+| `investigate_before_code` | Pedido vago — diagnóstico antes de patch |
+| `slices` | PRs pequenos |
+| `human_approval_required` | Só bloqueios indispensáveis |
+| `tier` + `delegation` | N0–N3 e subagentes |
+
+Testes de aceite do interpretador: `node scripts/agent-intent-selftest.mjs` (cinco frases representativas). `agent:verify` bloqueia `REGISTRADO` com intent ativo sem `EXISTENCIA_VERIFICADA`.
+
 ## Autocorreção
 
 Falha → registrar `failure_retries` (máx. 2 por assinatura) → classificar causa → corrigir camada mínima → reexecutar gates afetados.
