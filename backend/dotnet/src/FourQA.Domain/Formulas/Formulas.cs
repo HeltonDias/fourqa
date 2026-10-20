@@ -131,7 +131,8 @@ public static class Formulas
         return ponto == "Ready" ? StatusCenario.Liberado : StatusCenario.NaoLiberado;
     }
 
-    public static StatusCenario StatusCenario(ExecucaoRow r) => ClassifyExecution(r);
+    /// <summary>Paridade com <c>statusCenario()</c> em formulas.ts (evita homônimo com o enum).</summary>
+    public static StatusCenario ResolveStatusCenario(ExecucaoRow r) => ClassifyExecution(r);
 
     public static MetricasPontos MetricasDosPontos(IReadOnlyList<ExecucaoRow> rows)
     {
