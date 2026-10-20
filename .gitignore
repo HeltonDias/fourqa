@@ -14,6 +14,14 @@ fourqa-supabase-*.sql
 .vercel/
 .DS_Store
 
+# Grafo e instaladores locais (não versionar)
+graphify-out/
+TokenOps-Installer/
+
+# Python / BMAD
+**/__pycache__/
+*.py[cod]
+
 # Planilha pode conter PAT/credenciais (Config_Teste)
 fonte/**/*.xlsx
 fonte/**/*.xlsm

@@ -21,6 +21,20 @@ Desenvolver o FourQA como produto, por **Epic → Feature → Function → User 
 ## Modelo de solicitação eficiente
 `Implementar US-XXX / RPT-YYY. Escopo: [página/componente]. Leia só as seções correspondentes de .cursor/docs/BACKLOG.md, REQUIREMENTS.md e DECISIONS.md/ADR se aplicáveis. Verifique código e git status. Não altere outros módulos. Execute testes relevantes e relate evidência/limites. Sem commit/push/deploy/banco. Aguarde aceite.`
 
+## Cloud Agent (celular → PR)
+
+Fluxo padrão para pedidos em linguagem natural fora do IDE:
+
+1. **Entrada:** ler `AGENTS.md` na raiz e `.cursor/rules/01-squad-orchestration.mdc`.
+2. **Branch:** trabalhar em branch dedicada (`feat/…`, `fix/…`, `chore/…`); não commitar em `main` sem autorização.
+3. **Escopo:** derivar critérios de aceite testáveis; bloqueio `OPEN-…` em `DECISIONS.md` → parar e perguntar.
+4. **Implementação:** agente principal único; `impact-analyst` / `qa-verifier` conforme seção “Quando chamar agentes”.
+5. **Gates versionados (obrigatórios no PR):** `npm run typecheck`, `npm test`, `npm run build`, `npm run test:agents` (ver `scripts/agents-smoke.mjs`).
+6. **PR:** título claro, corpo com resumo, testes executados, riscos e rollback; link para história/requisito quando existir.
+7. **Proibido no fluxo autônomo:** merge automático, `--prod`, sync Azure real contra ambiente não autorizado, migração em banco remoto.
+
+BMAD `bmad-build-auto` só quando o pedido for implementação longa e `_bmad/` + `uv` estiverem disponíveis; falha de toolchain → seguir protocolo acima sem BMAD.
+
 ## Contratos de segurança
 - Não expor arquivos `.env`, credenciais, dados de clientes, banco local ou backups em contexto/logs.
 - Não inventar dados/permissões nem executar SQL/fórmula arbitrária por causa de KPI configurável.
