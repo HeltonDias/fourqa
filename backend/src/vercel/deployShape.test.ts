@@ -39,4 +39,36 @@ describe("formato de deploy Vercel", () => {
     const ignore = readFileSync(path.join(root, ".gitignore"), "utf8");
     assert.match(ignore, /^\.vercel\/?$/m);
   });
+
+  it("o upload da CLI deixa de fora banco, planilha e análise local", () => {
+    const ignore = readFileSync(path.join(root, ".vercelignore"), "utf8");
+    const lines = new Set(
+      ignore
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#")),
+    );
+    const required = [
+      "data/",
+      "*.db",
+      "*.db-wal",
+      "*.db-shm",
+      "*.sqlite",
+      "*.sqlite3",
+      "fonte/**/*.xlsx",
+      "fonte/**/*.xlsm",
+      "fonte/**/*.xls",
+      "fonte/**/*.csv",
+      "fonte/scripts.zip",
+      "fonte/scripts_extracted/",
+      "fonte/_analysis_fase3.json",
+      "fourqa-supabase-*.sql",
+    ];
+    for (const pattern of required) {
+      assert.equal(lines.has(pattern), true, pattern);
+    }
+    assert.equal(lines.has("fonte/"), false);
+    assert.equal(lines.has("fonte/util/"), false);
+    assert.equal(lines.has("fonte/util/**"), false);
+  });
 });

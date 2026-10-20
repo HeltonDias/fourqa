@@ -6,3 +6,19 @@ certs/
 *.dump
 *.backup
 .vercel/
+
+# A CLI não lê o .gitignore. Banco, planilha e análise local ficam fora do upload.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+fonte/**/*.xlsx
+fonte/**/*.xlsm
+fonte/**/*.xls
+fonte/**/*.csv
+fonte/scripts.zip
+fonte/scripts_extracted/
+fonte/_analysis_fase3.json
+fourqa-supabase-*.sql
