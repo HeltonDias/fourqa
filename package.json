@@ -13,6 +13,7 @@
     "sync:icons": "node tools/sync-icons.js",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm run test -w backend",
+    "dotnet:test": "dotnet test backend/dotnet/FourQA.sln --configuration Release",
     "test:agents": "node scripts/agents-smoke.mjs && node scripts/agent-protocol-selftest.mjs",
     "agent:gates": "node scripts/agent-protocol-cli.mjs gates",
     "agent:verify": "node scripts/agent-protocol-cli.mjs verify",

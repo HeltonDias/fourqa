@@ -37,3 +37,12 @@ jobs:
           python-version: "3.12"
       - run: npm install
       - run: npm run test:agents
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - run: dotnet test backend/dotnet/FourQA.sln --configuration Release --verbosity minimal

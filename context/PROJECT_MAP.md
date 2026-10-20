@@ -1,6 +1,6 @@
 # FourQA — mapa de navegação (verificado no ZIP de 13/10/2026)
 
-Stack: npm workspaces `backend` (Node/Express/TypeScript) e `frontend` (React/TypeScript/Vite). `package.json` na raiz: `npm run typecheck`, `npm test`, `npm run build`.
+Stack: npm workspaces `backend` (Node/Express/TypeScript) e `frontend` (React/TypeScript/Vite); migração incremental em `backend/dotnet/` (ASP.NET Core 10, ADR 005). `package.json` na raiz: `npm run typecheck`, `npm test`, `npm run build`, `npm run dotnet:test` (SDK 10).
 
 ## Entrada e navegação
 - `frontend/src/App.tsx`: rotas `/` (Report), `/planejamento`, `/status-frente` (Status), `/execucoes`, `/falhas`.
