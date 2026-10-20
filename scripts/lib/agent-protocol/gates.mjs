@@ -30,13 +30,40 @@ export function runGate(name, cwd = root) {
   };
 }
 
-export function runAllGates(cwd = root) {
+const RELEASE_GATES = ["typecheck", "test", "build", "test_agents"];
+
+/** Gates baratos durante iteração; release = paridade CI (obrigatório antes do PR). */
+export function gatesForTier(tier = "N2", phase = "release") {
+  if (phase === "release") return RELEASE_GATES;
+  switch (tier) {
+    case "N0":
+      return [];
+    case "N1":
+      return ["typecheck"];
+    case "N2":
+      return ["typecheck", "test_agents"];
+    case "N3":
+      return ["typecheck", "test"];
+    default:
+      return ["typecheck", "test_agents"];
+  }
+}
+
+export function runGateNames(names, cwd = root) {
   const out = {};
-  for (const name of Object.keys(GATE_COMMANDS)) {
+  for (const name of names) {
     out[name] = runGate(name, cwd);
     if (out[name].status === "fail") break;
   }
   return out;
+}
+
+export function runAllGates(cwd = root) {
+  return runGateNames(RELEASE_GATES, cwd);
+}
+
+export function allReleaseGatesPassed(run) {
+  return RELEASE_GATES.every((g) => run.gates[g]?.status === "pass");
 }
 
 export function runGateDry(name) {

@@ -39,6 +39,12 @@ export function createRun(root, task) {
     last_failure: null,
     blocked: null,
     code_changes_required: task.code_changes_required ?? true,
+    tier: task.tier ?? null,
+    tier_reasons: task.tier_reasons ?? [],
+    delegation: task.delegation ?? null,
+    delegation_done: {},
+    release_gates_passed: false,
+    efficiency: task.efficiency ?? null,
   };
   saveRun(root, data);
   return data;
@@ -72,6 +78,11 @@ export function recordGate(run, name, result) {
 export function allGatesPassed(run) {
   const required = ["typecheck", "test", "build", "test_agents"];
   return required.every((g) => run.gates[g]?.status === "pass");
+}
+
+export function markReleaseGates(run) {
+  run.release_gates_passed = allGatesPassed(run);
+  return run;
 }
 
 export function shouldBlockCompletion(run) {

@@ -23,16 +23,39 @@ Para cada critério de aceite: `JA_IMPLEMENTADO` | `PARCIAL` | `PENDENTE`, com *
 - Tudo `JA_IMPLEMENTADO` → `code_changes_required: false`, registrar no ledger, **sem PR**.
 - `PARCIAL` / `PENDENTE` → implementar só o gap, depois gates e entrega.
 
-## Gates executáveis
+## Classificação N0–N3 (orquestração adaptativa)
+
+| Nível | Gatilhos típicos | Contexto | Delegação |
+|-------|------------------|----------|-----------|
+| N0 | Critérios já comprovados no código | Ledger-tail + testes pontuais | Nenhuma |
+| N1 | Alteração localizada | `AGENTS.md` + arquivos tocados | Nenhuma |
+| N2 | Cross-module | + ADR/requisito por ID | `impact-analyst` 1× |
+| N3 | Fórmula, DB, auth, contrato `/api`, .NET | + `ARCHITECTURE` seletivo | + `qa-verifier` 1× |
+
+`npm run agent:classify -- [--cross 1|--formula 1|--persistence 1|--security 1|--api 1|--dotnet 1|--already 1]`
+
+## Contexto seletivo
+
+- Ledger: `npm run agent:ledger:tail -- --limit 5` — não ler JSONL inteiro.
+- Requisitos: busca por ID (`US-`, `RPT-`, `OPEN-`).
+- Reutilizar evidências em `agent-run.json` na mesma execução.
+
+## Gates executáveis (progressivos)
+
+| Fase | Comando | Escopo |
+|------|---------|--------|
+| Iteração | `npm run agent:gates -- --phase iterate` | Barato por tier |
+| Release / PR | `npm run agent:gates` | Sempre CI completo: `typecheck`, `test`, `build`, `test_agents` |
 
 ```bash
-npm run agent:gates          # grava evidência em agent-run.json
 npm run agent:delivery-verify
 npm run agent:ledger:validate
 npm run agent:verify
 ```
 
-Gates finais obrigatórios (com código): `typecheck`, `test`, `build`, `test:agents`.
+## Eficiência
+
+`efficiency` em `agent-run.json`: subagentes, recuperações, runs iterate/release. Tokens só se `CURSOR_USAGE_TOTAL_TOKENS` / `CURSOR_SESSION_TOKENS` existir.
 
 ## Autocorreção
 
