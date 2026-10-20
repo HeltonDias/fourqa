@@ -4,14 +4,30 @@
 **Data:** 2026-10-20  
 **Contexto:** `AGENTS.md`; backend operacional em `backend/` (Express); domínio em `backend/src/domain/`.
 
+## Objetivo definitivo
+
+Substituir **integralmente** o backend de API Node.js/Express por **ASP.NET Core 10**. A arquitetura final **não** depende de Node para executar a API.
+
+| Fase | Node.js |
+|------|---------|
+| Transição | API Express em produção; testes de **paridade** contra `backend/src/`; domínio espelhado em `backend/dotnet/` |
+| Pós-cutover validado | Remover código e deploy da API Node (`backend/` runtime, funções Vercel Node da API) — **sem exclusão antecipada** |
+| Permanente | Toolchain **frontend** (React/Vite/npm) — build e assets; não é runtime da API |
+
 ## Decisão
 
-1. **Strangler fig:** o backend Node permanece em produção até paridade comprovada por fatia. Nenhum corte de tráfego nem desligamento do Node sem autorização explícita.
-2. **Código-alvo:** `backend/dotnet/` — solução .NET com projetos separados (Domínio → API → Infra), alinhados conceitualmente a `backend/src/domain/`, `routes/api.ts`, `persistence/`.
-3. **Contratos HTTP:** preservar paths, métodos, códigos de status e JSON de `backend/src/routes/api.ts` e `backend/src/http/writeAuth.ts`. Testes de contrato (golden/fixtures) antes de trocar implementação.
-4. **Regras de negócio:** portar a partir de `backend/src/domain/` e testes Node existentes; C# deve reproduzir os mesmos casos (não reescrever fórmulas “de olho”).
-5. **Persistência:** PostgreSQL operacional (DEC-T01); SQLite em testes. Adapters .NET espelham stores atuais; **sem** migração de banco operacional nesta linha de trabalho.
-6. **Deploy:** fora de escopo até fatia HTTP validada; Vercel continua Node (`api/index.mjs`).
+1. **Strangler fig:** Node API permanece até paridade comprovada por fatia. Nenhum corte de tráfego sem autorização explícita.
+2. **Código-alvo:** `backend/dotnet/` — Domínio → API → Infra.
+3. **Contratos HTTP:** preservar `backend/src/routes/api.ts` e `writeAuth.ts` até cutover.
+4. **Regras de negócio:** portar de `backend/src/domain/`; paridade via `backend/shared/formulas-parity-vectors.json` + `npm run formulas:parity` + testes xUnit.
+5. **Persistência:** sem migração de banco operacional nesta linha.
+6. **Deploy atual:** Vercel Node (`api/index.mjs`) até fatia HTTP .NET validada.
+
+## Hospedagem alvo (pendente)
+
+**Candidata:** Azure Container Apps para API HTTP e worker de sync (escala, containers, mesmo ecossistema Azure DevOps).
+
+**Status:** `OPEN` — avaliação formal (custo, rede, segredos, identidade) **antes** de qualquer deployment .NET. Não bloqueia fatias de domínio.
 
 ## Inventário HTTP (preservar)
 
@@ -31,25 +47,26 @@
 | GET | `/api/execucoes` | * | paginação |
 | GET | `/api/falhas` | * | paginação |
 
-\* `FOURQA_PROTECT_READS` + `FOURQA_API_TOKEN` no Vercel (espelhar `writeAuth.ts`).
+\* `FOURQA_PROTECT_READS` + `FOURQA_API_TOKEN` no Vercel.
 
 ## Ordem de fatias (PRs pequenos)
 
 | Fatia | Entrega | Verificação |
 |-------|---------|-------------|
-| **1** (esta) | `FourQA.Domain` + port de `formulas.ts` | `dotnet test` espelha `formulas.test.ts` |
-| 2 | Demais módulos puros (`statusFrente`, `reportGroups`, `planPeriod`, …) | testes Node ↔ xUnit |
-| 3 | `FourQA.Api` skeleton + `GET /health` | contrato JSON |
-| 4+ | Serviços e rotas por grupo (Report, Planejamento, sync, listagens) | testes integração + paridade |
-| N | Cutover opcional por rota / host | smoke homolog + rollback |
+| **1** | `FourQA.Domain` + `formulas.ts` | `dotnet build/test` CI + `formulas:parity` |
+| 2 | Demais módulos `domain/` | testes espelhados |
+| 3 | `FourQA.Api` + `GET /health` | contrato JSON |
+| 4+ | Serviços e rotas por grupo | integração |
+| N | Cutover + remoção API Node | smoke homolog + rollback; **após** validação |
 
 ## Consequências
 
-- CI ganha job `dotnet` (SDK 10.x); gates Node inalterados.
-- Duplicação temporária domínio TS + C# até corte aprovado.
-- OPEN-010 (multi-tenant) não bloqueia fatia 1; não antecipar tenancy no .NET.
+- CI: job `dotnet` com SDK **10.0.100** (estável; sem .NET 9 ou preview).
+- Duplicação temporária TS + C# até corte.
+- Credenciais: `delivery.mjs` não usa `shell: true` em `git credential fill`; nunca logar stdout de credential.
 
 ## Alternativas rejeitadas
 
-- **Big bang:** um PR com API completa — risco e revisão inviáveis.
-- **Só API sem domínio:** viola DEC-008/009 e ADR 002 antes de provar fórmulas.
+- **Big bang** — um PR com API completa.
+- **Manter Node API indefinidamente** — contradiz objetivo definitivo.
+- **Só API sem domínio** — viola DEC-008/009 e ADR 002.

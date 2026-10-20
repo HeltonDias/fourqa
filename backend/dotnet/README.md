@@ -4,9 +4,12 @@ O backend Node em `backend/` permanece o runtime de produção até paridade por
 
 - **ADR:** `.cursor/docs/adr/005-dotnet-incremental-migration.md`
 - **Fatia 1:** `FourQA.Domain` — paridade com `backend/src/domain/formulas.ts`
+- **Paridade:** `backend/shared/formulas-parity-vectors.json` — `npm run formulas:parity` (Node) + `FormulasParityVectorsTests` (dotnet)
 
 ```bash
-dotnet test backend/dotnet/FourQA.sln
+npm run formulas:parity
+npm run dotnet:build
+npm run dotnet:test
 ```
 
-SDK: .NET 10 (`global.json`). Local sem SDK: confiar no job `dotnet` da CI.
+SDK: .NET **10.0.100** estável (`global.json`, `rollForward: patch`). CI job `dotnet` obrigatório para concluir fatia.

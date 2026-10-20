@@ -16,4 +16,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FourQA.Domain\FourQA.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\shared\formulas-parity-vectors.json" Link="fixtures\formulas-parity-vectors.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
