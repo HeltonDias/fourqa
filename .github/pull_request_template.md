@@ -12,6 +12,8 @@
 - [ ] `npm test`
 - [ ] `npm run build`
 - [ ] `npm run test:agents` (quando tocar infra de agentes ou BMAD)
+- [ ] `npm run agent:verify` (se houve `agent-run.json` na tarefa)
+- [ ] Entrada em `.cursor/docs/CHANGE_LEDGER.jsonl` (se houve entrega de código)
 
 ## Riscos / limitações
 

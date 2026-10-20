@@ -29,7 +29,7 @@ Fluxo padrão para pedidos em linguagem natural fora do IDE:
 2. **Branch:** trabalhar em branch dedicada (`feat/…`, `fix/…`, `chore/…`); não commitar em `main` sem autorização.
 3. **Escopo:** derivar critérios de aceite testáveis; bloqueio `OPEN-…` em `DECISIONS.md` → parar e perguntar.
 4. **Implementação:** agente principal único; `impact-analyst` / `qa-verifier` conforme seção “Quando chamar agentes”.
-5. **Gates versionados (obrigatórios no PR):** `npm run typecheck`, `npm test`, `npm run build`, `npm run test:agents` (ver `scripts/agents-smoke.mjs`).
+5. **Gates versionados (obrigatórios no PR):** `npm run agent:gates` (equivale a typecheck + test + build + test:agents com evidência em `agent-run.json`). Validação de encerramento: `npm run agent:verify`. Ledger: `npm run agent:ledger:validate`. Ver `AGENT_PROTOCOL.md`.
 6. **PR:** título claro, corpo com resumo, testes executados, riscos e rollback; link para história/requisito quando existir.
 7. **Proibido no fluxo autônomo:** merge automático, `--prod`, sync Azure real contra ambiente não autorizado, migração em banco remoto.
 

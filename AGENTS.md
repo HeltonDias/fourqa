@@ -15,15 +15,22 @@ O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR
 
 `regras` e skills de party/brainstorm são **opcionais**; não usar por padrão.
 
-## Protocolo (todo pedido, inclusive pelo celular)
+## Protocolo determinístico (todo pedido, inclusive pelo celular)
 
-1. Interpretar pedido informal → localizar `US-…` / `RPT-…` em `.cursor/docs/BACKLOG.md` e trecho em `REQUIREMENTS.md`; ADR em `.cursor/docs/adr/` se cruzar módulos; `DECISIONS.md` se houver `OPEN-…`.
-2. Escrever escopo + critérios de aceite verificáveis (bullets testáveis).
-3. Branch isolada; `git status --short` antes de editar.
-4. Implementar só o escopo; decisões técnicas pequenas e reversíveis sem pedir OK.
-5. **Gates obrigatórios antes do PR:** `npm run typecheck`, `npm test`, `npm run build`, `npm run test:agents`.
-6. Corrigir falhas no escopo; sem refatoração paralela.
-7. Abrir PR com resumo, comandos rodados, riscos, rollback. **Sem merge automático.**
+Detalhes: `.cursor/docs/AGENT_PROTOCOL.md`. Estado vivo: `.cursor/agent-run.json` (não commitar). Histórico: `.cursor/docs/CHANGE_LEDGER.jsonl`.
+
+1. **RECEBIDO** — interpretar pedido; localizar `US-…` / `RPT-…`, trecho em `REQUIREMENTS.md`, ADR e `OPEN-…` em `DECISIONS.md`.
+2. **CONTEXTO_VALIDADO** — consultar ledger, código e testes; não confiar só em texto/markdown.
+3. **EXISTENCIA_VERIFICADA** — classificar cada critério: `JA_IMPLEMENTADO` | `PARCIAL` | `PENDENTE` com evidência (símbolo/teste/rota). Se tudo já implementado → registrar no ledger e **encerrar sem PR**.
+4. **ESCOPO_DEFINIDO** → **IMPLEMENTADO** — branch isolada; só o gap; `git status --short` antes de editar.
+5. **TESTADO** — `npm run agent:gates` (grava evidência; falha → autocorreção, máx. 2 tentativas por assinatura).
+6. **REVISADO** — `impact-analyst` / `qa-verifier` quando aplicável.
+7. **ENTREGA_VERIFICADA** — `npm run agent:delivery-verify` (PR real + checks remotos quando credencial existir).
+8. **REGISTRADO** — append no `CHANGE_LEDGER.jsonl`; `npm run agent:ledger:validate`.
+
+Hook `stop` (`.cursor/hooks.json`) executa `npm run agent:verify` via script; encerramento sem evidência dispara continuação automática.
+
+**Não** declarar sucesso por commit/push/build isolados.
 
 Pedir aprovação humana só para: ambiguidade de negócio, destrutivo, permissões, custos, segredos, produção (`--prod`), deploy, banco remoto, mudança de semântica Report/Planejamento.
 

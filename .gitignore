@@ -22,6 +22,9 @@ TokenOps-Installer/
 **/__pycache__/
 *.py[cod]
 
+# Estado volátil do protocolo de agente (por tarefa)
+.cursor/agent-run.json
+
 # Planilha pode conter PAT/credenciais (Config_Teste)
 fonte/**/*.xlsx
 fonte/**/*.xlsm
