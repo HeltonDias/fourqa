@@ -12,7 +12,7 @@ Monorepo npm (`package.json` na raiz), workspaces `backend` e `frontend`. Não h
 | API | `backend/` Express 5, TypeScript | Rotas em `backend/src/routes/api.ts` |
 | Processo local | `backend/src/server.ts` | `listen` só quando `VERCEL !== "1"` |
 | Function | `api/[...path].mjs`, `api/index.mjs` | Reexportam `backend/dist/app.js` |
-| Deploy | `vercel.json`, `docs/vercel.md` | Estático em `frontend/dist`; API em `/api` |
+| Deploy | `vercel.json`, `.cursor/docs/vercel.md` | Estático em `frontend/dist`; API em `/api` |
 | Operacional | PostgreSQL (Supabase) | `DB_PROVIDER=postgres` |
 | Testes e legado | SQLite | `backend/src/db/migrate.ts`, importação histórica |
 
@@ -26,7 +26,7 @@ Isolamento operacional é por `plan_key` (texto, padrão `EndToEnd` em `backend/
 2. `POST /api/sync` lê o Azure e, na Vercel, grava o snapshot no PostgreSQL. Localmente, com cache em memória, não mistura meta nova com linhas antigas (`backend/src/azure/azureCacheConsistency.ts`).
 3. O snapshot substitui `execucoes` e `falhas` e só as metas do lote. Não apaga planejamento (`backend/src/db/postgres/postgresAzureSnapshotStore.ts`).
 4. Planejamento, revisões, alocações, responsável e prioridade de suíte ficam no PostgreSQL e são editados pelo FourQA.
-5. Report, Status e listagens leem o snapshot e o planejamento confirmado. A Home ainda usa a regra do ADR 003 (`docs/adr/003-planejamento.md`).
+5. Report, Status e listagens leem o snapshot e o planejamento confirmado. A Home ainda usa a regra do ADR 003 (`.cursor/docs/adr/003-planejamento.md`).
 
 Não há job CRON no repositório. A sincronização é manual, via Atualizar.
 
@@ -51,7 +51,7 @@ Migrações em `backend/src/db/postgres/migrations/`. Versão final 3 (`POSTGRES
 
 Não existem `companies`, `users`, `planning_cells`, `history_events` nem `responsibilities_shared`.
 
-RLS do Supabase de desenvolvimento foi ligado fora destas migrações. Script e limites: `docs/supabase-rls-remediation.sql`.
+RLS do Supabase de desenvolvimento foi ligado fora destas migrações. Script e limites: `.cursor/docs/supabase-rls-remediation.sql`.
 
 ## Planejamento
 
@@ -123,7 +123,7 @@ A busca em Execuções é o único `input` da página (`ExecucoesPage.tsx`). Nã
 
 A suíte está em `backend/package.json` (`npm test`): domínio, planejamento, snapshot, migração, auth, sync e formato Vercel. Esta auditoria não a reexecutou.
 
-ADRs: `docs/adr/001` hierarquia, `002` status, `003` Home vs planejamento, `004` baseline.
+ADRs: `.cursor/docs/adr/001` hierarquia, `002` status, `003` Home vs planejamento, `004` baseline.
 
 Agentes em `.cursor/agents/`: `impact-analyst` (somente leitura), `qa-verifier`, `regras.md`. Regras em `.cursor/rules/`.
 

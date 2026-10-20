@@ -1,15 +1,11 @@
 ---
-description: FourQA context and token budget rules
+description: FourQA — disciplina de contexto e economia de tokens
 alwaysApply: true
 ---
-# FourQA — efficient development
-- Work in Portuguese and keep responses compact.
-- Before edits, identify scope and inspect only relevant files; prefer symbol search and bounded excerpts instead of dumping entire files.
-- Reuse README and ADRs as sources of truth; only read relevant ADRs when task requires them.
-- Do not read `fonte/scripts_extracted`, spreadsheets, generated JSON, or entire repository unless explicitly needed to resolve a legacy behavior.
-- Prefer direct implementation for localized changes. Use built-in Explore only for unknown cross-file locations.
-- Invoke custom subagents only for multi-module impact or high-risk validation. Do not invoke multiple agents automatically for trivial work.
-- Subagent handoff: goal, changed paths, relevant constraints, concise questions; never send full file contents if paths suffice.
-- Before modifying code, inspect `git status --short`; never overwrite unrelated changes.
-- Do not expose `.env`, secrets, tokens or real data in prompts, logs or reports.
-- For delivered changes state paths, validation commands/results and unresolved risks in <= 8 lines unless asked for detail.
+# FourQA — custo e foco
+- Responder em português, direto ao ponto. Começar pelo objetivo, história/requisito e arquivos afetados.
+- Ler por busca de IDs, nomes de funções e trechos limitados. Não despejar todo o monorepo nem toda a documentação; o roteamento oficial está em `02-context-engine.mdc`.
+- Para edições, executar `git status --short` antes e proteger alterações locais não relacionadas.
+- Ignorar por padrão `.env*` (exceto `.env.example` quando pertinente), `.git/`, bancos, planilhas, ZIPs, `node_modules`, `dist`, artefatos de build e dados de clientes. Nunca divulgar credenciais.
+- Mudança pontual: agente principal investiga e implementa. Cross-module arriscado: delegar seletivamente `impact-analyst`; validação complexa: `qa-verifier`. Não duplicar leitura de contexto ou rodar testes grandes desnecessariamente.
+- Ao concluir: arquivos alterados, comandos e resultados realmente observados, limitações/pendências, próximo passo. Não afirmar que teste ou validação visual passou sem evidência.

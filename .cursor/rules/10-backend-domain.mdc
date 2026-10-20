@@ -1,12 +1,13 @@
 ---
-description: Domain consistency and persistence rules when editing FourQA backend
+description: FourQA — consistência de domínio, backend e persistência
 globs: backend/src/**/*.ts
 alwaysApply: false
 ---
-# Backend boundaries
-- Keep domain logic in `backend/src/domain`, orchestration in `services`, storage behind `persistence` contracts, API in `routes`.
-- For status semantics consult `docs/adr/002-status.md` and the existing classifier. Do not duplicate status business logic.
-- For planning semantics consult `docs/adr/003-planejamento.md` and `docs/adr/004-planejamento-baseline.md` only when affected.
-- For dynamic hierarchy consult `docs/adr/001-hierarquia-dinamica.md` only when affected.
-- Treat SQLite/PostgreSQL parity and migration as high-risk; avoid changing schema, contracts, or migration behavior without tests.
-- Favor narrow tests near changed business logic. Do not assume `npm test` covers every `*.test.ts`.
+# Backend — restrições verificáveis
+- Domínio em `backend/src/domain`, orquestração em `services`, armazenamento atrás dos contratos de `persistence`, HTTP em `routes`.
+- Para status: `.cursor/docs/adr/002-status.md`; preservar `classifyExecution`, sete estados e semântica de cada módulo. `REQUIREMENTS.md` RPT-003 e `DECISIONS.md` (incl. OPEN-006) descrevem diferenças entre Report e Status/Planejamento; não uniformizar automaticamente.
+- Para planejamento: `.cursor/docs/adr/003-planejamento.md` e `.cursor/docs/adr/004-planejamento-baseline.md`, se afetados; critérios PLN pertinentes. Nunca apagar execuções ou revisão de baseline para redistribuir pendentes.
+- Para hierarquia: `.cursor/docs/adr/001-hierarquia-dinamica.md`; não fixar categorias/frentes de contrato.
+- PostgreSQL operacional; SQLite serve também a testes/legado. Alterações de schema/migração/API exigem análise de compatibilidade e testes, **sem** aplicar no banco remoto por iniciativa própria.
+- Não presumir dados de API Azure não disponíveis. Conservar distinção Test Point × Test Case × Bug e metas quantitativas por QA. Não atribuir resultado individual fictício em suíte compartilhada (OPEN-001/007).
+- Teste focado primeiro, regressões de domínio conforme impacto; documentar testes ignorados e lacunas. Verificar que `npm test` realmente cobre o módulo afetado.

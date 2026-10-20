@@ -1,11 +1,13 @@
 ---
-description: FourQA context index: load targeted project, domain, UI and handoff notes only when useful
+description: FourQA — fonte de verdade documental, roteamento seletivo e limites de aprovação
 alwaysApply: true
 ---
-# FourQA — targeted knowledge loading
-- `context/PROJECT_MAP.md` is a small index for finding owners when file locations are unknown. If paths are already known, skip it.
-- For business semantics consult `context/DOMAIN_RULES.md` and **only the relevant ADR**; for visual consistency consult `context/UI_GUIDELINES.md`.
-- Consult `context/HANDOFF.md` only for cross-session continuation or unclear recent decisions; it may be stale.
-- Never load all context notes by default, dump full source files, or re-read documents already summarized without a concrete unresolved question.
-- Reuse subagent findings by path and concise facts; validate consequential claims against code/tests. Keep the existing Squad delegation limits.
-- At task completion, report precise checks and unresolved concerns succinctly. Update durable notes only if architecture/contracts actually changed and the user permits file edits.
+# FourQA — contrato mínimo de contexto
+- Documentação oficial em `.cursor/docs/`; **não** procurar ADRs em `docs/adr/`. Para localizar fontes, consulte `.cursor/docs/INDEX.md` somente se o caminho relevante não estiver claro.
+- Duas verdades distintas: **estado atual** = código, testes e ambiente efetivamente verificados; **comportamento desejado** = decisões aprovadas em `.cursor/docs/DECISIONS.md` + ADRs vigentes + seção aplicável de `.cursor/docs/REQUIREMENTS.md`. Não confundir proposta com implementação.
+- Para uma história, primeiro encontre ID `US-...` em `.cursor/docs/BACKLOG.md`; leia apenas a Feature/história e o requisito correspondente, consultando a decisão/ADR aplicável. `.cursor/docs/ROADMAP.md` informa prioridade/dependência; `.cursor/docs/ARCHITECTURE.md` informa arquitetura e riscos quando a mudança cruzar módulos. `VISION.md` somente para dúvidas de propósito/escopo.
+- O `REQUIREMENTS.md` é extenso (v1.2, 92 requisitos): faça busca por ID/título e leia seção específica, **não** carregue o arquivo inteiro por padrão. Confirme a versão local; materiais de auditoria e pesquisa anteriores podem estar desatualizados.
+- `context/PROJECT_MAP.md`, `DOMAIN_RULES.md` e `UI_GUIDELINES.md` são índices auxiliares, não substituem código ou requisitos. `context/AI_HANDOFF.md` é um resumo datado: verificar `git status` e arquivos reais antes de confiar nele. `context/HANDOFF.md` é histórico.
+- Divergência entre decisão, requisitos, implementação ou estado do Git: reportar exatamente o conflito, classificar como atual/alvo/pendente e pedir aprovação antes de mudar semântica. Não inventar regra.
+- Só realizar edições **dentro do escopo autorizado**. Não fazer commit, push, deploy, reatribuição de alias, migração, sync real, alteração de permissões, operações destrutivas ou custos sem autorização específica. Preview oficial: `https://fourqa-homolog-heltonmarques-8008.vercel.app`; URLs individuais de deployment são imutáveis; alias exige reatribuição após novo Preview; nunca `--prod` sem autorização.
+- Reduza tokens: buscas por símbolos/IDs, trechos curtos, testes direcionados, agentes apenas quando há ganho concreto; nunca ler `.env`, dados reais, ZIPs ou planilhas sem necessidade e permissão.

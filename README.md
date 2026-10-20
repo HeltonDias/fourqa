@@ -5,10 +5,10 @@ Aplicação web que acompanha a execução de QA a partir do Azure DevOps. A pla
 ## Fontes de verdade
 
 - **Test points, bugs e árvore de suítes:** Azure DevOps. Na API PostgreSQL o lote operacional fica no cache em memória; `AZURE_CACHE_READ=0` grava o snapshot legado em `execucoes` e `falhas`.
-- **Regras de status:** `classifyExecution` no backend. O frontend não reclassifica. Ver [docs/adr/002-status.md](docs/adr/002-status.md).
-- **Hierarquia:** detectada na árvore. Frente e Prioridade não têm nível fixo. Ver [docs/adr/001-hierarquia-dinamica.md](docs/adr/001-hierarquia-dinamica.md).
+- **Regras de status:** `classifyExecution` no backend. O frontend não reclassifica. Ver [`.cursor/docs/adr/002-status.md`](.cursor/docs/adr/002-status.md).
+- **Hierarquia:** detectada na árvore. Frente e Prioridade não têm nível fixo. Ver [`.cursor/docs/adr/001-hierarquia-dinamica.md`](.cursor/docs/adr/001-hierarquia-dinamica.md).
 - **Configuração do plano:** `.env` (`SYNC_TEST_PLANS`, `SYNC_KPI_PLAN_KEY`). O frontend não guarda PlanKey.
-- **Planejamento de datas:** importação legada quando a suíte existe lá; senão a janela do plano é inferida e marcada como tal. Ver [docs/adr/003-planejamento.md](docs/adr/003-planejamento.md).
+- **Planejamento de datas:** importação legada quando a suíte existe lá; senão a janela do plano é inferida e marcada como tal. Ver [`.cursor/docs/adr/003-planejamento.md`](.cursor/docs/adr/003-planejamento.md).
 - **PAT:** só no `.env`, só no backend. Não vai para o banco, para o frontend nem para logs.
 
 ## Fluxo de sincronização
@@ -65,10 +65,10 @@ npm run build
 
 ## Vercel
 
-O Preview usa o frontend Vite em `frontend/dist` e o Express em `api/[...path].mjs`. Na Vercel o snapshot Azure fica no PostgreSQL. Variáveis, pooler, sync e proteção estão em [docs/vercel.md](docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
+O Preview usa o frontend Vite em `frontend/dist` e o Express em `api/[...path].mjs`. Na Vercel o snapshot Azure fica no PostgreSQL. Variáveis, pooler, sync e proteção estão em [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
 
 Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.
 
 ## Vercel
 
-O Preview usa o frontend estático e uma Function Express em `/api`. Na Vercel o snapshot do Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção do Preview: [docs/vercel.md](docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
+O Preview usa o frontend estático e uma Function Express em `/api`. Na Vercel o snapshot do Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção do Preview: [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.

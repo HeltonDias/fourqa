@@ -6,7 +6,7 @@
 
 **Arquitetura implantada:**
 - Projeto Vercel `fourqa`, conta `heltonmarques-8008`, Node 22, build em `iad1`.
-- Preview: `https://fourqa-km4ml23vn-heltonmarques-8008.vercel.app`
+- Homologação oficial: `https://fourqa-homolog-heltonmarques-8008.vercel.app`. A URL `https://fourqa-km4ml23vn-heltonmarques-8008.vercel.app` é um deployment antigo e imutável.
 - Estático em `frontend/dist`. Express em `api/index.mjs` e `api/[...path].mjs`. Sem `listen()` na Function.
 - Snapshot Azure em `execucoes`/`falhas`. Sync com `waitUntil`, job em `workbook_meta.sync_job`, limite 300s. Falha antes do `replaceSnapshot` mantém o lote.
 - Preview usa pooler porta 6543 e `DATABASE_SSL_CA`. A URL local continua na 5432.
@@ -22,7 +22,7 @@
 
 **Git:** `feat/supabase-migration` em `fc8836b`, remoto `https://github.com/HeltonDias/fourqa.git`. CI não consultado (`gh` ausente).
 
-**Rollback:** na Vercel, use o deployment Preview anterior. Não promova Production. O SQL de RLS está em `docs/supabase-rls-remediation.sql`; o rollback comentado reabre o acesso público e não deve ser executado. Não restaure o dump antigo por cima dos dados atuais.
+**Rollback:** na Vercel, use o deployment Preview anterior. Não promova Production. O SQL de RLS está em `.cursor/docs/supabase-rls-remediation.sql`; o rollback comentado reabre o acesso público e não deve ser executado. Não restaure o dump antigo por cima dos dados atuais.
 
 **Deploy:** `vercel deploy --yes`, sem `--prod`. Proteção já ligada.
 

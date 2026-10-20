@@ -19,7 +19,7 @@ Classificação: **CONFIRMADO NO CÓDIGO**, **REQUISITO DE PRODUTO**, **IMPLEMEN
 | SSO OAuth2, JWT, botões Microsoft/Google | HIPÓTESE INCORRETA | Bearer compartilhado. Login da Vercel é proteção do host, não do produto |
 | Variável `Delivery` no `.env` | NÃO IMPLEMENTADO | `.env.example` não tem `Delivery`. Planos vêm de `SYNC_TEST_PLANS` |
 | Credenciais por empresa | REQUISITO DE PRODUTO | Hoje um PAT e um token por ambiente |
-| Containers e CRON de sync | NÃO IMPLEMENTADO | Sync manual. Deploy descrito em `docs/vercel.md` |
+| Containers e CRON de sync | NÃO IMPLEMENTADO | Sync manual. Deploy descrito em `.cursor/docs/vercel.md` |
 
 ## Modelo de dados (§2 e diagrama §11)
 

@@ -19,7 +19,7 @@ Atualizar só se a tarefa alterou arquitetura/contrato: data, caminhos modificad
 - 001 é o baseline. 002 grava a identidade do item (`test_point_id`, `test_case_id`). 003 grava responsável e prioridade da suíte.
 - SQLite permanece para testes, backup e importação histórica. Backup pré-migração: `../fourqa-backups/fourqa-supabase-20261015-1503.dump`.
 - TLS verifica o certificado. CA extra: `DATABASE_SSL_CA_FILE` (PEM em `certs/`, fora do Git). Caminho: `backend/src/db/postgres/pool.ts`.
-- Dados Azure operacionais ficam no cache em memória no desenvolvimento local. Na Vercel o snapshot vai para `execucoes`/`falhas`. Ver `docs/vercel.md`.
+- Dados Azure operacionais ficam no cache em memória no desenvolvimento local. Na Vercel o snapshot vai para `execucoes`/`falhas`. Ver `.cursor/docs/vercel.md`.
 - RLS do Supabase de desenvolvimento está ligado. `anon` e `authenticated` não leem as tabelas. A role do backend continua com acesso.
-- Preview protegido: `https://fourqa-km4ml23vn-heltonmarques-8008.vercel.app`. Projeto Vercel `fourqa`. Branch `feat/supabase-migration`. Ver `docs/vercel.md`.
+- Homologação oficial: `https://fourqa-homolog-heltonmarques-8008.vercel.app`. Projeto Vercel `fourqa`. Branch `feat/supabase-migration`. Ver `.cursor/docs/vercel.md`. A URL `https://fourqa-km4ml23vn-heltonmarques-8008.vercel.app` é um deployment antigo e imutável, não o link de homologação.
 - Próximo objetivo: RETOMAR O DESENVOLVIMENTO FUNCIONAL DO FOURQA.

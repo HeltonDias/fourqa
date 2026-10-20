@@ -22,7 +22,7 @@ Stack: npm workspaces `backend` (Node/Express/TypeScript) e `frontend` (React/Ty
 - `backend/src/services/planningService.ts`: orquestração do planejamento.
 - `backend/src/persistence/` e `backend/src/db/`: persistência; tratar alterações SQLite/PostgreSQL como críticas.
 - `backend/src/azure/`: integração Azure DevOps.
-- `docs/adr/`: decisões arquiteturais; consulte somente ADR relevante.
+- `.cursor/docs/adr/`: decisões arquiteturais; consulte somente ADR relevante.
 - `fonte/ENTENDIMENTO_ECOSISTEMA_PLANILHA.md`: legado Excel, apenas quando a tarefa envolver correspondência com planilha.
 
 Este mapa é um índice, NÃO uma descrição completa nem prova de comportamento em runtime. Código e testes prevalecem. Atualize caminhos após mudanças estruturais.
