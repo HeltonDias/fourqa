@@ -1,6 +1,8 @@
 import type { PoolClient } from "pg";
 import { normalizeSuiteFill } from "../../domain/planning.js";
 import type { PlanningStore } from "../../persistence/contracts.js";
+import { PlanningConflictError } from "../../persistence/planningConflict.js";
+import { scheduleFingerprint } from "../../persistence/scheduleFingerprint.js";
 import type {
   CommitRevisionInput,
   PlanningCellWrite,
@@ -106,16 +108,67 @@ async function insertReturningId(client: PoolClient, sql: string, params: unknow
   return asNumber(result.rows[0]?.id);
 }
 
+async function lockPlanningId(client: PoolClient, planKey: string, createdAt: string): Promise<number> {
+  const locked = await client.query<{ id: unknown }>("SELECT id FROM planning WHERE plan_key = $1 FOR UPDATE", [planKey]);
+  if (locked.rows[0]) return asNumber(locked.rows[0].id);
+  return insertReturningId(
+    client,
+    "INSERT INTO planning (plan_key, created_at) VALUES ($1, $2) RETURNING id",
+    [planKey, createdAt],
+  );
+}
+
+async function readScheduleClient(client: PoolClient, revisionId: number): Promise<PlanningScheduleItem[]> {
+  const items = await client.query<Record<string, unknown>>(
+    `SELECT id, suite_id, suite_name, test_point_id, test_case_id, planned_start, planned_end, baseline_quantity, responsavel, prioridade
+     FROM planning_item WHERE revision_id = $1`,
+    [revisionId],
+  );
+  const allocs = await client.query<Record<string, unknown>>(
+    `SELECT a.item_id, a.alloc_date, a.planned_quantity
+     FROM planning_allocation a
+     JOIN planning_item i ON i.id = a.item_id
+     WHERE i.revision_id = $1`,
+    [revisionId],
+  );
+  return items.rows.map((item) => {
+    const id = asNumber(item.id);
+    return {
+      id,
+      suiteId: asNumberOrNull(item.suite_id),
+      suiteName: asText(item.suite_name),
+      testPointId: asNumberOrNull(item.test_point_id),
+      testCaseId: asNumberOrNull(item.test_case_id),
+      plannedStart: asText(item.planned_start),
+      plannedEnd: asText(item.planned_end),
+      responsavel: asText(item.responsavel),
+      prioridade: asText(item.prioridade),
+      baselineQuantity: asNumberOrNull(item.baseline_quantity),
+      allocations: allocs.rows
+        .filter((row) => asNumber(row.item_id) === id)
+        .map((row) => ({ date: asText(row.alloc_date) ?? "", quantity: asNumber(row.planned_quantity) })),
+    };
+  });
+}
+
 async function commitRevision(input: CommitRevisionInput): Promise<number> {
-  return withTransaction(async (client) => {
-    const existing = await client.query<{ id: unknown }>("SELECT id FROM planning WHERE plan_key = $1", [input.planKey]);
-    const planningId = existing.rows[0]
-      ? asNumber(existing.rows[0].id)
-      : await insertReturningId(
-          client,
-          "INSERT INTO planning (plan_key, created_at) VALUES ($1, $2) RETURNING id",
-          [input.planKey, input.createdAt],
-        );
+  try {
+  return await withTransaction(async (client) => {
+    const planningId = await lockPlanningId(client, input.planKey, input.createdAt);
+    const max = await client.query<{ v: unknown }>(
+      "SELECT COALESCE(MAX(version), 0) AS v FROM planning_revision WHERE planning_id = $1",
+      [planningId],
+    );
+    const current = asNumber(max.rows[0]?.v);
+    if (current !== input.version - 1) {
+      throw new PlanningConflictError(PlanningConflictError.revisionRace);
+    }
+    if (input.baseRevisionId != null && input.baseFingerprint != null) {
+      const fresh = await readScheduleClient(client, input.baseRevisionId);
+      if (scheduleFingerprint(fresh) !== input.baseFingerprint) {
+        throw new PlanningConflictError(PlanningConflictError.scheduleChanged);
+      }
+    }
     const revisionId = await insertReturningId(
       client,
       `INSERT INTO planning_revision (planning_id, version, created_at, reason, baseline_origin, scope_snapshot)
@@ -158,12 +211,78 @@ async function commitRevision(input: CommitRevisionInput): Promise<number> {
     }
     return revisionId;
   });
+  } catch (err: unknown) {
+    const pg = err as { code?: string; constraint?: string };
+    if (pg.code === "23505" && pg.constraint?.includes("planning_revision")) {
+      throw new PlanningConflictError(PlanningConflictError.revisionRace);
+    }
+    throw err;
+  }
+}
+
+function sameText(stored: unknown, expected: string | null | undefined): boolean {
+  const text = stored == null ? "" : String(stored);
+  return text === (expected ?? "");
+}
+
+async function guardCell(client: PoolClient, input: PlanningCellWrite): Promise<void> {
+  if (!input.guard) return;
+  switch (input.field) {
+    case "day": {
+      const cur = await client.query<{ planned_quantity: unknown }>(
+        "SELECT planned_quantity FROM planning_allocation WHERE item_id = $1 AND alloc_date = $2",
+        [input.itemId, input.date],
+      );
+      const qty = cur.rows[0] ? asNumber(cur.rows[0].planned_quantity) : 0;
+      if (Math.abs(qty - (input.expectedQuantity ?? 0)) > 1e-9) {
+        throw new PlanningConflictError(PlanningConflictError.cellChanged);
+      }
+      break;
+    }
+    case "responsavel":
+    case "prioridade": {
+      const column = input.field === "responsavel" ? "responsavel" : "prioridade";
+      const cur = await client.query<Record<string, unknown>>(`SELECT ${column} FROM planning_item WHERE id = $1`, [input.itemId]);
+      if (!sameText(cur.rows[0]?.[column], input.expectedText)) {
+        throw new PlanningConflictError(PlanningConflictError.cellChanged);
+      }
+      break;
+    }
+    default: {
+      const column = input.field === "start" ? "planned_start" : "planned_end";
+      const cur = await client.query<Record<string, unknown>>(`SELECT ${column} FROM planning_item WHERE id = $1`, [input.itemId]);
+      if (!sameText(cur.rows[0]?.[column], input.expectedText)) {
+        throw new PlanningConflictError(PlanningConflictError.cellChanged);
+      }
+    }
+  }
 }
 
 async function saveCell(input: PlanningCellWrite): Promise<void> {
-  switch (input.field) {
-    case "day": {
-      await withTransaction(async (client) => {
+  const useConcurrency = input.planKey != null && input.revisionId != null;
+  const run = async (client: PoolClient) => {
+    if (useConcurrency) {
+      await client.query("SELECT id FROM planning WHERE plan_key = $1 FOR UPDATE", [input.planKey]);
+      const latest = await client.query<{ id: unknown }>(
+        `SELECT r.id FROM planning_revision r JOIN planning p ON p.id = r.planning_id
+         WHERE p.plan_key = $1 ORDER BY r.version DESC LIMIT 1`,
+        [input.planKey],
+      );
+      const latestId = latest.rows[0] ? asNumber(latest.rows[0].id) : null;
+      if (latestId !== input.revisionId) {
+        throw new PlanningConflictError(PlanningConflictError.baselineRevised);
+      }
+      const owner = await client.query("SELECT 1 FROM planning_item WHERE id = $1 AND revision_id = $2", [
+        input.itemId,
+        input.revisionId,
+      ]);
+      if (!owner.rows[0]) {
+        throw new PlanningConflictError(PlanningConflictError.itemOutOfRevision);
+      }
+      await guardCell(client, input);
+    }
+    switch (input.field) {
+      case "day": {
         await client.query("DELETE FROM planning_allocation WHERE item_id = $1 AND alloc_date = $2", [input.itemId, input.date]);
         if (input.quantity > 0) {
           await client.query(
@@ -171,25 +290,56 @@ async function saveCell(input: PlanningCellWrite): Promise<void> {
             [input.itemId, input.date, input.quantity],
           );
         }
-      });
-      return;
+        return;
+      }
+      case "responsavel": {
+        await client.query("UPDATE planning_item SET responsavel = $1 WHERE id = $2", [
+          bind(normalizeSuiteFill(input.value)),
+          input.itemId,
+        ]);
+        return;
+      }
+      case "prioridade": {
+        await client.query("UPDATE planning_item SET prioridade = $1 WHERE id = $2", [
+          bind(normalizeSuiteFill(input.value)),
+          input.itemId,
+        ]);
+        return;
+      }
+      case "start": {
+        await client.query("UPDATE planning_item SET planned_start = $1 WHERE id = $2", [bind(input.date), input.itemId]);
+        return;
+      }
+      case "end": {
+        await client.query("UPDATE planning_item SET planned_end = $1 WHERE id = $2", [bind(input.date), input.itemId]);
+        return;
+      }
+      default: {
+        const unreachable: never = input;
+        throw new Error(`Campo de planejamento não suportado (${JSON.stringify(unreachable)})`);
+      }
     }
-    case "responsavel": {
+  };
+  if (useConcurrency) {
+    await withTransaction(run);
+    return;
+  }
+  switch (input.field) {
+    case "day":
+      await withTransaction(run);
+      return;
+    case "responsavel":
       await query("UPDATE planning_item SET responsavel = $1 WHERE id = $2", [bind(normalizeSuiteFill(input.value)), input.itemId]);
       return;
-    }
-    case "prioridade": {
+    case "prioridade":
       await query("UPDATE planning_item SET prioridade = $1 WHERE id = $2", [bind(normalizeSuiteFill(input.value)), input.itemId]);
       return;
-    }
-    case "start": {
+    case "start":
       await query("UPDATE planning_item SET planned_start = $1 WHERE id = $2", [bind(input.date), input.itemId]);
       return;
-    }
-    case "end": {
+    case "end":
       await query("UPDATE planning_item SET planned_end = $1 WHERE id = $2", [bind(input.date), input.itemId]);
       return;
-    }
     default: {
       const unreachable: never = input;
       throw new Error(`Campo de planejamento não suportado (${JSON.stringify(unreachable)})`);

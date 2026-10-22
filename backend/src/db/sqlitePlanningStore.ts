@@ -51,12 +51,22 @@ export type CommitRevisionInput = {
   scopeSnapshot: number;
   scope: PlanningScopeWrite[];
   items: PlanningItemWrite[];
+  baseRevisionId?: number | null;
+  baseFingerprint?: string | null;
+};
+
+type CellWriteMeta = {
+  planKey?: string;
+  revisionId?: number;
+  guard?: boolean;
+  expectedText?: string | null;
+  expectedQuantity?: number;
 };
 
 export type PlanningCellWrite =
-  | { itemId: number; field: "day"; date: string; quantity: number }
-  | { itemId: number; field: "start" | "end"; date: string | null }
-  | { itemId: number; field: "responsavel" | "prioridade"; value: string | null };
+  | ({ itemId: number; field: "day"; date: string; quantity: number } & CellWriteMeta)
+  | ({ itemId: number; field: "start" | "end"; date: string | null } & CellWriteMeta)
+  | ({ itemId: number; field: "responsavel" | "prioridade"; value: string | null } & CellWriteMeta);
 
 const REVISION_SQL = `SELECT r.id, r.version, r.created_at, r.reason, r.baseline_origin, r.scope_snapshot
          FROM planning_revision r

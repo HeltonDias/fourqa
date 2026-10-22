@@ -126,6 +126,49 @@ export function createFakePostgres() {
     if (sql.startsWith("SELECT id FROM planning")) {
       return state.planning.filter((row) => row.plan_key === params[0]).map((row) => ({ id: row.id }));
     }
+    if (sql.startsWith("SELECT COALESCE(MAX(version), 0)")) {
+      const planningId = params[0];
+      const versions = state.planning_revision
+        .filter((row) => row.planning_id === planningId)
+        .map((row) => Number(row.version));
+      const max = versions.length ? Math.max(...versions) : 0;
+      return [{ v: max }];
+    }
+    if (sql.includes("SELECT r.id FROM planning_revision r JOIN planning p")) {
+      const planKey = params[0];
+      const planning = state.planning.find((row) => row.plan_key === planKey);
+      if (!planning) return [];
+      const rev = state.planning_revision
+        .filter((row) => row.planning_id === planning.id)
+        .sort((a, b) => Number(b.version) - Number(a.version))[0];
+      return rev ? [{ id: rev.id }] : [];
+    }
+    if (sql.startsWith("SELECT 1 FROM planning_item WHERE id = $1 AND revision_id = $2")) {
+      const hit = state.planning_item.find((row) => row.id === params[0] && row.revision_id === params[1]);
+      return hit ? [{ "?column?": 1 }] : [];
+    }
+    if (sql.startsWith("SELECT planned_quantity FROM planning_allocation")) {
+      const row = state.planning_allocation.find(
+        (alloc) => alloc.item_id === params[0] && alloc.alloc_date === params[1],
+      );
+      return row ? [{ planned_quantity: row.planned_quantity }] : [];
+    }
+    if (sql.startsWith("SELECT responsavel FROM planning_item")) {
+      const row = state.planning_item.find((item) => item.id === params[0]);
+      return row ? [{ responsavel: row.responsavel }] : [];
+    }
+    if (sql.startsWith("SELECT prioridade FROM planning_item")) {
+      const row = state.planning_item.find((item) => item.id === params[0]);
+      return row ? [{ prioridade: row.prioridade }] : [];
+    }
+    if (sql.startsWith("SELECT planned_start FROM planning_item")) {
+      const row = state.planning_item.find((item) => item.id === params[0]);
+      return row ? [{ planned_start: row.planned_start }] : [];
+    }
+    if (sql.startsWith("SELECT planned_end FROM planning_item")) {
+      const row = state.planning_item.find((item) => item.id === params[0]);
+      return row ? [{ planned_end: row.planned_end }] : [];
+    }
     if (sql.startsWith("INSERT INTO planning (")) {
       const row = rowFrom(columnsOf(sql), params);
       row.id = nextId("planning");

@@ -3,7 +3,9 @@ import { AzureCacheUnavailableError } from "../azure/azureCacheReadSource.js";
 import { envValue } from "../azure/config.js";
 import { decideReadAuth, decideWriteAuth, openWritesAllowed } from "../http/writeAuth.js";
 import { parsePageQuery } from "../http/pageQuery.js";
-import { planKeyFromRaw } from "../persistence/planKey.js";
+import { explicitPlanKeyFromQuery, planKeyFromRaw, planKeyWriteError } from "../persistence/planKey.js";
+import { PlanningConflictError } from "../persistence/planningConflict.js";
+import { parsePlanningCellBase } from "../http/planningCellBase.js";
 import { getStores, persistenceReady } from "../persistence/provider.js";
 import { DEFAULT_PLAN_KEY } from "../domain/formulas.js";
 import { PlanningPeriodError } from "../domain/planPeriod.js";
@@ -73,6 +75,17 @@ function respondPlanningPeriodError(
 ): boolean {
   if (err instanceof PlanningPeriodError) {
     res.status(400).json({ error: err.message });
+    return true;
+  }
+  return false;
+}
+
+function respondPlanningConflict(
+  res: { status(code: number): { json(body: unknown): void } },
+  err: unknown,
+): boolean {
+  if (err instanceof PlanningConflictError) {
+    res.status(409).json({ error: err.message });
     return true;
   }
   return false;
@@ -173,15 +186,21 @@ apiRouter.get("/planejamento", async (req, res) => {
 
 apiRouter.post("/planejamento/revisao", requireWriteAuth, async (req, res) => {
   if (!(await ready(res))) return;
+  const planKey = explicitPlanKeyFromQuery(req.query.planKey);
+  if (!planKey) {
+    res.status(400).json({ error: planKeyWriteError(req.query.planKey) });
+    return;
+  }
   const body = (req.body ?? {}) as { reason?: unknown; adoptSource?: unknown };
   try {
     res.json(
-      await confirmOrRevise(await planKeyFromQuery(req.query.planKey), {
+      await confirmOrRevise(planKey, {
         reason: typeof body.reason === "string" ? body.reason : "",
         adoptSource: body.adoptSource !== false,
       }),
     );
   } catch (err) {
+    if (respondPlanningConflict(res, err)) return;
     res.status(400).json({ error: err instanceof Error ? err.message : "Não foi possível gravar a revisão." });
   }
 });
@@ -208,18 +227,32 @@ apiRouter.put("/planejamento/celula", requireWriteAuth, async (req, res) => {
     res.status(400).json({ error: "Campo inválido." });
     return;
   }
+  const planKey = explicitPlanKeyFromQuery(req.query.planKey);
+  if (!planKey) {
+    res.status(400).json({ error: planKeyWriteError(req.query.planKey) });
+    return;
+  }
+  const cellBase = parsePlanningCellBase(body as Record<string, unknown>, field);
+  if (cellBase === null) {
+    res.status(400).json({ error: "Base da célula inválida." });
+    return;
+  }
   try {
     res.json(
-      await savePlanningCell(await planKeyFromQuery(req.query.planKey), {
+      await savePlanningCell(planKey, {
         suiteId: typeof body.suiteId === "number" ? body.suiteId : null,
         testPointId: typeof body.testPointId === "number" ? body.testPointId : null,
         field,
         date: typeof body.date === "string" ? body.date : undefined,
         quantity: typeof body.quantity === "number" ? body.quantity : undefined,
         value: typeof body.value === "string" ? body.value : undefined,
+        guard: cellBase.guard,
+        expectedText: cellBase.expectedText,
+        expectedQuantity: cellBase.expectedQuantity,
       }),
     );
   } catch (err) {
+    if (respondPlanningConflict(res, err)) return;
     res.status(400).json({ error: err instanceof Error ? err.message : "Não foi possível gravar a célula." });
   }
 });

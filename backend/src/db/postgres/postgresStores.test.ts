@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import type { ExecucaoRow, FalhaRow } from "../../types.js";
 import { PersistenceProviderError, getStores, resolveDbProvider } from "../../persistence/provider.js";
 import type { CommitRevisionInput } from "../sqlitePlanningStore.js";
+import { PlanningConflictError } from "../../persistence/planningConflict.js";
 import { createFakePostgres } from "./fakePostgres.js";
 import { bindPostgresTestPool } from "./pool.js";
 import { postgresAzureSnapshotStore } from "./postgresAzureSnapshotStore.js";
@@ -122,6 +123,15 @@ describe("stores PostgreSQL em memória", { concurrency: 1 }, () => {
     assert.equal(fake.counts().planning, 2);
     assert.equal(fake.counts().revisions, 3);
     assert.equal(fake.log.some((sql) => sql === "DELETE FROM execucoes"), false);
+  });
+
+  it("recusa revisão com salto de versão", async () => {
+    useFake();
+    await postgresPlanningStore.commitRevision(revision({ planKey: "PlanoA", version: 1 }));
+    await assert.rejects(
+      () => postgresPlanningStore.commitRevision(revision({ planKey: "PlanoA", version: 3 })),
+      (err: unknown) => err instanceof PlanningConflictError,
+    );
   });
 
   it("edita célula e desfaz a transação quando o item não existe", async () => {

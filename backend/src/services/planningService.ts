@@ -20,6 +20,7 @@ import {
   type ScopeRef,
 } from "../domain/planning.js";
 import type { ExecucaoRow } from "../types.js";
+import { scheduleFingerprint } from "../persistence/scheduleFingerprint.js";
 
 const stores = await getStores();
 const getMeta = async (key: string) => stores.meta.get(key);
@@ -639,6 +640,7 @@ export async function confirmOrRevise(planKey: string, input: { reason: string; 
   }
   const scope = input.adoptSource || !current ? await sourceScopeOf(planKey) : await loadScope(current.id);
   const now = new Date().toISOString();
+  const sourceSchedule = current ? await loadSchedule(current.id) : [];
   const items = !input.adoptSource && current
     ? await copiedSchedule(current.id)
     : await itemsForNewRevision(planKey, scope, current?.id ?? null);
@@ -651,6 +653,8 @@ export async function confirmOrRevise(planKey: string, input: { reason: string; 
     scopeSnapshot: 1,
     scope,
     items,
+    baseRevisionId: current?.id ?? null,
+    baseFingerprint: current ? scheduleFingerprint(sourceSchedule) : null,
   });
   return getPlanningView(planKey);
 }
@@ -664,6 +668,9 @@ export async function savePlanningCell(
     date?: string;
     quantity?: number;
     value?: string;
+    guard?: boolean;
+    expectedText?: string | null;
+    expectedQuantity?: number;
   },
 ): Promise<PlanningView> {
   const revision = await latestRevision(planKey);
@@ -684,18 +691,43 @@ export async function savePlanningCell(
   }
   if (input.field === "responsavel" || input.field === "prioridade") {
     if (item.suiteId == null) throw new Error("Responsável e prioridade exigem Suite ID.");
-    await saveCell({ itemId: item.id, field: input.field, value: normalizeSuiteFill(input.value) });
+    await saveCell({
+      planKey,
+      revisionId: revision.id,
+      itemId: item.id,
+      field: input.field,
+      value: normalizeSuiteFill(input.value),
+      guard: input.guard,
+      expectedText: input.expectedText,
+    });
     return getPlanningView(planKey);
   }
   if (input.field === "day") {
     const day = calendarDate(input.date);
     const quantity = input.quantity;
     if (!day || quantity == null || !Number.isFinite(quantity) || quantity < 0) throw new Error("Informe data e quantidade.");
-    await saveCell({ itemId: item.id, field: "day", date: day, quantity });
+    await saveCell({
+      planKey,
+      revisionId: revision.id,
+      itemId: item.id,
+      field: "day",
+      date: day,
+      quantity,
+      guard: input.guard,
+      expectedQuantity: input.expectedQuantity,
+    });
   } else {
     const day = input.date ? calendarDate(input.date) : null;
     if (input.date && !day) throw new Error("Data inválida.");
-    await saveCell({ itemId: item.id, field: input.field, date: day });
+    await saveCell({
+      planKey,
+      revisionId: revision.id,
+      itemId: item.id,
+      field: input.field,
+      date: day,
+      guard: input.guard,
+      expectedText: input.expectedText,
+    });
   }
   return getPlanningView(planKey);
 }

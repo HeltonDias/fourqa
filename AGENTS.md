@@ -4,7 +4,7 @@ Monorepo **Node 22**: API Express + SPA React/Vite. Planejamento de produto e re
 
 ## Executor
 
-O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo.
+O **agente principal** no Cursor (incl. Cloud Agent) é o Maestro: implementa, testa e abre PR. Não criar orquestrador paralelo. Essencial em `.cursor/rules/00-maestro.mdc`; procedimento em `.cursor/skills/maestro-orchestration/SKILL.md`. Os gates abaixo continuam obrigatórios quando houver código de produto. **Backend primário:** API Node/Express em `backend/` (Vercel `api/index.mjs`). Código em `backend/dotnet/` é experimental/arquivo — sem job obrigatório no CI até decisão contrária.
 
 | Quando | Quem |
 |--------|------|
@@ -64,6 +64,8 @@ Preview oficial (alias manual após validação): `https://fourqa-homolog-helton
 
 Não ler `.env`, PAT, dumps ou planilhas `fonte/**/*.xlsx` sem necessidade. Não commitar segredos. Não alterar dados de produção neste fluxo.
 
-## Próxima onda
+## Backend e migração C#
 
-Migração incremental para **ASP.NET Core 10** usará o mesmo protocolo; paridade de contratos `/api/*` e domínio (`backend/src/domain/`) antes de cortar Node.
+**Estado operacional (2026-10-22):** Node permanece implementação principal; alias de homologação e deploy Vercel usam só a API Express. Rollback master em curso na branch `rollback/node-primary-master` (proposta de abandono da migração C# como alvo — ver ADR 005 e `PROP-008` em `DECISIONS.md`).
+
+Scripts locais opcionais: `npm run dotnet:build`, `dotnet:test`, `dotnet:parity-golden`, `formulas:parity` (TS↔C#). **Contratos aprovados no Node:** fórmulas/Test Points em `backend/src/domain/`; leituras com fallback de PlanKey. **Planejamento (Node/Postgres):** escritas `revisao`/`celula` exigem `planKey` explícito (DEC-031); HTTP 409 com `base*` quando `DB_PROVIDER=postgres`. **Sync:** posse por `jobId` e rejeição de publish obsoleto permanecem mais rígidas no experimental C# — ver `PROP-008`.
