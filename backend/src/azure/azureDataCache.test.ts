@@ -73,8 +73,8 @@ function cfg(): SyncConfig {
   return {
     azure: { organization: "org", project: "proj", apiVersion: "7.0", pat: "secret" },
     plans: [
-      { planKey: "EndToEnd", planId: 1, planName: "E2E", suiteNameFilter: "", maxSuites: 10 },
-      { planKey: "UAT", planId: 2, planName: "UAT", suiteNameFilter: "", maxSuites: 10 },
+      { planKey: "EndToEnd", planId: 1, planName: "E2E", suiteNameFilter: "", maxSuites: 0 },
+      { planKey: "UAT", planId: 2, planName: "UAT", suiteNameFilter: "", maxSuites: 0 },
     ],
     hierarchy: [],
     responsibilities: new Map(),

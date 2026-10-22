@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ExecucaoInsert } from "../azure/execucoes.js";
 import type { FalhaInsert } from "../azure/falhas.js";
-import { SyncValidationError, validateSyncResult } from "./validateSync.js";
+import {
+  ensureSyncPublishable,
+  SyncValidationError,
+  syncPlanGatesAfterLoad,
+  syncPlanGatesFromConfig,
+  validateSyncResult,
+} from "./validateSync.js";
+import type { SyncConfig } from "../azure/config.js";
 
 function exec(partial: Partial<ExecucaoInsert> = {}): ExecucaoInsert {
   return {
@@ -83,6 +90,48 @@ describe("validateSyncResult", () => {
         }),
       /duplicado/i,
     );
+  });
+
+  it("lote incompleto, filtro, MaxSuites e plano ausente não publicam", () => {
+    assert.throws(
+      () =>
+        ensureSyncPublishable(
+          [
+            { planKey: "E2E", suiteFilter: true, maxSuites: false, loaded: true },
+            { planKey: "UAT", suiteFilter: false, maxSuites: true, loaded: false },
+          ],
+          true,
+        ),
+      (err: unknown) => {
+        assert.ok(err instanceof SyncValidationError);
+        const msg = err.message;
+        assert.match(msg, /filtro/i);
+        assert.match(msg, /MaxSuites/i);
+        assert.match(msg, /UAT/i);
+        assert.match(msg, /não terminou/i);
+        return true;
+      },
+    );
+    assert.doesNotThrow(() =>
+      ensureSyncPublishable([{ planKey: "E2E", suiteFilter: false, maxSuites: false, loaded: true }], false),
+    );
+  });
+
+  it("syncPlanGatesFromConfig bloqueia filtro antes da coleta", () => {
+    const cfg = {
+      plans: [{ planKey: "E2E", planId: 1, planName: "E2E", suiteNameFilter: "Cadastro", maxSuites: 0 }],
+    } as SyncConfig;
+    assert.throws(() => ensureSyncPublishable(syncPlanGatesFromConfig(cfg, true), false), /filtro/i);
+  });
+
+  it("syncPlanGatesAfterLoad exige cada plano da config", () => {
+    const cfg = {
+      plans: [
+        { planKey: "E2E", planId: 1, planName: "E2E", suiteNameFilter: "", maxSuites: 0 },
+        { planKey: "UAT", planId: 2, planName: "UAT", suiteNameFilter: "", maxSuites: 0 },
+      ],
+    } as SyncConfig;
+    assert.throws(() => ensureSyncPublishable(syncPlanGatesAfterLoad(cfg, ["E2E"]), false), /UAT/i);
   });
 
   it("recusa BugId duplicado no mesmo plano", () => {

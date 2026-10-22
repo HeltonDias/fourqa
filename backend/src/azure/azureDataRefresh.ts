@@ -1,6 +1,6 @@
 import type { AzureClient } from "./client.js";
 import type { SyncConfig } from "./config.js";
-import { validateSyncResult } from "../domain/validateSync.js";
+import { ensureSyncPublishable, syncPlanGatesAfterLoad, validateSyncResult } from "../domain/validateSync.js";
 import type { AzureRefreshArtifacts } from "./azureDataPort.js";
 import type { ExecucaoInsert, PlanExecutions } from "./execucoes.js";
 import { loadPlanExecutions } from "./execucoes.js";
@@ -55,16 +55,19 @@ export async function buildAzureRefreshDraft(
   const suiteRefs: AzureRefreshDraft["suiteRefs"] = [];
   const dimensoesMeta: Record<string, string> = {};
   const perPlanExec = new Map<string, PlanExecutions>();
+  const loadedPlanKeys: string[] = [];
   let suites = 0;
 
   for (const plan of cfg.plans) {
     const load = await ports.loadPlanExecutions(client, plan, cfg.hierarchy, report, cfg.validFronts);
+    loadedPlanKeys.push(plan.planKey);
     perPlanExec.set(plan.planKey, load);
     execucoes.push(...load.rows);
     suiteRefs.push(...load.suites);
     suites += load.suitesProcessed;
     dimensoesMeta[`dimensoes_catalog:${plan.planKey}`] = JSON.stringify(load.dimensions);
   }
+  const partial = loadedPlanKeys.length !== cfg.plans.length;
 
   const planFalhas: PlanFalhas[] = await ports.loadFalhas(client, cfg, report);
   const falhas: FalhaInsert[] = planFalhas.flatMap((p) => p.rows);
@@ -76,6 +79,7 @@ export async function buildAzureRefreshDraft(
   const kpi = await ports.calculateKpiImpactos(client, kpiExecs, bugMeta, report);
 
   ports.validateSyncResult({ execucoes, falhas, suites: suiteRefs });
+  ensureSyncPublishable(syncPlanGatesAfterLoad(cfg, loadedPlanKeys), partial);
 
   const fetchedAt = new Date().toISOString();
   const plans: AzureRefreshPlanDraft[] = cfg.plans.map((plan) => {

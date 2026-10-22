@@ -7,7 +7,7 @@ import { getInMemoryAzureCache } from "../azure/inMemoryAzureCache.js";
 import { loadSyncConfig, SyncConfigError, type SyncConfig } from "../azure/config.js";
 import type { AzureSnapshot } from "../db/sqliteAzureSnapshotStore.js";
 import { getStores } from "../persistence/provider.js";
-import { SyncValidationError } from "../domain/validateSync.js";
+import { ensureSyncPublishable, SyncValidationError, syncPlanGatesFromConfig } from "../domain/validateSync.js";
 import {
   claimSyncJob,
   failSyncJobIfOwner,
@@ -132,6 +132,7 @@ export async function runSync(cfg: SyncConfig, startedAt: Date, durableJobId?: s
   };
   try {
     try {
+      ensureSyncPublishable(syncPlanGatesFromConfig(cfg, true), false);
       const { draft, artifacts } = await buildAzureRefreshDraft(client, cfg, report, defaultAzureRefreshPorts);
 
       report("Validando integridade antes de gravar");

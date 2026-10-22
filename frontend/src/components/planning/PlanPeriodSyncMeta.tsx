@@ -21,7 +21,7 @@ export function PlanPeriodSyncMeta({
 }: {
   periodoInicio: string;
   periodoFim: string;
-  onSavePeriodo: (inicio: string, fim: string) => void | Promise<void>;
+  onSavePeriodo: (inicio: string, fim: string, baseInicio: string, baseFim: string) => void | Promise<void>;
   onClearPeriodoError?: () => void;
   periodoSaving?: boolean;
   periodoError?: string | null;
@@ -54,7 +54,7 @@ export function PlanPeriodSyncMeta({
     if (draftStart === currentStart && draftEnd === currentEnd) return;
     if (draftStart > draftEnd) return;
     commitLock.current = true;
-    Promise.resolve(onSavePeriodo(draftStart, draftEnd)).finally(() => {
+    Promise.resolve(onSavePeriodo(draftStart, draftEnd, currentStart, currentEnd)).finally(() => {
       commitLock.current = false;
     });
   }

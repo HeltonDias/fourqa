@@ -57,10 +57,22 @@ describe("job de sincronização durável", () => {
       const intruder = runningSyncJob(new Date("2026-10-15T12:06:00.000Z"), "job-b");
       assert.equal(await saveSyncJobIfOwner({ ...intruder, step: "Hack" }, Date.parse("2026-10-15T12:06:10.000Z")), false);
 
+      const publishAt = Date.parse("2026-10-15T12:05:30.000Z");
+      const freshOwner = { ...ownerJob, beatAt: "2026-10-15T12:05:00.000Z" };
+      await saveSyncJob(freshOwner);
       const snap: AzureSnapshot = { execucoes: [], falhas: [], meta: { kpi_plan_key: "E2E" } };
-      const success = { ...ownerJob, status: "success" as const, step: "Concluído", finishedAt: "2026-10-15T12:07:00.000Z", beatAt: "2026-10-15T12:07:00.000Z", progress: null, summary: null, error: null };
-      assert.equal(await publishSyncIfOwner("job-b", snap, success, Date.parse("2026-10-15T12:07:00.000Z")), false);
-      assert.equal(await publishSyncIfOwner("job-a", snap, success, Date.parse("2026-10-15T12:07:00.000Z")), true);
+      const success = {
+        ...freshOwner,
+        status: "success" as const,
+        step: "Concluído",
+        finishedAt: new Date(publishAt).toISOString(),
+        beatAt: new Date(publishAt).toISOString(),
+        progress: null,
+        summary: null,
+        error: null,
+      };
+      assert.equal(await publishSyncIfOwner("job-b", snap, success, publishAt), false);
+      assert.equal(await publishSyncIfOwner("job-a", snap, success, publishAt), true);
     } finally {
       bindPostgresTestPool(null);
     }

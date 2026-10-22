@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../api";
+import { api, isConflict } from "../api";
 import { LoadState } from "../components/LoadState";
 import { PlanningAcompanhamentoSummary } from "../components/planning/PlanningAcompanhamentoSummary";
 import { PlanningAcompanhamentoTable } from "../components/planning/PlanningAcompanhamentoTable";
@@ -28,7 +28,7 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import type { PlanningItem, PlanningView } from "../types";
 
 export function PlanejamentoPage() {
-  const { dataVersion, home, patchPeriodo, refreshHome } = useReportChrome();
+  const { dataVersion, home, patchPeriodo, refreshHome, planKey: chromePlanKey } = useReportChrome();
   const [periodoSaving, setPeriodoSaving] = useState(false);
   const [periodoError, setPeriodoError] = useState<string | null>(null);
   const [tab, setTab] = useState<PlanningTabId>("acompanhamento");
@@ -78,7 +78,7 @@ export function PlanejamentoPage() {
     setLoading(true);
     setError(null);
     api
-      .planejamento(version)
+      .planejamento(version, chromePlanKey || undefined)
       .then((data) => {
         if (!cancel) setView(data);
       })
@@ -91,7 +91,7 @@ export function PlanejamentoPage() {
     return () => {
       cancel = true;
     };
-  }, [version, dataVersion]);
+  }, [version, dataVersion, chromePlanKey]);
 
   const planningRange = useMemo(
     () => (view ? resolvePlanningRange(view.dates, view.items, home?.periodo ?? null) : null),
@@ -175,6 +175,7 @@ export function PlanejamentoPage() {
   const pageKeys = pageRows.map(rowKey);
   const allPageSelected = pageKeys.length > 0 && pageKeys.every((key) => selected.has(key));
 
+  const scopedPlanKey = view?.planning.planKey?.trim() || chromePlanKey || undefined;
   const summary = view?.summary;
   const canEdit = Boolean(view?.editable);
   const confirmed = view?.revision?.baselineOrigin === "motor";
@@ -186,33 +187,51 @@ export function PlanejamentoPage() {
     setActionError(null);
     const first = view.revision?.baselineOrigin !== "motor";
     try {
-      const next = await api.confirmarPlanejamento({
-        reason: reason.trim(),
-        adoptSource: first ? true : adoptSource,
-      });
+      const next = await api.confirmarPlanejamento(
+        {
+          reason: reason.trim(),
+          adoptSource: first ? true : adoptSource,
+        },
+        scopedPlanKey,
+      );
       setView(next);
       setVersion(undefined);
       setReason("");
       setAdoptSource(false);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Não foi possível gravar a revisão.");
+      if (isConflict(err)) await reloadLatest();
     } finally {
       setBusy(false);
     }
   }
 
-  async function salvarPeriodo(inicio: string, fim: string) {
+  async function reloadLatest() {
+    const next = await api.planejamento(undefined, scopedPlanKey);
+    setView(next);
+    setVersion(undefined);
+  }
+
+  async function salvarPeriodo(inicio: string, fim: string, baseInicio: string, baseFim: string) {
     setPeriodoSaving(true);
     setPeriodoError(null);
     try {
-      const periodo = await api.salvarPeriodoPlano(inicio, fim);
+      const periodo = await api.salvarPeriodoPlano(inicio, fim, { inicio: baseInicio, fim: baseFim });
       patchPeriodo(periodo);
       setPeriodoError(null);
       refreshHome(true);
-      const next = await api.planejamento(version);
+      const next = await api.planejamento(version, scopedPlanKey);
       setView(next);
     } catch (err) {
       setPeriodoError(err instanceof Error ? err.message : "Não foi possível gravar o período.");
+      if (isConflict(err)) {
+        refreshHome(true);
+        try {
+          await reloadLatest();
+        } catch {
+          /* a mensagem de conflito já está visível */
+        }
+      }
     } finally {
       setPeriodoSaving(false);
     }
@@ -229,17 +248,38 @@ export function PlanejamentoPage() {
     pendingSaves.current += 1;
     setSaveBusy(true);
     try {
-      const next = await api.salvarCelulaPlanejamento({
-        suiteId: item.suiteId,
-        testPointId: item.testPointId,
-        field,
-        date: field === "responsavel" || field === "prioridade" ? undefined : date || undefined,
-        quantity,
-        value: field === "responsavel" || field === "prioridade" ? date : undefined,
-      });
+      const base =
+        field === "day"
+          ? { baseQuantity: item.allocations[date] ?? 0 }
+          : field === "start"
+            ? { baseDate: item.plannedStart ?? null }
+            : field === "end"
+              ? { baseDate: item.plannedEnd ?? null }
+              : field === "responsavel"
+                ? { baseValue: item.responsavel ?? null }
+                : { baseValue: item.prioridade ?? null };
+      const next = await api.salvarCelulaPlanejamento(
+        {
+          suiteId: item.suiteId,
+          testPointId: item.testPointId,
+          field,
+          date: field === "responsavel" || field === "prioridade" ? undefined : date || undefined,
+          quantity,
+          value: field === "responsavel" || field === "prioridade" ? date : undefined,
+          ...base,
+        },
+        scopedPlanKey,
+      );
       setView(next);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Não foi possível gravar a célula.");
+      if (isConflict(err)) {
+        try {
+          await reloadLatest();
+        } catch {
+          /* a mensagem de conflito já está visível */
+        }
+      }
     } finally {
       pendingSaves.current -= 1;
       if (pendingSaves.current <= 0) {

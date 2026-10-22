@@ -21,6 +21,10 @@ import { getSyncState, startSync, SyncConfigError } from "../services/syncServic
 
 export const apiRouter = Router();
 
+function metaConcurrencyRequired(): boolean {
+  return (process.env.DB_PROVIDER ?? "").trim().toLowerCase() === "postgres";
+}
+
 function readsAreProtected(): boolean {
   return process.env.VERCEL === "1" && envValue("FOURQA_PROTECT_READS") !== "0";
 }
@@ -154,6 +158,10 @@ apiRouter.put("/cabecalho", requireWriteAuth, async (req, res) => {
   }
   const body = (req.body ?? {}) as Record<string, unknown>;
   const headerBase = parseMetaPair(body, "baseTitle", "baseSubtitle");
+  if (metaConcurrencyRequired() && !headerBase.present) {
+    res.status(400).json({ error: "Informe a base do cabeçalho." });
+    return;
+  }
   if (headerBase.present && !headerBase.valid) {
     res.status(400).json({ error: "Informe a base do cabeçalho." });
     return;
@@ -161,7 +169,7 @@ apiRouter.put("/cabecalho", requireWriteAuth, async (req, res) => {
   try {
     res.json(
       await setCabecalho(title, subtitle, {
-        guard: headerBase.present,
+        guard: metaConcurrencyRequired() || headerBase.present,
         baseTitle: headerBase.a,
         baseSubtitle: headerBase.b,
       }),
@@ -181,6 +189,10 @@ apiRouter.put("/periodo", requireWriteAuth, async (req, res) => {
     return;
   }
   const periodBase = parseMetaPair(body as Record<string, unknown>, "baseInicio", "baseFim");
+  if (metaConcurrencyRequired() && !periodBase.present) {
+    res.status(400).json({ error: "Informe a base do período." });
+    return;
+  }
   if (periodBase.present && !periodBase.valid) {
     res.status(400).json({ error: "Informe a base do período." });
     return;
@@ -188,7 +200,7 @@ apiRouter.put("/periodo", requireWriteAuth, async (req, res) => {
   try {
     res.json(
       await setPeriodoPlano(inicio, fim, {
-        guard: periodBase.present,
+        guard: metaConcurrencyRequired() || periodBase.present,
         baseInicio: periodBase.a,
         baseFim: periodBase.b,
       }),

@@ -1,20 +1,23 @@
-import { useState, type FormEvent } from "react";
-import { api } from "../api";
+import { useRef, useState, type FormEvent } from "react";
+import { api, isConflict } from "../api";
 
 type Props = {
   title: string;
   subtitle: string;
   onSaved: (v: { title: string; subtitle: string }) => void;
+  onConflict?: () => void | Promise<void>;
 };
 
-export function ReportTitles({ title, subtitle, onSaved }: Props) {
+export function ReportTitles({ title, subtitle, onSaved, onConflict }: Props) {
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
   const [draftSubtitle, setDraftSubtitle] = useState(subtitle);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const base = useRef({ title, subtitle });
 
   const open = () => {
+    base.current = { title, subtitle };
     setDraftTitle(title);
     setDraftSubtitle(subtitle);
     setError(null);
@@ -30,12 +33,18 @@ export function ReportTitles({ title, subtitle, onSaved }: Props) {
     setSaving(true);
     setError(null);
     api
-      .salvarCabecalho(draftTitle, draftSubtitle)
+      .salvarCabecalho(draftTitle, draftSubtitle, base.current)
       .then((v) => {
         onSaved(v);
         setEditing(false);
       })
-      .catch((err: Error) => setError(err.message))
+      .catch(async (err: Error) => {
+        setError(err.message);
+        if (isConflict(err)) {
+          setEditing(false);
+          await onConflict?.();
+        }
+      })
       .finally(() => setSaving(false));
   };
 
@@ -54,6 +63,7 @@ export function ReportTitles({ title, subtitle, onSaved }: Props) {
           </button>
         </div>
         <p className="report-subtitle">{subtitle}</p>
+        {error && <span className="title-edit-error">{error}</span>}
       </div>
     );
   }

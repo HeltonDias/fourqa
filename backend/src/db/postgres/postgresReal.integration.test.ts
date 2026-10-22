@@ -4,6 +4,10 @@ import { after, before, describe, it } from "node:test";
 import { Pool } from "pg";
 import { scheduleItemsForScope } from "../../domain/planning.js";
 import { postgresPlanningStore } from "./postgresPlanningStore.js";
+import { postgresMetaStore } from "./postgresMetaStore.js";
+import { PlanningConflictError } from "../../persistence/planningConflict.js";
+import { publishSyncIfOwner, runningSyncJob, saveSyncJob } from "../../services/syncJob.js";
+import type { AzureSnapshot } from "../sqliteAzureSnapshotStore.js";
 import type { CommitRevisionInput, PlanningItemWrite } from "../sqlitePlanningStore.js";
 import { assertPostgresSchema, migratePostgres, postgresMigrations } from "./migrate.js";
 import { closePool } from "./pool.js";
@@ -141,6 +145,93 @@ describe("PostgreSQL real", { skip: url ? false : "TEST_DATABASE_URL ausente", c
     assert.equal(preflight.suiteConflicts.length, 1);
     assert.equal(preflight.pointConflicts.length, 0);
     assert.equal(preflight.planningItemColumns.includes("responsavel"), false);
+  });
+
+  it("rejeita cabeçalho e período com base obsoleta e preserva a primeira gravação", async () => {
+    await resetSchema();
+    await migratePostgres();
+    await postgresMetaStore.setMany({
+      cabecalho_titulo: "T0",
+      cabecalho_subtitulo: "S0",
+      data_inicio: "2026-01-01",
+      data_fim: "2026-01-31",
+    });
+    await postgresMetaStore.replaceHeaderIf("T0", "S0", "T1", "S1", "STATUS REPORT QA", "Sub");
+    await assert.rejects(
+      () => postgresMetaStore.replaceHeaderIf("T0", "S0", "T2", "S1", "STATUS REPORT QA", "Sub"),
+      PlanningConflictError,
+    );
+    assert.equal(await postgresMetaStore.get("cabecalho_titulo"), "T1");
+    await postgresMetaStore.replacePeriodIf("2026-01-01", "2026-01-31", "2026-02-01", "2026-02-28");
+    await assert.rejects(
+      () => postgresMetaStore.replacePeriodIf("2026-01-01", "2026-01-31", "2026-03-01", "2026-03-31"),
+      PlanningConflictError,
+    );
+    assert.equal(await postgresMetaStore.get("data_inicio"), "2026-02-01");
+  });
+
+  it("publishSyncIfOwner só publica com jobId vigente no PostgreSQL", async () => {
+    await resetSchema();
+    await migratePostgres();
+    await admin.query(
+      `INSERT INTO execucoes (plan_key, plan_id, suite_id, test_point_id, outcome)
+       VALUES ('E2E', 1, 10, 100, 'Passed')`,
+    );
+    const publishAt = Date.parse("2026-10-15T12:05:30.000Z");
+    const owner = runningSyncJob(new Date("2026-10-15T12:05:00.000Z"), "job-owner");
+    owner.beatAt = "2026-10-15T12:05:00.000Z";
+    await saveSyncJob(owner);
+    const snap: AzureSnapshot = {
+      execucoes: [
+        {
+          plan_key: "E2E",
+          plan_id: 1,
+          plan_name: null,
+          frente: null,
+          atalho: null,
+          processo: null,
+          suite_id: 10,
+          suite_name: "Suíte",
+          parent_suite_id: null,
+          suite_depth: 1,
+          suite_path: "[]",
+          dimensions_json: "{}",
+          test_point_id: 200,
+          test_case_id: 200,
+          test_case_title: "Novo",
+          responsabilidade: null,
+          test_case_state: null,
+          test_point_state: null,
+          outcome: "Passed",
+          date_completed: null,
+          run_by: null,
+          last_updated_date: null,
+          last_test_run_id: null,
+          last_result_id: null,
+          test_case_link: null,
+          case_priority: null,
+          test_case_tags: null,
+        },
+      ],
+      falhas: [],
+      meta: { kpi_plan_key: "E2E" },
+    };
+    const success = {
+      ...owner,
+      status: "success" as const,
+      finishedAt: new Date(publishAt).toISOString(),
+      step: "Concluído",
+      beatAt: new Date(publishAt).toISOString(),
+      progress: null,
+      summary: null,
+      error: null,
+    };
+    assert.equal(await publishSyncIfOwner("job-other", snap, success, publishAt), false);
+    const countBefore = await admin.query<{ n: number }>("SELECT COUNT(*)::int AS n FROM execucoes WHERE test_point_id = 200");
+    assert.equal(countBefore.rows[0]?.n, 0);
+    assert.equal(await publishSyncIfOwner("job-owner", snap, success, publishAt), true);
+    const countAfter = await admin.query<{ n: number }>("SELECT COUNT(*)::int AS n FROM execucoes WHERE test_point_id = 200");
+    assert.equal(countAfter.rows[0]?.n, 1);
   });
 
   it("grava agenda, herança e isolamento e desfaz revisão incompleta", async () => {

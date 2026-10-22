@@ -12,7 +12,7 @@ export function PlanningPageHeader({
 }: {
   periodoInicio: string;
   periodoFim: string;
-  onSavePeriodo: (inicio: string, fim: string) => void | Promise<void>;
+  onSavePeriodo: (inicio: string, fim: string, baseInicio: string, baseFim: string) => void | Promise<void>;
   onClearPeriodoError?: () => void;
   periodoSaving?: boolean;
   periodoError?: string | null;

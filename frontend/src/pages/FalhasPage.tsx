@@ -42,7 +42,7 @@ function col(campo: string, get: (r: FalhaRow) => string | number | null) {
 const PAGE = 50;
 
 export function FalhasPage() {
-  const { dataVersion } = useReportChrome();
+  const { dataVersion, planKey } = useReportChrome();
   const [busca, setBusca] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
@@ -62,7 +62,7 @@ export function FalhasPage() {
     let cancel = false;
     setLoading(true);
     api
-      .falhas({ limit: PAGE, offset, q })
+      .falhas({ limit: PAGE, offset, q, planKey: planKey || undefined })
       .then((d) => {
         if (!cancel) setData(d);
       })
@@ -75,7 +75,7 @@ export function FalhasPage() {
     return () => {
       cancel = true;
     };
-  }, [offset, q, dataVersion]);
+  }, [offset, q, dataVersion, planKey]);
 
   const linhas = data?.rows ?? [];
   const total = data?.total ?? 0;

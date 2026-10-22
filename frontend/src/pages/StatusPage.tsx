@@ -9,8 +9,8 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import { useFetch } from "../hooks/useFetch";
 
 export function StatusPage() {
-  const { dataVersion } = useReportChrome();
-  const { data, loading, error } = useFetch(() => api.statusFrente(), [dataVersion]);
+  const { dataVersion, planKey } = useReportChrome();
+  const { data, loading, error } = useFetch(() => api.statusFrente(planKey || undefined), [dataVersion, planKey]);
   const [busca, setBusca] = useState("");
   const frentes = useMemo(() => (data ? ordenarFrentes(data.blocos, busca) : []), [data, busca]);
 

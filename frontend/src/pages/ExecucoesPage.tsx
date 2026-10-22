@@ -51,7 +51,7 @@ function col(campo: string, get: (r: ExecucaoRow) => string | number | null) {
 const PAGE = 50;
 
 export function ExecucoesPage() {
-  const { dataVersion } = useReportChrome();
+  const { dataVersion, planKey } = useReportChrome();
   const [busca, setBusca] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
@@ -71,7 +71,7 @@ export function ExecucoesPage() {
     let cancel = false;
     setLoading(true);
     api
-      .execucoes({ limit: PAGE, offset, q })
+      .execucoes({ limit: PAGE, offset, q, planKey: planKey || undefined })
       .then((d) => {
         if (!cancel) setData(d);
       })
@@ -84,7 +84,7 @@ export function ExecucoesPage() {
     return () => {
       cancel = true;
     };
-  }, [offset, q, dataVersion]);
+  }, [offset, q, dataVersion, planKey]);
 
   const linhas = data?.rows ?? [];
   const total = data?.total ?? 0;

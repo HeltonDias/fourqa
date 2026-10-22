@@ -1,3 +1,5 @@
+import type { PlanConfig, SyncConfig } from "../azure/config.js";
+import { planKeyMatch } from "../azure/planKeyMatch.js";
 import type { ExecucaoInsert } from "../azure/execucoes.js";
 import type { FalhaInsert } from "../azure/falhas.js";
 import { classifyExecution, type StatusCenario } from "./formulas.js";
@@ -74,5 +76,60 @@ export function validateSyncResult(input: {
     }
   }
 
+  if (errors.length > 0) throw new SyncValidationError([...new Set(errors)]);
+}
+
+/** Plano da configuração na hora de publicar. Loaded falso = plano ausente no lote. */
+export type SyncPlanGate = {
+  planKey: string;
+  suiteFilter: boolean;
+  maxSuites: boolean;
+  loaded: boolean;
+};
+
+export function syncPlanGatesFromConfig(cfg: SyncConfig, loaded: boolean): SyncPlanGate[] {
+  return cfg.plans.map((plan) => syncPlanGateFromConfig(plan, loaded));
+}
+
+export function syncPlanGateFromConfig(plan: PlanConfig, loaded: boolean): SyncPlanGate {
+  return {
+    planKey: plan.planKey,
+    suiteFilter: plan.suiteNameFilter.trim().length > 0,
+    maxSuites: plan.maxSuites > 0,
+    loaded,
+  };
+}
+
+export function syncPlanGatesAfterLoad(cfg: SyncConfig, loadedPlanKeys: string[]): SyncPlanGate[] {
+  return cfg.plans.map((plan) => ({
+    ...syncPlanGateFromConfig(plan, false),
+    loaded: loadedPlanKeys.some((key) => planKeyMatch(key, plan.planKey)),
+  }));
+}
+
+/**
+ * Lote íntegro substitui o snapshot. Filtro, MaxSuites, plano ausente ou coleta parcial não publicam.
+ */
+export function ensureSyncPublishable(plans: SyncPlanGate[], partial: boolean): void {
+  const errors: string[] = [];
+  if (partial) {
+    errors.push("A coleta não terminou. A sincronização foi cancelada para não apagar os dados atuais.");
+  }
+  for (const plan of plans) {
+    const key = plan.planKey.trim() || "?";
+    if (plan.suiteFilter) {
+      errors.push(
+        `O plano ${key} tem filtro de suíte. A sincronização foi cancelada para não apagar dados fora do filtro.`,
+      );
+    }
+    if (plan.maxSuites) {
+      errors.push(
+        `O plano ${key} tem MaxSuites. A sincronização foi cancelada para não apagar as suítes omitidas.`,
+      );
+    }
+    if (!plan.loaded) {
+      errors.push(`O plano ${key} não entrou na coleta. A sincronização foi cancelada para não apagar os dados atuais.`);
+    }
+  }
   if (errors.length > 0) throw new SyncValidationError([...new Set(errors)]);
 }

@@ -1,9 +1,21 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { PlanningConflictError } from "./planningConflict.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { after, describe, it } from "node:test";
+import { getDb } from "../db.js";
 import { sqliteMetaStore } from "../db/sqliteMetaStore.js";
+import { PlanningConflictError } from "./planningConflict.js";
 
-describe("meta concorrente", () => {
+const dir = mkdtempSync(path.join(tmpdir(), "fourqa-meta-concurrency-"));
+process.env.FOURQA_DB = path.join(dir, "fourqa.db");
+
+describe("meta concorrente", { concurrency: 1 }, () => {
+  after(() => {
+    getDb().close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("cabeçalho com base divergente responde conflito", () => {
     sqliteMetaStore.setMany({ cabecalho_titulo: "T0", cabecalho_subtitulo: "S0" });
     sqliteMetaStore.replaceHeaderIf!("T0", "S0", "T1", "S0", "STATUS REPORT QA", "Sub");

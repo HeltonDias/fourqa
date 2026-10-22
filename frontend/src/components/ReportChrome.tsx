@@ -29,7 +29,12 @@ export function ReportChrome() {
     <div className="report-chrome">
       <header className="report-header">
         {home ? (
-          <ReportTitles title={home.title} subtitle={home.subtitle} onSaved={patchCabecalho} />
+          <ReportTitles
+            title={home.title}
+            subtitle={home.subtitle}
+            onSaved={patchCabecalho}
+            onConflict={() => refreshHome(true)}
+          />
         ) : (
           <div className="report-titles">
             <h1>{title}</h1>
