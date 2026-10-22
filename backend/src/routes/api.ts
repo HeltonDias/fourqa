@@ -6,6 +6,7 @@ import { parsePageQuery } from "../http/pageQuery.js";
 import { explicitPlanKeyFromQuery, planKeyFromRaw, planKeyWriteError } from "../persistence/planKey.js";
 import { PlanningConflictError } from "../persistence/planningConflict.js";
 import { parsePlanningCellBase } from "../http/planningCellBase.js";
+import { parseMetaPair } from "../http/metaBase.js";
 import { getStores, persistenceReady } from "../persistence/provider.js";
 import { DEFAULT_PLAN_KEY } from "../domain/formulas.js";
 import { PlanningPeriodError } from "../domain/planPeriod.js";
@@ -151,19 +152,49 @@ apiRouter.put("/cabecalho", requireWriteAuth, async (req, res) => {
     res.status(400).json({ error: "Título até 200 e subtítulo até 300 caracteres." });
     return;
   }
-  res.json(await setCabecalho(title, subtitle));
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const headerBase = parseMetaPair(body, "baseTitle", "baseSubtitle");
+  if (headerBase.present && !headerBase.valid) {
+    res.status(400).json({ error: "Informe a base do cabeçalho." });
+    return;
+  }
+  try {
+    res.json(
+      await setCabecalho(title, subtitle, {
+        guard: headerBase.present,
+        baseTitle: headerBase.a,
+        baseSubtitle: headerBase.b,
+      }),
+    );
+  } catch (err) {
+    if (respondPlanningConflict(res, err)) return;
+    res.status(400).json({ error: err instanceof Error ? err.message : "Não foi possível gravar o cabeçalho." });
+  }
 });
 
 apiRouter.put("/periodo", requireWriteAuth, async (req, res) => {
   if (!(await ready(res))) return;
-  const { inicio, fim } = (req.body ?? {}) as { inicio?: unknown; fim?: unknown };
+  const body = (req.body ?? {}) as { inicio?: unknown; fim?: unknown };
+  const { inicio, fim } = body;
   if (typeof inicio !== "string" || typeof fim !== "string") {
     res.status(400).json({ error: "Informe início e fim." });
     return;
   }
+  const periodBase = parseMetaPair(body as Record<string, unknown>, "baseInicio", "baseFim");
+  if (periodBase.present && !periodBase.valid) {
+    res.status(400).json({ error: "Informe a base do período." });
+    return;
+  }
   try {
-    res.json(await setPeriodoPlano(inicio, fim));
+    res.json(
+      await setPeriodoPlano(inicio, fim, {
+        guard: periodBase.present,
+        baseInicio: periodBase.a,
+        baseFim: periodBase.b,
+      }),
+    );
   } catch (err) {
+    if (respondPlanningConflict(res, err)) return;
     res.status(400).json({ error: err instanceof Error ? err.message : "Não foi possível gravar o período." });
   }
 });

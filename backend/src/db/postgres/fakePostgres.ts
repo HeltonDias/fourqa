@@ -113,6 +113,7 @@ export function createFakePostgres() {
       return [];
     }
     if (sql.startsWith("LOCK TABLE")) return [];
+    if (sql.startsWith("SELECT pg_advisory")) return [{ pg_advisory_xact_lock: 1 }];
     if (sql.startsWith("SELECT value FROM workbook_meta")) {
       const value = state.workbook_meta.get(String(params[0]));
       return value === undefined ? [] : [{ value }];

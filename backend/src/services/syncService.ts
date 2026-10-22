@@ -5,13 +5,17 @@ import { buildAzureRefreshDraft, defaultAzureRefreshPorts } from "../azure/azure
 import { isAzureCacheReadEnabled } from "../azure/azureCacheReadSource.js";
 import { getInMemoryAzureCache } from "../azure/inMemoryAzureCache.js";
 import { loadSyncConfig, SyncConfigError, type SyncConfig } from "../azure/config.js";
+import type { AzureSnapshot } from "../db/sqliteAzureSnapshotStore.js";
 import { getStores } from "../persistence/provider.js";
 import { SyncValidationError } from "../domain/validateSync.js";
 import {
   claimSyncJob,
+  failSyncJobIfOwner,
   isDurableSyncRuntime,
+  publishSyncIfOwner,
   readSyncJob,
-  saveSyncJob,
+  saveSyncJobIfOwner,
+  type StoredSyncJob,
   type SyncState,
 } from "./syncJob.js";
 
@@ -78,23 +82,30 @@ async function startDurableSync(): Promise<{ started: boolean; state: SyncState 
   const cfg = loadSyncConfig();
   const startedAt = new Date();
   const claimed = await claimSyncJob(startedAt);
-  if (!claimed.started) return claimed;
+  if (!claimed.started || !claimed.jobId) return { started: false, state: claimed.state };
   state = claimed.state;
-  const work = runSync(cfg, startedAt);
+  const work = runSync(cfg, startedAt, claimed.jobId);
   const { waitUntil } = await import("@vercel/functions");
   waitUntil(work);
-  return claimed;
+  return { started: true, state: claimed.state };
 }
 
-export async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
+export async function runSync(cfg: SyncConfig, startedAt: Date, durableJobId?: string): Promise<void> {
   const client = new AzureClient(cfg.azure);
   const durable = isDurableSyncRuntime();
   let queue = Promise.resolve();
   let acceptBeat = true;
+  const storedJob = (): StoredSyncJob => ({
+    ...state,
+    beatAt: new Date().toISOString(),
+    jobId: durableJobId ?? null,
+  });
   const persistJob = () => {
-    if (!durable) return;
-    const snapshot = { ...state, beatAt: new Date().toISOString() };
-    queue = queue.then(() => saveSyncJob(snapshot)).catch((err: unknown) => {
+    if (!durable || !durableJobId) return;
+    const snapshot = storedJob();
+    queue = queue.then(async () => {
+      await saveSyncJobIfOwner(snapshot);
+    }).catch((err: unknown) => {
       console.error("[sync] estado não gravado:", err instanceof Error ? err.name : "erro");
     });
   };
@@ -126,8 +137,13 @@ export async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
       report("Validando integridade antes de gravar");
       report(cacheRead ? "Publicando a atualização" : "Gravando no banco de dados");
       const stores = await getStores();
+      let publishPayload: AzureSnapshot | null = null;
       await persistValidatedSyncBatch(draft, artifacts, {
         replaceSnapshot: async (input) => {
+          if (durable && durableJobId) {
+            publishPayload = input;
+            return;
+          }
           await stores.azureSnapshot.replaceSnapshot(input);
         },
         mirrorEnabled: isAzureCacheMirrorEnabled,
@@ -138,23 +154,40 @@ export async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
       stopBeat();
       await queue;
       const finishedAt = new Date();
-      patch({
-        status: "success",
-        finishedAt: finishedAt.toISOString(),
-        step: "Concluído",
-        progress: null,
-        summary: {
-          execucoes: artifacts.summary.execucoes,
-          falhas: artifacts.summary.falhas,
-          suites: artifacts.summary.suites,
-          runs: artifacts.summary.runs,
-          kpi: artifacts.summary.kpi,
-          duracaoMs: finishedAt.getTime() - startedAt.getTime(),
-        },
-      });
-      if (durable) {
-        persistJob();
-        await queue;
+      const summary = {
+        execucoes: artifacts.summary.execucoes,
+        falhas: artifacts.summary.falhas,
+        suites: artifacts.summary.suites,
+        runs: artifacts.summary.runs,
+        kpi: artifacts.summary.kpi,
+        duracaoMs: finishedAt.getTime() - startedAt.getTime(),
+      };
+      if (durable && durableJobId && publishPayload) {
+        const successJob: StoredSyncJob = {
+          ...storedJob(),
+          status: "success",
+          finishedAt: finishedAt.toISOString(),
+          step: "Concluído",
+          progress: null,
+          summary,
+          error: null,
+          beatAt: finishedAt.toISOString(),
+          jobId: durableJobId,
+        };
+        const published = await publishSyncIfOwner(durableJobId, publishPayload, successJob, finishedAt.getTime());
+        if (!published) {
+          console.warn("[sync] posse perdida antes de publicar; lote descartado, snapshot anterior preservado.");
+          return;
+        }
+        patch({ status: "success", finishedAt: successJob.finishedAt, step: "Concluído", progress: null, summary });
+      } else {
+        patch({
+          status: "success",
+          finishedAt: finishedAt.toISOString(),
+          step: "Concluído",
+          progress: null,
+          summary,
+        });
       }
     } catch (err) {
       stopBeat();
@@ -162,9 +195,14 @@ export async function runSync(cfg: SyncConfig, startedAt: Date): Promise<void> {
       if (locked) cache.markRefreshFailed();
       if (!durable) throw err;
       console.error("[sync] falhou:", err instanceof Error ? `${err.name}: ${err.message}` : "erro desconhecido");
-      patch({ status: "error", finishedAt: new Date().toISOString(), progress: null, error: userMessage(err) });
-      persistJob();
-      await queue;
+      const message = userMessage(err);
+      patch({ status: "error", finishedAt: new Date().toISOString(), progress: null, error: message });
+      if (durable && durableJobId) {
+        await failSyncJobIfOwner(durableJobId, message);
+      } else {
+        persistJob();
+        await queue;
+      }
     }
   } finally {
     stopBeat();

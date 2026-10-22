@@ -65,19 +65,24 @@ async function insertRows(client: PoolClient, table: string, columns: readonly s
   }
 }
 
+export async function applyAzureSnapshotOnClient(client: PoolClient, input: AzureSnapshot): Promise<void> {
+  await client.query("DELETE FROM execucoes");
+  await client.query("DELETE FROM falhas");
+  await insertRows(client, "execucoes", EXECUCAO_COLUMNS, input.execucoes);
+  await insertRows(client, "falhas", FALHA_COLUMNS, input.falhas);
+  for (const [key, value] of Object.entries(input.meta)) {
+    if (key === "sync_job") continue;
+    await client.query(
+      `INSERT INTO workbook_meta (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [key, value],
+    );
+  }
+}
+
 async function replaceSnapshot(input: AzureSnapshot): Promise<void> {
   await withTransaction(async (client) => {
-    await client.query("DELETE FROM execucoes");
-    await client.query("DELETE FROM falhas");
-    await insertRows(client, "execucoes", EXECUCAO_COLUMNS, input.execucoes);
-    await insertRows(client, "falhas", FALHA_COLUMNS, input.falhas);
-    for (const [key, value] of Object.entries(input.meta)) {
-      await client.query(
-        `INSERT INTO workbook_meta (key, value) VALUES ($1, $2)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        [key, value],
-      );
-    }
+    await applyAzureSnapshotOnClient(client, input);
   }, REPLACE_LOCK);
 }
 

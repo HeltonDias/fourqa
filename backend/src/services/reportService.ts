@@ -332,16 +332,40 @@ export async function getCabecalho(): Promise<{ title: string; subtitle: string 
   };
 }
 
-export async function setCabecalho(title: string, subtitle: string): Promise<{ title: string; subtitle: string }> {
-  await setMeta("cabecalho_titulo", title.trim());
-  await setMeta("cabecalho_subtitulo", subtitle.trim());
+const DEFAULT_REPORT_TITLE = "STATUS REPORT QA";
+const DEFAULT_REPORT_SUBTITLE = "FASE - Execução QA - Testes EndToEnd - Validacão da V1 para V3";
+
+export async function setCabecalho(
+  title: string,
+  subtitle: string,
+  opts?: { guard?: boolean; baseTitle?: string; baseSubtitle?: string },
+): Promise<{ title: string; subtitle: string }> {
+  if (opts?.guard && stores.meta.replaceHeaderIf) {
+    await stores.meta.replaceHeaderIf(
+      opts.baseTitle ?? "",
+      opts.baseSubtitle ?? "",
+      title,
+      subtitle,
+      DEFAULT_REPORT_TITLE,
+      DEFAULT_REPORT_SUBTITLE,
+    );
+  } else {
+    await stores.meta.setMany({ cabecalho_titulo: title.trim(), cabecalho_subtitulo: subtitle.trim() });
+  }
   return getCabecalho();
 }
 
-export async function setPeriodoPlano(inicio: string, fim: string): Promise<HomeDto["periodo"]> {
+export async function setPeriodoPlano(
+  inicio: string,
+  fim: string,
+  opts?: { guard?: boolean; baseInicio?: string; baseFim?: string },
+): Promise<HomeDto["periodo"]> {
   const { inicio: start, fim: end } = assertPlanningPeriod(inicio, fim);
-  await setMeta("data_inicio", start);
-  await setMeta("data_fim", end);
+  if (opts?.guard && stores.meta.replacePeriodIf) {
+    await stores.meta.replacePeriodIf(opts.baseInicio ?? "", opts.baseFim ?? "", start, end);
+  } else {
+    await stores.meta.setMany({ data_inicio: start, data_fim: end });
+  }
   return periodoGeral();
 }
 

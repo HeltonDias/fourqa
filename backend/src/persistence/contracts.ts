@@ -24,6 +24,17 @@ export interface MetaStore {
   set(key: string, value: string): MaybePromise<void>;
   /** Grava o lote inteiro na mesma transação. Falha não deixa chave nova pela metade. */
   setMany(entries: Record<string, string>): MaybePromise<void>;
+  /** Compara o cabeçalho efetivo com a base do cliente antes de gravar. Lança PlanningConflictError se divergir. */
+  replaceHeaderIf?(
+    expectedTitle: string,
+    expectedSubtitle: string,
+    title: string,
+    subtitle: string,
+    defaultTitle: string,
+    defaultSubtitle: string,
+  ): MaybePromise<void>;
+  /** Compara início/fim armazenados com a base do cliente. Lança PlanningConflictError se divergir. */
+  replacePeriodIf?(expectedInicio: string, expectedFim: string, inicio: string, fim: string): MaybePromise<void>;
 }
 
 export interface AzureSnapshotStore {
