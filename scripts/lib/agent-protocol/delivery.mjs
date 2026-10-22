@@ -2,7 +2,11 @@ import { spawnSync } from "node:child_process";
 
 function gitCredentialToken() {
   const input = "protocol=https\nhost=github.com\n\n";
-  const r = spawnSync("git", ["credential", "fill"], { input, encoding: "utf8", shell: process.platform === "win32" });
+  const opts = { input, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] };
+  let r = spawnSync("git", ["credential", "fill"], opts);
+  if (r.status !== 0 && process.platform === "win32") {
+    r = spawnSync("git.exe", ["credential", "fill"], opts);
+  }
   if (r.status !== 0) return null;
   const m = (r.stdout || "").match(/^password=(.+)$/m);
   return m ? m[1].trim() : null;

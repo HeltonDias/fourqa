@@ -10,7 +10,9 @@
 | Regra aprovada, pendência bloqueadora | `DECISIONS.md` (DEC/OPEN/ADR) |
 | Arquitetura e dependências | `ARCHITECTURE.md` |
 | Priorização e sequência de entrega | `ROADMAP.md` |
-| Invariantes já decididas | `adr/001-*.md` a `adr/004-*.md` (somente o relevante) |
+| Invariantes já decididas | `adr/001-*.md` a `adr/005-*.md` (somente o relevante) |
+| Protocolo agêntico (estados, gates, ledger) | `AGENT_PROTOCOL.md` |
+| Entrada Cloud Agent / celular | `AGENTS.md` (raiz do repo) |
 | Como trabalhar com agentes/Cursor | `AGENT_WORKFLOW.md` |
 | Diagnóstico histórico | `CODEBASE_AUDIT.md`, `RESEARCH_VALIDATION.md` (auditoria 15/10) |
 | Pesquisa original, com hipóteses não confirmadas | `deep-research-report.md` (**não é fonte de verdade de código**) |
