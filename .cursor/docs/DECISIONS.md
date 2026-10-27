@@ -46,6 +46,7 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | DEC-027 | Aprovada | **Um projeto Vercel `fourqa`, um único link oficial para compartilhar:** `https://fourqa-homolog-heltonmarques-8008.vercel.app`. | É alias manual; reapontar ao novo deployment Preview após validar. Nunca `--prod`, criar outro projeto/domínio compartilhado ou mudar link sem autorização. |
 | DEC-028 | Aprovada | Prioridades atuais de implementação: (1) Status dos Cenários; (2) Impacto do Cliente e totais; (3) KPIs configuráveis; (4) ofensores/mapeamento; (5) validação do Report. | Etapa 3.1 implementada no ZIP; etapas seguintes ainda a desenvolver. EP-02/03, ROADMAP. |
 | DEC-029 | Aprovada | Nunca presumir que todos os dados do cliente existem no Azure; ausência de campo/valor deve resultar em indisponível/não classificado, não em zero ou atribuição inventada. | EP-03/07, RPT-005/006/008. |
+| DEC-031 | Aprovada | Escrita de revisão e célula exige `planKey` explícito. Não gravar em plano implícito. | `POST /api/planejamento/revisao` e `PUT /api/planejamento/celula` no Node. Leituras mantêm fallback. HTTP 400. 2026-10-22. |
 
 ## 2. Decisões de arquitetura vigentes no repositório
 
@@ -55,6 +56,8 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | ADR 002 | Vigente | Apenas `classifyExecution` classifica Test Point. Sete estados somam o total. | `.cursor/docs/adr/002-status.md`; `backend/src/domain/formulas.ts`. |
 | ADR 003 | Vigente | O Report/Home calcula planejado por regra de datas legadas; não igualar automaticamente com Planejamento. | `.cursor/docs/adr/003-planejamento.md`; `reportService.ts`. |
 | ADR 004 | Vigente | Escopo e baseline congelados em revisão, planejamento por data independente da ordem de coluna. | `.cursor/docs/adr/004-planejamento-baseline.md`; `planningService.ts`. |
+| ADR 005 | Superseded | Direção ASP.NET Core 10 abandonada. Histórico. | `.cursor/docs/adr/005-dotnet-incremental-migration.md`; `DEC-032`. |
+| ADR 006 | Direcionamento aprovado; migração não iniciada | Backend futuro: Java 25 + Spring Boot. Node/Express permanece operacional. Hospedagem, Entra ID e cutover pendentes. | `.cursor/docs/adr/006-java-incremental-migration.md`. |
 | DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. | `backend/src/persistence/provider.ts`; migrações `001`–`003`. |
 | DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts`. |
 | DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `syncService.ts`, `postgresAzureSnapshotStore.ts`; `.cursor/docs/vercel.md`. |
@@ -93,6 +96,7 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | PROP-004 | Identificadores estáveis Epic → Feature → Function → Story e releases com portões de QA. | Melhora gestão e rastreabilidade; organização documental adotada neste pacote, ferramenta de tracking a decidir. |
 | PROP-005 | Resumo de “Minhas responsabilidades” filtrável em Planejar. | Facilidade de consulta; ainda não aprovado como funcionalidade obrigatória. |
 | PROP-006 | Preview smoke automático, imagens de referência e checagem de tamanho do bundle. | Detecta erros de visualização/deploy; só automatizar após configurar isolamento de segredos. |
+| PROP-008 | **Abandonar migração ASP.NET Core 10 como alvo definitivo;** Node/Express permanece API primária. | **Adotada 2026-10-27** (`DEC-032`): `backend/dotnet/` eliminado do repo ativo; fundação Java em `backend-java/` separada. Cutover .NET nunca ocorreu. DEC-031 e HTTP 409 Postgres já no Node. |
 
 ## 5. Itens adiados, sem exclusão do escopo estratégico
 
@@ -119,3 +123,25 @@ Validação: [critérios de aceite e testes]
 ```
 
 **Regras de uso:** uma recomendação técnica não muda regra de negócio sozinha. Um comportamento do código não transforma uma hipótese do sumário executivo em fato. Decisões de produção, exclusão, migração ou deploy exigem autorização explícita e específica.
+
+ID: DEC-031
+Data: 2026-10-22
+Estado: Aprovada
+Problema: a API C# gravava revisão e célula no `kpi_plan_key` ou em `EndToEnd` quando o cliente omitia, repetia ou mandava `planKey` vazio.
+Escolha: `POST /api/planejamento/revisao` e `PUT /api/planejamento/celula` exigem uma query `planKey` única, não vazia e sem caractere de controle. Ausente, vazia ou só espaços responde `Informe o planKey.` Duplicada, mesmo com o mesmo valor, responde `planKey ambíguo.` Com caractere de controle responde `planKey inválido.` As três são HTTP 400 e não gravam. Uma chave nova explícita cria o plano. `EndToEnd` explícito é chave válida, não fallback. Leituras (`GET /api/home`, `/api/planejamento`, `/api/status-frente`, `/api/execucoes`, `/api/falhas`) continuam com fallback `kpi_plan_key` ou `EndToEnd`. `PUT /cabecalho`, `PUT /periodo` e `POST /sync` não são escrita de plano. A autorização existente continua na frente dessa validação.
+Alternativas rejeitadas: manter o fallback do Node nessas escritas, porque grava no plano errado; exigir catálogo prévio de planos, porque impede criação legítima.
+Impacto: a partir do rollback 2026-10-22, o Node primário (`backend/src/routes/api.ts`) alinha as mesmas duas rotas com `planKey` explícito. Concorrência HTTP 409 no Planejamento vale no store PostgreSQL. Sem seletor, tenant ou auth nova.
+Rastreabilidade: ADR 005, exceção autorizada nesta fatia; CAT-067 continua planejado e não implementado.
+Aprovador e evidência: responsável do produto, pedido de 2026-10-22 que aprova a divergência.
+Validação: testes de chave ausente, vazia, duplicada, inválida, chave nova, dois planos, baseline, revisão e 401 sem token. Implementação concluída em 2026-10-22. Os testes PostgreSQL `Escrita_sem_planKey_nao_cria_plano_no_postgres` e `Dois_plan_keys_isolam_revisao_baseline_e_celula` passaram em PostgreSQL isolado local em 2026-10-22. Hospedagem, cutover e banco operacional continuam pendentes.
+
+ID: DEC-032
+Data: 2026-10-27
+Estado: Aprovada
+Problema: implementação experimental ASP.NET Core 10 (`backend/dotnet/`) não será cutover; mantê-la no repo ativo gera custo, confusão de alvo e duplicidade com Node já primário (`PROP-008`).
+Escolha: remover integralmente `backend/dotnet/`, scripts `dotnet:*` e ferramentas só-C#; consolidar Node/Express como referência operacional; documentar pendências de paridade em `.cursor/docs/NET-DOTNET-REMOVAL.md`; marcar ADR 005 como histórico superseded; criar `backend-java/` com Spring Boot 4 e `GET /api/health` sem dependência de banco operacional nesta fase.
+Alternativas rejeitadas: arquivar `backend/dotnet/` no mesmo repo (pedido foi eliminação); portar domínio para Java nesta entrega (escopo separado).
+Impacto: perda de testes xUnit e golden API C#; `formulas:parity` Node permanece. Vercel e frontend continuam no Express. CI ganha job isolado `java-foundation` após validação local.
+Rastreabilidade: PROP-008, ADR 005, pedido de limpeza 2026-10-27.
+Aprovador e evidência: pedido explícito do responsável do produto nesta conversa (eliminação + fundação Java).
+Validação: `npm run typecheck`, `npm test`, `npm run formulas:parity`, `npm run build`, `npm run agent:gates`; busca residual sem dependência operacional .NET; `./mvnw verify` em `backend-java/`.

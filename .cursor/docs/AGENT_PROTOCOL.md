@@ -40,6 +40,6 @@ Falha → registrar `failure_retries` (máx. 2 por assinatura) → classificar c
 
 Assinatura esgotada → `BLOQUEADO` com evidência.
 
-## Futuro ASP.NET Core 10
+## Fundação Java (`backend-java/`)
 
-Módulo `dotnet` reservado em `scripts/lib/agent-protocol/module-gates.mjs` (placeholder): `typecheck`/`test`/`build` por workspace sem alterar gates Node atuais.
+Gates Node permanecem obrigatórios para produto. Job CI `java-foundation` executa `./mvnw verify` em `backend-java/` quando o módulo existir; não substitui deploy Vercel (Express).

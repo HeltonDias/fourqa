@@ -40,7 +40,7 @@ flowchart LR
 | Persistência | `backend/src/persistence/`, `backend/src/db/postgres/` | Stores por contrato; PostgreSQL operacional, SQLite para testes/legado. |
 | Azure | `backend/src/azure/{client,execucoes,falhas,kpis,config}.ts` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
 | Testes | `backend/package.json`, `backend/src/**/*.test.ts` | Testes de domínio, store, migração, report, auth, deploy; existência verificada, não executados nesta análise. |
-| Migração .NET | `backend/dotnet/`, ADR 005 | Strangler fig: domínio C# em paridade com `backend/src/domain/`; API Node permanece em produção até corte por fatia. |
+| Fundação Java (experimental) | `backend-java/`, ADR 006 | Spring Boot 4.0.5, JDK 25, Maven Wrapper 3.9.16; só bootstrap e `GET /api/health` local, distinto do health Node. Sem port funcional. API operacional: Node (`backend/`). Hospedagem final pendente. |
 | Segurança transitória | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts` | Bearer compartilhado; browser armazena em `localStorage`; Vercel Authentication é proteção de hospedagem. |
 
 ### 3.1 Contratos HTTP existentes

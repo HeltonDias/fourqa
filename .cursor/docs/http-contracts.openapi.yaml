@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: FourQA API (contrato Node de referência)
+  version: 0.0.0-node-reference
+  description: >
+    Extraído de backend/src/routes/api.ts. DTOs de negócio não estão
+    esquemados aqui de propósito. Não descreve o health experimental Java.
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      summary: Saúde do banco no Node
+      responses:
+        "200":
+          description: ok boolean e database ready ou unavailable
+  /meta:
+    get:
+      summary: Período do relatório
+      responses:
+        "200": { description: Período de getHome }
+        "400": { description: Período inválido }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco ou leitura desabilitada }
+  /home:
+    get:
+      summary: Report
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+      responses:
+        "200": { description: DTO de getHome }
+        "400": { description: Período inválido }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco ou leitura desabilitada }
+  /cabecalho:
+    put:
+      summary: Título e subtítulo
+      responses:
+        "200": { description: Gravado }
+        "400": { description: Título, subtítulo ou base ausente ou longo }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento }
+        "503": { description: Escrita desabilitada ou banco }
+  /periodo:
+    put:
+      summary: Datas do período
+      responses:
+        "200": { description: Gravado }
+        "400": { description: Início, fim ou base ausente, ou período inválido }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento }
+        "503": { description: Escrita desabilitada ou banco }
+  /planejamento:
+    get:
+      summary: Visão de planejamento
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+        - in: query
+          name: version
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: DTO de getPlanningView }
+        "400": { description: Período inválido }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco ou leitura desabilitada }
+  /planejamento/revisao:
+    post:
+      summary: Confirmar ou revisar baseline
+      parameters:
+        - $ref: "#/components/parameters/planKeyRequired"
+      responses:
+        "200": { description: Revisão gravada }
+        "400": { description: planKey ausente, ambíguo, inválido, ou falha de gravação }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento }
+        "503": { description: Escrita desabilitada ou banco }
+  /planejamento/celula:
+    put:
+      summary: Editar célula do planejamento
+      parameters:
+        - $ref: "#/components/parameters/planKeyRequired"
+      responses:
+        "200": { description: Célula gravada }
+        "400": { description: Campo inválido, planKey ou base inválida }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento }
+        "503": { description: Escrita desabilitada ou banco }
+  /status-frente:
+    get:
+      summary: Status agregado por frente
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+      responses:
+        "200": { description: DTO de getStatusPorFrente }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco ou leitura desabilitada }
+  /execucoes:
+    get:
+      summary: Execuções paginadas
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+        - $ref: "#/components/parameters/q"
+      responses:
+        "200": { description: Página de execuções }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco, leitura desabilitada ou cache indisponível }
+  /falhas:
+    get:
+      summary: Falhas paginadas
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+        - $ref: "#/components/parameters/q"
+      responses:
+        "200": { description: Página de falhas }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco, leitura desabilitada ou cache indisponível }
+  /sync:
+    post:
+      summary: Disparar sincronização
+      responses:
+        "200": { description: Não iniciou; corpo started false e state }
+        "202": { description: Iniciou; corpo started true e state }
+        "400": { description: SyncConfigError com missing }
+        "401": { description: Não autorizado. }
+        "500": { description: Falha ao iniciar a sincronização. }
+        "503": { description: Escrita desabilitada ou banco }
+  /sync/status:
+    get:
+      summary: Estado do job de sync
+      responses:
+        "200": { description: Estado de getSyncState }
+        "401": { description: Não autorizado, se a leitura protegida estiver ligada }
+components:
+  parameters:
+    planKeyOptional:
+      in: query
+      name: planKey
+      required: false
+      schema: { type: string }
+      description: Vazio usa kpi_plan_key ou EndToEnd.
+    planKeyRequired:
+      in: query
+      name: planKey
+      required: true
+      schema: { type: string }
+      description: Única, não vazia, sem caractere de controle.
+    limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    offset:
+      in: query
+      name: offset
+      schema: { type: integer, minimum: 0, default: 0 }
+    q:
+      in: query
+      name: q
+      schema: { type: string, maxLength: 200 }

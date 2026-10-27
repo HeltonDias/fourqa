@@ -1,6 +1,6 @@
 # FourQA — mapa de navegação (verificado no ZIP de 13/10/2026)
 
-Stack: npm workspaces `backend` (Node/Express/TypeScript) e `frontend` (React/TypeScript/Vite); migração incremental em `backend/dotnet/` (ASP.NET Core 10, ADR 005). `package.json` na raiz: `npm run typecheck`, `npm test`, `npm run build`, `npm run dotnet:test` (SDK 10).
+Stack: npm workspaces `backend` (Node/Express/TypeScript) e `frontend` (React/TypeScript/Vite). API em produção: Express (`backend/src/`, Vercel `api/index.mjs`). Fundação experimental Java: `backend-java/` (Spring Boot 4.0.5, só `GET /api/health` local). Direcionamento futuro: ADR 006. Migração C# removida — ADR 005 histórico; `DEC-032`. Raiz: `npm run typecheck`, `npm test`, `npm run formulas:parity`, `npm run build`.
 
 ## Entrada e navegação
 - `frontend/src/App.tsx`: rotas `/` (Report), `/planejamento`, `/status-frente` (Status), `/execucoes`, `/falhas`.

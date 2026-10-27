@@ -4,7 +4,7 @@ Monorepo **Node 22**: API Express + SPA React/Vite. Planejamento de produto e re
 
 ## Executor
 
-O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo.
+O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo. Os gates abaixo continuam obrigatórios quando houver código de produto. **Backend primário:** API Node/Express em `backend/` (Vercel `api/index.mjs`). **Fundação Java** (experimental, sem deploy): `backend-java/` — ver README local. Migração ASP.NET Core removida do repo (`DEC-032`, `.cursor/docs/NET-DOTNET-REMOVAL.md`).
 
 | Quando | Quem |
 |--------|------|
@@ -64,6 +64,10 @@ Preview oficial (alias manual após validação): `https://fourqa-homolog-helton
 
 Não ler `.env`, PAT, dumps ou planilhas `fonte/**/*.xlsx` sem necessidade. Não commitar segredos. Não alterar dados de produção neste fluxo.
 
-## Próxima onda
+## Backend (Node + fundação Java)
 
-Migração incremental para **ASP.NET Core 10** usará o mesmo protocolo; paridade de contratos `/api/*` e domínio (`backend/src/domain/`) antes de cortar Node.
+**Operacional:** Node/Express + Vercel (`api/index.mjs`). **Removido (2026-10-27):** `backend/dotnet/` e scripts `dotnet:*` — ver `DEC-032`, ADR 005 (histórico), `.cursor/docs/NET-DOTNET-REMOVAL.md`.
+
+**Gates de domínio:** `npm run formulas:parity` valida `backend/src/domain/formulas.ts` contra `backend/shared/formulas-parity-vectors.json`. **Contratos no Node:** leituras com fallback de PlanKey; escritas `revisao`/`celula` exigem `planKey` explícito (DEC-031); HTTP 409 com `base*` quando `DB_PROVIDER=postgres`.
+
+**Java (não operacional):** `backend-java/` — Spring Boot 4.0.5, JDK 25, health local; sem port de Report/Planejamento/Sync. Direcionamento: ADR 006. Identidade e contratos propostos: `JAVA-IDENTITY.md`, `HTTP-CONTRACTS.md`. Login real não implementado.
