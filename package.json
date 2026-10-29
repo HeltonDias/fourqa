@@ -5,23 +5,24 @@
     "node": "22.x"
   },
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "scripts": {
     "import:planilha": "python tools/import_planilha.py",
     "sync:icons": "node tools/sync-icons.js",
-    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
-    "test": "npm run test -w backend",
-    "formulas:parity": "node --import tsx scripts/check-formulas-parity.mjs",
+    "typecheck": "npm run typecheck -w frontend",
+    "typecheck:backend": "python -m pyright -p backend",
+    "test": "python -m pytest -q backend/tests",
+    "formulas:parity": "python scripts/check-formulas-parity.py",
     "test:agents": "node scripts/agents-smoke.mjs && node scripts/agent-protocol-selftest.mjs",
     "agent:gates": "node scripts/agent-protocol-cli.mjs gates",
     "agent:verify": "node scripts/agent-protocol-cli.mjs verify",
     "agent:delivery-verify": "node scripts/agent-protocol-cli.mjs delivery-verify",
     "agent:ledger:validate": "node scripts/agent-protocol-cli.mjs ledger-validate",
-    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "build": "npm run build -w backend && npm run build -w frontend",
-    "start": "npm run start -w backend"
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev -w frontend\"",
+    "dev:api": "cd backend/src && python -m fourqa",
+    "build": "npm run build -w frontend",
+    "start": "cd backend/src && python -m fourqa"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
