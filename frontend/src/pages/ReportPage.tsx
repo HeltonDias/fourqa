@@ -72,9 +72,9 @@ export function ReportPage() {
   const lastDimKey = dimensoes[dimensoes.length - 1]?.key;
 
   return (
-    <LoadState loading={homeLoading && !data} error={homeError && !data ? homeError : null}>
-      <div className="report-page module-page">
-        <ReportPageHeader />
+    <div className="report-page module-page">
+      <ReportPageHeader />
+      <LoadState loading={homeLoading && !data} error={homeError}>
         {data && (
           <>
           <ReportKpiRow
@@ -231,7 +231,7 @@ export function ReportPage() {
           <GestaoImpactosPanel data={data.gestaoImpactos} />
           </>
         )}
-      </div>
-    </LoadState>
+      </LoadState>
+    </div>
   );
 }

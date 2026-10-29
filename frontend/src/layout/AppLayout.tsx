@@ -8,17 +8,19 @@ import {
   IconCalendar,
   IconChevron,
   IconCode,
+  IconConfig,
+  IconEvolucao,
   IconHome,
   IconPie,
-  IconSettings,
 } from "../components/Icons";
 
 const nav = [
-  { to: "/", label: "Report", icon: IconHome, end: true },
+  { to: "/", label: "Visão Geral", icon: IconHome, end: true },
   { to: "/planejamento", label: "Planejamento", icon: IconCalendar },
   { to: "/status-frente", label: "Status", icon: IconPie },
   { to: "/execucoes", label: "Execuções", icon: IconCode },
   { to: "/falhas", label: "Falhas", icon: IconBug },
+  { to: "/evolucao-qa", label: "Evolução QA", icon: IconEvolucao },
 ];
 
 export function AppLayout() {
@@ -29,6 +31,7 @@ export function AppLayout() {
       <TopAppBar />
       <div className="app-body">
         <aside className="sidebar">
+          <div className="sidebar-top-rule" aria-hidden />
           <nav className="sidebar-nav">
             {nav.map(({ to, label, icon: Icon, end }) => (
               <NavLink
@@ -47,6 +50,15 @@ export function AppLayout() {
           </nav>
 
           <div className="sidebar-foot">
+            <NavLink
+              to="/configuracoes"
+              className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}
+              title="Configurações"
+            >
+              <IconConfig />
+              {!collapsed && <span>Configurações</span>}
+            </NavLink>
+            <div className="sidebar-foot-rule" aria-hidden />
             <button
               type="button"
               className="icon-btn"
@@ -54,9 +66,6 @@ export function AppLayout() {
               aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             >
               <IconChevron flipped={collapsed} />
-            </button>
-            <button type="button" className="icon-btn" aria-label="Configurações">
-              <IconSettings />
             </button>
           </div>
         </aside>

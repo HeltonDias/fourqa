@@ -11,6 +11,8 @@ import { api, type HomeDto, type SyncState } from "../api";
 
 type ReportChromeContextValue = {
   home: HomeDto | null;
+  /** Plano resolvido na última Home. Vazio até a primeira leitura. */
+  planKey: string;
   homeLoading: boolean;
   homeError: string | null;
   refreshHome: (quiet?: boolean) => void;
@@ -29,6 +31,8 @@ const ReportChromeContext = createContext<ReportChromeContextValue | null>(null)
 
 export function ReportChromeProvider({ children }: { children: ReactNode }) {
   const [home, setHome] = useState<HomeDto | null>(null);
+  const [planKey, setPlanKey] = useState("");
+  const planKeyRef = useRef("");
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -51,13 +55,19 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
       setHomeError(null);
     }
     api
-      .home()
+      .home(planKeyRef.current || undefined)
       .then((d) => {
+        const key = d.planKey?.trim() ?? "";
+        planKeyRef.current = key;
+        setPlanKey(key);
         setHome(d);
         setHomeError(null);
         setNow(new Date());
       })
-      .catch((e: Error) => setHomeError(e.message))
+      .catch((e: Error) => {
+        setHomeError(e.message);
+        setHome(null);
+      })
       .finally(() => {
         if (!quiet) setHomeLoading(false);
       });
@@ -135,6 +145,7 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
     <ReportChromeContext.Provider
       value={{
         home,
+        planKey,
         homeLoading,
         homeError,
         refreshHome,

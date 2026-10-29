@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import increaseIcon from "../../../fonte/util/evolucao_qa/increase.png";
+import settingsIcon from "../../../fonte/util/config/settings.png";
 
 type IconProps = { className?: string };
 
@@ -41,6 +43,22 @@ export function IconCode() {
 
 export function IconBug() {
   return <SidebarIcon file="falhas.png" />;
+}
+
+export function IconEvolucao() {
+  const style: CSSProperties = {
+    WebkitMaskImage: `url("${increaseIcon}")`,
+    maskImage: `url("${increaseIcon}")`,
+  };
+  return <span className="nav-icon-mask" style={style} aria-hidden />;
+}
+
+export function IconConfig() {
+  const style: CSSProperties = {
+    WebkitMaskImage: `url("${settingsIcon}")`,
+    maskImage: `url("${settingsIcon}")`,
+  };
+  return <span className="nav-icon-mask" style={style} aria-hidden />;
 }
 
 export function IconSettings({ className }: IconProps) {

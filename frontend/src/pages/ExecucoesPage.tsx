@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, fmtDateTime } from "../api";
+import { chosenColumns } from "../fieldColumns";
 import { LoadState } from "../components/LoadState";
 import { PageHeader } from "../components/PageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
@@ -51,13 +52,15 @@ function col(campo: string, get: (r: ExecucaoRow) => string | number | null) {
 const PAGE = 50;
 
 export function ExecucoesPage() {
-  const { dataVersion } = useReportChrome();
+  const { dataVersion, planKey } = useReportChrome();
   const [busca, setBusca] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<{ total: number; rows: ExecucaoRow[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFields, setSelectedFields] = useState<string[] | null>(null);
+  const colunas = chosenColumns(COLUNAS, selectedFields);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -69,9 +72,24 @@ export function ExecucoesPage() {
 
   useEffect(() => {
     let cancel = false;
+    api
+      .syncSettings()
+      .then((settings) => {
+        if (!cancel) setSelectedFields(settings.source === "saved" ? settings.executionFields : null);
+      })
+      .catch(() => {
+        if (!cancel) setSelectedFields(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [dataVersion]);
+
+  useEffect(() => {
+    let cancel = false;
     setLoading(true);
     api
-      .execucoes({ limit: PAGE, offset, q })
+      .execucoes({ limit: PAGE, offset, q, planKey: planKey || undefined })
       .then((d) => {
         if (!cancel) setData(d);
       })
@@ -84,39 +102,40 @@ export function ExecucoesPage() {
     return () => {
       cancel = true;
     };
-  }, [offset, q, dataVersion]);
+  }, [offset, q, dataVersion, planKey]);
 
   const linhas = data?.rows ?? [];
   const total = data?.total ?? 0;
 
   return (
-    <LoadState loading={loading && !data} error={error}>
-      {data && (
-        <div className="exec-page">
-          <PageHeader
-            title="Execuções"
-            description={
-              <>
-                Test Points retornados pelo Azure DevOps na última atualização · <strong>{total}</strong> registros
-              </>
-            }
-            actions={
-              <input
-                type="search"
-                className="exec-search"
-                placeholder="Filtrar no servidor…"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                aria-label="Filtrar execuções"
-              />
-            }
+    <div className="exec-page module-page">
+      <PageHeader
+        title="Execuções"
+        description={
+          <>
+            Test Points retornados pelo Azure DevOps na última atualização
+            {data ? <> · <strong>{total}</strong> registros</> : null}
+          </>
+        }
+        actions={
+          <input
+            type="search"
+            className="exec-search"
+            placeholder="Filtrar no servidor…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Filtrar execuções"
           />
-
+        }
+      />
+      <LoadState loading={loading && !data} error={error}>
+        {data && (
+          <>
           <div className="card exec-table-wrap">
             <table className="exec-table">
               <thead>
                 <tr>
-                  {COLUNAS.map((c) => (
+                  {colunas.map((c) => (
                     <th key={c.campo}>{c.campo}</th>
                   ))}
                 </tr>
@@ -124,7 +143,7 @@ export function ExecucoesPage() {
               <tbody>
                 {linhas.map((r) => (
                   <tr key={r.id}>
-                    {COLUNAS.map((c) => (
+                    {colunas.map((c) => (
                       <td key={c.campo} title={c.texto(r)}>
                         {c.render(r)}
                       </td>
@@ -133,7 +152,7 @@ export function ExecucoesPage() {
                 ))}
                 {linhas.length === 0 && (
                   <tr>
-                    <td colSpan={COLUNAS.length} className="exec-empty">
+                    <td colSpan={colunas.length} className="exec-empty">
                       Nenhum registro.
                     </td>
                   </tr>
@@ -152,8 +171,9 @@ export function ExecucoesPage() {
               Próxima
             </button>
           </div>
-        </div>
-      )}
-    </LoadState>
+          </>
+        )}
+      </LoadState>
+    </div>
   );
 }

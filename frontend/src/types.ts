@@ -173,6 +173,24 @@ export type PlanningItem = {
   warnings: string[];
 };
 
+export type PlanningChangeLogResponse = {
+  supported: boolean;
+  entries: PlanningChangeLogEntry[];
+};
+
+export type PlanningChangeLogEntry = {
+  id: number;
+  createdAt: string;
+  actor: string | null;
+  suiteId: number | null;
+  testPointId: number | null;
+  suiteName: string | null;
+  field: string;
+  allocDate: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+};
+
 export type PlanningView = {
   planning: { planKey: string };
   revision: {
@@ -319,7 +337,9 @@ export type FalhaRow = {
   frente: string | null;
   titulo: string | null;
   status: string | null;
+  criada_por?: string | { displayName?: string | null } | null;
   criacao: string | null;
+  fechada_por?: string | { displayName?: string | null } | null;
   fechamento: string | null;
   links: string | null;
   tags: string | null;

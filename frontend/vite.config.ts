@@ -54,7 +54,7 @@ export default defineConfig({
       allow: [repoRoot],
     },
     proxy: {
-      "/api": "http://localhost:3001",
+      "/api": process.env.VITE_API_PROXY?.trim() || "http://localhost:3001",
     },
   },
 });

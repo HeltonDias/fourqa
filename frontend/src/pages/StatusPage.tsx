@@ -9,30 +9,30 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import { useFetch } from "../hooks/useFetch";
 
 export function StatusPage() {
-  const { dataVersion } = useReportChrome();
-  const { data, loading, error } = useFetch(() => api.statusFrente(), [dataVersion]);
+  const { dataVersion, planKey } = useReportChrome();
+  const { data, loading, error } = useFetch(() => api.statusFrente(planKey || undefined), [dataVersion, planKey]);
   const [busca, setBusca] = useState("");
   const frentes = useMemo(() => (data ? ordenarFrentes(data.blocos, busca) : []), [data, busca]);
 
   return (
-    <LoadState loading={loading && !data} error={error}>
-      {data && (
-        <div className="status-page">
-          <PageHeader
-            title="Status"
-            description="Visão operacional por frente, a partir dos dados do projeto atual."
-            actions={
-              <input
-                type="search"
-                className="exec-search"
-                placeholder="Filtrar frente…"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                aria-label="Filtrar frente"
-              />
-            }
+    <div className="status-page module-page">
+      <PageHeader
+        title="Status"
+        description="Visão operacional por frente, a partir dos dados do projeto atual."
+        actions={
+          <input
+            type="search"
+            className="exec-search"
+            placeholder="Filtrar frente…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Filtrar frente"
           />
-
+        }
+      />
+      <LoadState loading={loading && !data} error={error}>
+        {data && (
+          <>
           {data.blocos.length === 0 ? (
             <div className="state-box">
               <p>Nenhuma frente detectada neste projeto.</p>
@@ -57,8 +57,9 @@ export function StatusPage() {
               )}
             </>
           )}
-        </div>
-      )}
-    </LoadState>
+          </>
+        )}
+      </LoadState>
+    </div>
   );
 }

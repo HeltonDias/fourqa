@@ -83,7 +83,8 @@ function PlanejadoVsRealizado({ data }: { data: HomeGraficos["planejadoVsRealiza
                   typeof value === "number" ? Math.round(value) : "–",
                   name === "planejado" ? "Planejado" : "Realizado",
                 ]}
-                contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0" }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0", background: "#fff" }}
+                labelStyle={{ color: "#22233d" }}
               />
               <Legend
                 verticalAlign="bottom"
@@ -158,7 +159,8 @@ function StatusExecucoes({ data }: { data: HomeGraficos["statusExecucoes"] }) {
                     `${value} (${total ? Math.round((Number(value) / total) * 100) : 0}%)`,
                     String(name),
                   ]}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0" }}
+                  contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0", background: "#fff" }}
+                  labelStyle={{ color: "#22233d" }}
                 />
               </PieChart>
             </ResponsiveContainer>
