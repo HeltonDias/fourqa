@@ -1,10 +1,10 @@
-# Contratos HTTP — referência Node para a migração Java
+# Contratos HTTP — referência Python (FastAPI)
 
-**Fonte:** `backend/src/routes/api.ts` no HEAD desta linha, mais `pageQuery.ts`, `writeAuth.ts` e `formulas.ts`. Comportamento não visto no código não entra como fato.
+**Fonte:** `backend/src/fourqa/api/routes.py` no HEAD desta linha, mais `page_query.py`, `write_auth.py` e `domain/formulas.py`. Comportamento não visto no código não entra como fato.
 
-**Fora desta PR:** `GET /api/planejamento/alteracoes` existe só no working tree, de outra tarefa. Não faz parte do contrato commitado e não deve ser portado até essa tarefa entrar na linha oficial.
+**Working tree do Planejar, ainda sem commit:** `PUT /api/planejamento/lote` e `GET /api/planejamento/alteracoes` estão no código Node local e foram portados para o motor Java em memória. `PUT /api/planejamento/distribuir` existe só no Node. Não fazem parte do commit `f8dc769`. A migração 004 não foi aplicada.
 
-Prefixo real: `/api`, montado pelo Express. Java de fundação responde outro JSON em `/api/health` e não substitui esta tabela.
+Prefixo real: `/api`. O Java operacional responde `{ ok, database }` em `/api/health`. Sem banco, `database` é `unavailable`.
 
 Não há 403 no código atual. 403 fica como código **futuro** de “autenticado sem permissão”, descrito em `JAVA-IDENTITY.md`.
 
@@ -27,11 +27,14 @@ Paginação (`parsePageQuery`): `limit` padrão 50, entre 1 e 200; `offset` padr
 | PUT `/api/periodo` | Escrita | Início, fim e base do período. | 400 se faltar início/fim ou a base. 400 de período. 409 conflito. | `api.ts` | Pendente |
 | GET `/api/planejamento` | Leitura | `planKey` opcional, `version` opcional (> 0) | DTO de `getPlanningView`. 503, 400. | `planningService.ts` | Pendente |
 | POST `/api/planejamento/revisao` | Escrita | Query `planKey` explícito. Body `reason`, `adoptSource` (default adota a fonte). | 400 de PlanKey ou de gravação. 409 conflito. | `api.ts`, `planKey.ts` | Pendente |
-| PUT `/api/planejamento/celula` | Escrita | Query `planKey`. `field`: `start`, `end`, `day`, `responsavel`, `prioridade`. `suiteId`, `testPointId`, `date`, `quantity`, `value`, base da célula. | 400 campo inválido, PlanKey ou base inválida. 409 conflito. | `api.ts` | Pendente |
+| PUT `/api/planejamento/celula` | Escrita | Query `planKey`. `field`: `start`, `end`, `day`, `responsavel`, `prioridade`. `suiteId`, `testPointId`, `date`, `quantity`, `value`, base da célula. | 400 campo inválido, PlanKey ou base inválida. 409 conflito. No schema 3 a célula grava e a trilha espera a 004. | `api.ts` | Pendente |
+| PUT `/api/planejamento/lote` | Escrita | Query `planKey` explícito. Body `changes[]` com `field` `start`, `end` ou `day`, data, quantidade no dia, base da célula. Lista vazia: 400 `"Nenhuma alteração."`. Máximo 400 mudanças. Campo em branco não entra no body: a data da linha permanece. | 200 visão atualizada. 400 campo, PlanKey, base, intervalo ou período. 409 conflito. Schema 3: 400 `"Histórico de planejamento indisponível. Nenhuma alteração foi gravada."` e nada persiste. Uma transação: falha desfaz o lote. Não redistribui alocação fora do novo intervalo. | `api.ts`, `planningService.ts` | Pendente |
+| PUT `/api/planejamento/distribuir` | Escrita | Query `planKey` explícito. Body `strategy` (`montanha`, `decrescente`, `crescente`, `uniforme`), `start`, `end`, `resguardo` (inteiro ≥ 0, dias corridos), `enabledWeekendDays[]`, `replace` (true reescreve os dias; ausente ou false preserva dia com quantidade e preenche só dia em zero), `assignment` opcional só `manter`. | 200 visão atualizada. A quantidade de cada suíte é o maior entre a Qtd plan e a soma já lançada. A curva usa o intervalo de `start` até `end − resguardo`, sem cortar em hoje. Não altera responsável, baseline nem datas da linha. 400 estratégia, período, resguardo, sem quantidade, sem dia ou sem dia em zero. 409 conflito e nada persiste. | `api.ts`, `planningService.ts`, `distribute.ts` | Pendente |
+| GET `/api/planejamento/alteracoes` | Leitura | `planKey` opcional | `{ supported, entries }`. `supported: false` no schema 3, `entries` vazio. Não significa “ninguém editou”. `supported: true` lista até 300 linhas do `plan_key`, mais recente primeiro. | `api.ts` | Pendente |
 | GET `/api/status-frente` | Leitura | `planKey` opcional | DTO de `getStatusPorFrente`. 503. | `api.ts` | Pendente |
 | GET `/api/execucoes` | Leitura | `planKey`, `limit`, `offset`, `q` | Página de execuções. 503. Cache Azure indisponível: 503 com `unavailable: true`. | `api.ts` | Pendente |
 | GET `/api/falhas` | Leitura | `planKey`, `limit`, `offset`, `q` | Página de falhas. Mesmos 503. | `api.ts` | Pendente |
-| POST `/api/sync` | Escrita | — | 202 se `started`, senão 200, corpo `{ started, state }`. 400 `SyncConfigError` com `missing`. 500 mensagem genérica. | `syncService.ts` | Pendente |
+| POST `/api/sync` | Escrita | — | 202 se `started`, senão 200, corpo `{ started, state }`. 400 se faltar org, projeto, PAT ou `SYNC_TEST_PLANS`. Java sem bean: 503. 500 mensagem genérica. | `syncService.ts`, `SyncController.java` | Java parcial; Azure ao vivo não homologado |
 | GET `/api/sync/status` | Leitura se GET protegido | — | Estado de `getSyncState`. | `syncJob.ts` | Pendente |
 
 Arquivos de teste já existentes no Node, sem port Java: `formulas.test.ts`, `planKey.test.ts`, `writeAuth.test.ts`, `writeRoutes.test.ts`, `syncJob.test.ts`, `reportService` / `planningService` conforme o módulo. Postgres real: skip sem `TEST_DATABASE_URL`.

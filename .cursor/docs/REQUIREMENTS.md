@@ -492,7 +492,7 @@ Não há edição de KPI, categoria ou fórmula.
 
 **Dependências técnicas.**
 
-- `ReportTitles.tsx` e `PlanPeriodSyncMeta` no cabeçalho do Report.
+- `ReportTitles.tsx` no cabeçalho do Report. Data Início e Data Fim ficam no chrome e só editam na aba Planejamento.
 - Escrita protegida pelo bearer compartilhado. Sem papéis.
 - Não há modelo persistido de indicador com colunas separadas de rótulo e de fórmula.
 

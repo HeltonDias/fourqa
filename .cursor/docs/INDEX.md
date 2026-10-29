@@ -11,6 +11,7 @@
 | Remoção .NET e pendências de paridade | `NET-DOTNET-REMOVAL.md` |
 | Fundação Java experimental (sem deploy, sem port funcional) | `backend-java/README.md`; inventário em `ARCHITECTURE.md` |
 | Migração futura Node → Java, rollback e hospedagem ainda em aberto | `adr/006-java-incremental-migration.md` |
+| Matriz de paridade Node × Java (estado vivo; não é conclusão) | `JAVA-PARITY.md` |
 | Identidade Entra ID e autorização propostas (não implementadas) | `JAVA-IDENTITY.md` |
 | Contratos HTTP atuais e matriz de invariantes | `HTTP-CONTRACTS.md` |
 | Arquitetura e dependências | `ARCHITECTURE.md` |
@@ -19,6 +20,7 @@
 | Protocolo agêntico (estados, gates, ledger) | `AGENT_PROTOCOL.md` |
 | Entrada Cloud Agent / celular | `AGENTS.md` (raiz do repo) |
 | Como trabalhar com agentes/Cursor | `AGENT_WORKFLOW.md` |
+| Regência do Cursor Agent (Maestro) | `.cursor/rules/00-maestro.mdc`; procedimento sob demanda em `.cursor/skills/maestro-orchestration/SKILL.md` |
 | Diagnóstico histórico | `CODEBASE_AUDIT.md`, `RESEARCH_VALIDATION.md` (auditoria 15/10) |
 | Pesquisa original, com hipóteses não confirmadas | `deep-research-report.md` (**não é fonte de verdade de código**) |
 | Nota operacional antiga da Vercel | `vercel.md` (**validar contra `DECISIONS.md` DEC-027 e ambiente atual**) |

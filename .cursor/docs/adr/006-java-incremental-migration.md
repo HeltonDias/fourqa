@@ -1,6 +1,6 @@
 # ADR 006 — Migração incremental do backend Node.js para Java 25 + Spring Boot
 
-**Status:** Direcionamento aprovado em 2026-10-27, a pedido do responsável do produto. A migração funcional **não começou**. Hospedagem, Microsoft Entra ID, cutover e banco operacional **não estão aprovados** e não devem ser tratados como decididos.
+**Status:** **Superseded** — alvo Java abandonado (`DEC-033`, ADR 007). Fundação `backend-java/` removida no cutover Python. Texto abaixo é histórico.
 **Data:** 2026-10-27
 **Supera:** o alvo ASP.NET Core 10 do ADR 005. O ADR 005 permanece como histórico (`DEC-032`, `PROP-008`).
 **Não altera:** ADR 001, 002, 003 e 004. Node/Express em `backend/` continua a API operacional na Vercel (`api/index.mjs`).

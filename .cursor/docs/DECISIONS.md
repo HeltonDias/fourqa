@@ -57,7 +57,8 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | ADR 003 | Vigente | O Report/Home calcula planejado por regra de datas legadas; não igualar automaticamente com Planejamento. | `.cursor/docs/adr/003-planejamento.md`; `reportService.ts`. |
 | ADR 004 | Vigente | Escopo e baseline congelados em revisão, planejamento por data independente da ordem de coluna. | `.cursor/docs/adr/004-planejamento-baseline.md`; `planningService.ts`. |
 | ADR 005 | Superseded | Direção ASP.NET Core 10 abandonada. Histórico. | `.cursor/docs/adr/005-dotnet-incremental-migration.md`; `DEC-032`. |
-| ADR 006 | Direcionamento aprovado; migração não iniciada | Backend futuro: Java 25 + Spring Boot. Node/Express permanece operacional. Hospedagem, Entra ID e cutover pendentes. | `.cursor/docs/adr/006-java-incremental-migration.md`. |
+| ADR 006 | Superseded | Backend futuro Java abandonado em favor de Python (`DEC-033`, ADR 007). | `.cursor/docs/adr/006-java-incremental-migration.md`. |
+| ADR 007 | Direcionamento aprovado; cutover pendente | Backend definitivo: Python 3.12+ / FastAPI em `backend/`. Vercel unificado SPA + `/api`. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
 | DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. | `backend/src/persistence/provider.ts`; migrações `001`–`003`. |
 | DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts`. |
 | DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `syncService.ts`, `postgresAzureSnapshotStore.ts`; `.cursor/docs/vercel.md`. |
@@ -145,3 +146,14 @@ Impacto: perda de testes xUnit e golden API C#; `formulas:parity` Node permanece
 Rastreabilidade: PROP-008, ADR 005, pedido de limpeza 2026-10-27.
 Aprovador e evidência: pedido explícito do responsável do produto nesta conversa (eliminação + fundação Java).
 Validação: `npm run typecheck`, `npm test`, `npm run formulas:parity`, `npm run build`, `npm run agent:gates`; busca residual sem dependência operacional .NET; `./mvnw verify` em `backend-java/`.
+
+ID: DEC-033
+Data: 2026-10-29
+Estado: Aprovada
+Problema: alvo Java (ADR 006) e duplicidade Node + fundações paralelas (`backend-java/`) aumentam custo; produto opta por um único backend Python como se nativo desde o início, sem segundo runtime permanente no repositório.
+Escolha: adotar ADR 007; port incremental na branch até paridade; cutover único remove Express/TypeScript de `backend/` e `api/index.mjs`; função Vercel Python em `/api`; superseder ADR 006; remover `backend-java/` no cutover; manter frontend React, contratos `HTTP-CONTRACTS.md`, vetores `formulas-parity-vectors.json` e migrações SQL Postgres existentes.
+Alternativas rejeitadas: manter Java como alvo (DEC-033 substitui); dois backends permanentes no repo; API em host separado nesta fase (permanece Vercel unificado).
+Impacto: reescrever gates CI/agent para pytest/pyright; `formulas:parity` passa a validar Python; rollback via redeploy Node anterior e alias DEC-027.
+Rastreabilidade: plano Backend Python cutover 2026-10-29; pedido do responsável do produto.
+Aprovador e evidência: implementação autorizada nesta conversa.
+Validação: pytest backend, `npm run formulas:parity`, `npm run typecheck`, `npm run build`, `npm run agent:gates`; homologação Preview sem `--prod`.

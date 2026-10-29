@@ -33,14 +33,14 @@ flowchart LR
 |---|---|---|
 | Workspaces | `package.json` | npm workspaces `backend`, `frontend`; scripts `test`, `typecheck`, `build`, `dev`. |
 | Frontend | `frontend/src/App.tsx`, `frontend/src/api.ts`, `frontend/src/pages/` | React 19 / Vite / React Router. Rotas `/`, `/planejamento`, `/status-frente`, `/execucoes`, `/falhas`. |
-| Backend | `backend/src/app.ts`, `backend/src/routes/api.ts` | Express 5, TypeScript e endpoints `/api/*`; sem camadas HTTP separadas para empresas/usuários. |
-| Entrada Vercel | `api/index.mjs`, `api/[...path].mjs`, `vercel.json` | Função Node reexporta `backend/dist/app.js`; SPA servida de `frontend/dist`. |
+| Backend | `backend/src/fourqa/app.py`, `backend/src/fourqa/api/routes.py` | FastAPI, Python 3.12+ e endpoints `/api/*`. |
+| Entrada Vercel | `api/index.py`, `vercel.json` | Função Python reexporta `fourqa.app`; SPA servida de `frontend/dist`. |
 | Domínio | `backend/src/domain/formulas.ts`, `graficos.ts`, `evolucaoStatus.ts`, `dimensions.ts`, `planning.ts` | Cálculos, status, hierarquia e identidade de planejamento. |
 | Serviços | `backend/src/services/{reportService,planningService,syncService,syncJob}.ts` | Agregação de Report, planejamento, sync e status de job. |
 | Persistência | `backend/src/persistence/`, `backend/src/db/postgres/` | Stores por contrato; PostgreSQL operacional, SQLite para testes/legado. |
 | Azure | `backend/src/azure/{client,execucoes,falhas,kpis,config}.ts` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
 | Testes | `backend/package.json`, `backend/src/**/*.test.ts` | Testes de domínio, store, migração, report, auth, deploy; existência verificada, não executados nesta análise. |
-| Fundação Java (experimental) | `backend-java/`, ADR 006 | Spring Boot 4.0.5, JDK 25, Maven Wrapper 3.9.16; só bootstrap e `GET /api/health` local, distinto do health Node. Sem port funcional. API operacional: Node (`backend/`). Hospedagem final pendente. |
+| Fundação Java | — | Removida (`DEC-033`). API operacional: Python (`backend/src/fourqa/`). |
 | Segurança transitória | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts` | Bearer compartilhado; browser armazena em `localStorage`; Vercel Authentication é proteção de hospedagem. |
 
 ### 3.1 Contratos HTTP existentes
@@ -84,9 +84,18 @@ Migrações versionadas em `backend/src/db/postgres/migrations/001_baseline.sql`
 | `planning_scope_item` | Quais cenários pertencem ao baseline | IDs de Test Point e Test Case; não corresponde a alocação nominal por QA. |
 | `planning_item` | Linha planejada por suíte/ponto | `baseline_quantity`, `responsavel` texto, `prioridade` texto; não vários QAs. |
 | `planning_allocation` | Quantidade planejada por data | Identidade `(item_id, alloc_date)`; não inclui `user_id` ou Test Case atribuído. |
-| `schema_migrations` | Controle de migrações | Ledger v1–v3; não aplicar scripts automaticamente. |
+| `planning_change_log` | Trilha da célula após a migração 004 | Tabela nova e vazia. Sem backfill. Liga-se a `planning` pelo `plan_key`. |
+| `schema_migrations` | Controle de migrações | O código aceita o prefixo 1–3 ou 1–4. O boot não aplica script. |
 
 **Não existem** tabelas nativas `organization`, `user`, `testplan` multi-fonte, `kpi_definition`, `category_mapping`, `planning_qa_allocation` ou `audit_event`. Nomes aqui são **conceitos candidatos**, não nomes aprovados de migração.
+
+### Janela PostgreSQL 3 → 4
+
+O código publicado que só conhece as versões 1–3 recusa a versão 4. O código desta janela sobe com `[1,2,3]` ou `[1,2,3,4]`. No schema 3 a célula grava e o histórico espera a tabela. No schema 4, célula e histórico vão na mesma transação: falha no histórico desfaz a célula.
+
+Aplicar a 004 no Supabase só depois de backup e de este código estar no ar. Sequência: backup do projeto; `db:postgres:preflight` e parar se houver falha além de `planning_change_log` ausente com pending `[4]`; `db:postgres:migrate`; `db:postgres:verify` com versions `[1,2,3,4]`; editar uma célula e ler o histórico do mesmo `plan_key`.
+
+`DROP TABLE` não é recuperação. A transação da migração já desfaz uma 004 que falha antes do commit. Depois do commit, a recuperação suportada é restaurar o backup. Um `DROP` apagaria a trilha já gravada e não devolveria o ledger nem o código anterior.
 
 ## 5. Regras críticas e compatibilidade
 
@@ -94,7 +103,7 @@ Migrações versionadas em `backend/src/db/postgres/migrations/001_baseline.sql`
 - **Report atual (ZIP):** o painel apresenta Total, Planejados, Finalizados, Pendentes e sete status. `Finalizados = Passed + N/A`, `Pendentes = Total − Finalizados`. O componente `ScenarioStatusPanel.tsx` já inclui ícones para Passed, N/A e Pendentes. **Isso não significa que todos os rótulos do Report foram modernizados.**
 - **Exceção de legado:** Status por Frente e Planejamento ainda podem incluir `cts_cancelados` em finalizados; Report mudou essa regra deliberadamente. Esta divergência deve aparecer em testes e explicações ao cliente, não ser eliminada silenciosamente.
 - **Baseline:** ao confirmar, o escopo é congelado; mudança posterior no Azure exige nova revisão com controle de escopo (ADR 004).
-- **Feriados/finais de semana:** finais de semana são omitidos da grade atual; não há toggle persistido.
+- **Feriados/finais de semana:** a grade mostra o fim de semana bloqueado. Um dia abre na sessão, ou porque já tem quantidade. Desativar com quantidade zera só aquele dia, numa transação, e não redistribui. Reativar não restaura quantidade. A disponibilidade sem quantidade não sobrevive ao recarregar: não há coluna nem tabela para isso. Persistir exige schema novo e não entra na migração 004. `workbook_meta` não é escopo de plano.
 - **Responsabilidade:** hoje uma string por suíte; o futuro compartilhamento é quantidade por QA, preserva QA principal e não escolhe Test Cases.
 - **Evolução QA:** requerida automática e individual. Se 30 execuções forem observadas na suíte com metas João20 e Cláudia10, a divisão quantitativa sozinha **não prova** quem executou 20 e 10. É uma lacuna de rastreabilidade, não uma fórmula pendente de código.
 - **Ofensor versus ambiente:** onde o bug ocorreu (`ambiente`) não define quem é responsável pelo impacto (`categoria/ofensor`).

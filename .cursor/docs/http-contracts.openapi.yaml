@@ -85,6 +85,38 @@ paths:
         "401": { description: Não autorizado. }
         "409": { description: Conflito de planejamento }
         "503": { description: Escrita desabilitada ou banco }
+  /planejamento/lote:
+    put:
+      summary: Alterar datas ou dias de várias suítes
+      parameters:
+        - $ref: "#/components/parameters/planKeyRequired"
+      responses:
+        "200": { description: Visão atualizada. Campo ausente preserva a data da linha. Alocação fora do intervalo permanece. }
+        "400": { description: planKey, campo, base, intervalo, período, lista vazia, ou histórico indisponível no schema 3 }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento. O lote inteiro é desfeito. }
+        "503": { description: Escrita desabilitada ou banco }
+  /planejamento/distribuir:
+    put:
+      summary: Distribuir a quantidade do plano entre a data de início e a data de fim
+      parameters:
+        - $ref: "#/components/parameters/planKeyRequired"
+      responses:
+        "200": { description: Visão atualizada. Qtd plan ou a soma já lançada, o que for maior. replace true reescreve; replace false só preenche dia em zero. Responsável e baseline intactos. }
+        "400": { description: planKey, estratégia, período, resguardo, fim de semana, sem quantidade, sem dia habilitado ou sem dia em zero }
+        "401": { description: Não autorizado. }
+        "409": { description: Conflito de planejamento. A distribuição inteira é desfeita. }
+        "503": { description: Escrita desabilitada ou banco }
+  /planejamento/alteracoes:
+    get:
+      summary: Trilha de células do plano
+      parameters:
+        - $ref: "#/components/parameters/planKeyOptional"
+      responses:
+        "200": { description: "{ supported, entries }. supported false no schema 3, com entries vazio." }
+        "400": { description: Período inválido }
+        "401": { description: Não autorizado. }
+        "503": { description: Banco ou leitura desabilitada }
   /status-frente:
     get:
       summary: Status agregado por frente

@@ -112,6 +112,14 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **Estado:** Planejada.
 
 
+##### FN-01.02.04 — Travar o porte Python com regressão | US-098
+
+**História de usuário:** Como responsável pelo produto, quero que um desencontro de nome ou de idioma entre o domínio Python e o JSON não apareça só depois de clicar em Atualizar.\
+**Como saber que deu certo (aceite):** `detect_dimensions` reconhece frente dentro do nome da suíte; planejamento com `scope_snapshot` e com alocação devolve contagens sem `KeyError` nem `TypeError`; camelCase existe só no JSON da API; uma varredura dos retornos do domínio não encontra leitor camelCase interno.\
+**Detalhe técnico/testes:** pytest de dimensão, de `diff_scope`/`schedule_of` com snapshot e de alocação `planned_quantity`. A correção pontual de 2026-10-29 (regex em `dimensions.py` e chaves em `planning_service.py`) não substitui esses testes. DEC-033.\
+**Estado:** Planejada. **Prioridade:** P0, depois dos dois crashes já corrigidos no código.
+
+
 ### EP-02 — Report executivo e indicadores
 
 **Por que existe:** Apresentar números compreensíveis e configuráveis, mantendo sua semântica. **Fase:** M1–M2. **Referências:** RPT-001/002/003/007/009; DEC-005–010.
