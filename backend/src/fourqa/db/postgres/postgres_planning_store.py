@@ -372,12 +372,15 @@ async def _assert_batch_conn(conn: AsyncConnection, inputs: list[dict[str, objec
             if abs(qty - float(inp.get("expected_quantity") or 0)) > 1e-9:
                 raise PlanningConflictError(PlanningConflictError.cell_changed)
         elif inp.get("field") in ("start", "end"):
+            from fourqa.domain.planning import calendar_date
+
             column = "planned_start" if inp["field"] == "start" else "planned_end"
             cur = await conn.execute(f"SELECT {column} AS value FROM planning_item WHERE id = $1", [inp["item_id"]])
             row = await cur.fetchone()
             stored = (row["value"] if isinstance(row, dict) else row[0]) if row and row else ""
-            stored_text = stored if stored is not None else ""
-            if stored_text != (inp.get("expected_text") or ""):
+            stored_text = calendar_date(str(stored)) if stored not in (None, "") else ""
+            expected_text = calendar_date(str(inp.get("expected_text"))) if inp.get("expected_text") else ""
+            if stored_text != expected_text:
                 raise PlanningConflictError(PlanningConflictError.cell_changed)
 
 

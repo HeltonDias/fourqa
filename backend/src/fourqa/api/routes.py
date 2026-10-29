@@ -214,8 +214,8 @@ async def planejamento_celula(body: dict[str, Any], planKey: str | None = None, 
                 "quantity": body.get("quantity") if isinstance(body.get("quantity"), (int, float)) else None,
                 "value": body.get("value") if isinstance(body.get("value"), str) else None,
                 "guard": cell_base.get("guard"),
-                "expectedText": cell_base.get("expectedText"),
-                "expectedQuantity": cell_base.get("expectedQuantity"),
+                "expectedText": cell_base.get("expected_text"),
+                "expectedQuantity": cell_base.get("expected_quantity"),
             },
         )
     except PlanningConflictError as err:
@@ -253,8 +253,8 @@ async def planejamento_lote(body: dict[str, Any], planKey: str | None = None, _:
                 "date": row.get("date") if isinstance(row.get("date"), str) else None,
                 "quantity": row.get("quantity") if isinstance(row.get("quantity"), (int, float)) else None,
                 "guard": cell_base.get("guard"),
-                "expectedText": cell_base.get("expectedText"),
-                "expectedQuantity": cell_base.get("expectedQuantity"),
+                "expectedText": cell_base.get("expected_text"),
+                "expectedQuantity": cell_base.get("expected_quantity"),
             }
         )
     try:
