@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -15,6 +16,8 @@ from fourqa.api.routes import router as api_router
 from fourqa.azure.azure_cache_read_source import assert_vercel_cache_mode
 from fourqa.azure.config import env_value
 from fourqa.persistence.operational_provider import assert_operational_provider
+
+_log = logging.getLogger(__name__)
 
 
 def _allowed_origins() -> list[str]:
@@ -78,7 +81,8 @@ def create_app(*, skip_operational_assert: bool = False) -> FastAPI:
             ident = await resolve_request_identity(request)
         except IdentityError as err:
             return JSONResponse(status_code=err.status, content={"error": str(err)})
-        except Exception:
+        except Exception as err:
+            _log.exception("Falha ao resolver identidade na rota %s: %s", path, err)
             if needs_identity(request) and (request.cookies.get("fourqa_user") or request.headers.get("x-fourqa-connection")):
                 return JSONResponse(status_code=503, content={"error": "Banco indisponível."})
             ident = RequestIdentity()

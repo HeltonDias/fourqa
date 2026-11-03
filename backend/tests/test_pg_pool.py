@@ -20,7 +20,7 @@ def test_inline_ca_is_written_to_temp_dir(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert path.read_text(encoding="utf-8") == PEM.strip()
 
 
-def test_vercel_pool_holds_a_single_connection(monkeypatch: pytest.MonkeyPatch):
+def test_vercel_pool_sizing(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost:5432/fourqa")
     monkeypatch.setenv("DATABASE_SSL_CA", "")
@@ -28,7 +28,8 @@ def test_vercel_pool_holds_a_single_connection(monkeypatch: pytest.MonkeyPatch):
     get_pool.cache_clear()
     try:
         pool = get_pool()
-        assert (pool.min_size, pool.max_size) == (1, 1)
+        assert (pool.min_size, pool.max_size) == (1, 4)
+        assert pool.timeout == 15
     finally:
         get_pool.cache_clear()
 

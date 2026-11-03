@@ -50,8 +50,10 @@ def _write_decision(authorization: str | None) -> str:
 
 
 async def _ready() -> None:
-    if not await persistence_ready():
-        raise HTTPException(status_code=503, detail="Banco indisponível.")
+    try:
+        await get_stores()
+    except Exception as err:
+        raise HTTPException(status_code=503, detail="Banco indisponível.") from err
 
 
 async def _plan_key_from_query(plan_key: str | None) -> str:

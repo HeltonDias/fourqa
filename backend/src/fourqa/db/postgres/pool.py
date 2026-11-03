@@ -147,8 +147,8 @@ def get_pool() -> AsyncConnectionPool[PgConnection]:
     kwargs: dict[str, Any] = {
         "conninfo": url,
         "min_size": 1 if on_vercel else 4,
-        "max_size": 1 if on_vercel else 10,
-        "timeout": 10,
+        "max_size": 4 if on_vercel else 10,
+        "timeout": 15,
         "reconnect_timeout": 5,
         "kwargs": {"row_factory": dict_row},
     }
