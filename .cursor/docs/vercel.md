@@ -30,7 +30,7 @@ Login multi-QA (DEC-035, DEC-036, DEC-039). Sem as duas primeiras, `/api/auth/lo
 
 Não defina `FOURQA_LOCAL_SQLITE` na Vercel: a API recusa subir com SQLite quando `VERCEL=1`.
 
-A primeira abertura dos stores Postgres aplica as migrations que faltam em `schema_migrations`. A `005_users_connections.sql` cria `app_user`, `user_credential`, `qa_connection` e `connection_member`, com RLS ligado e sem acesso para `anon` e `authenticated`. Ela só cria tabelas e índices; não altera tabelas existentes.
+A primeira abertura dos stores Postgres aplica as migrations que faltam em `schema_migrations`. No Supabase essa tabela veio do migrador Node: `applied_at text NOT NULL`, sem default. O migrador Python grava `applied_at` em ISO-8601 UTC (`...Z`), no mesmo formato. Na Vercel o pool usa `min_size=1` e `max_size=1`. O PEM de `DATABASE_SSL_CA` vai para o diretório temporário, porque o bundle é somente leitura. Se `/api/health` responder `database: unavailable`, o log da Function traz `persistence not ready: <erro sanitizado>`. A `005_users_connections.sql` cria `app_user`, `user_credential`, `qa_connection` e `connection_member`, com RLS ligado e sem acesso para `anon` e `authenticated`. Ela só cria tabelas e índices; não altera tabelas existentes.
 
 Usadas quando existem no projeto: `AZURE_DEVOPS_API_VERSION`, `SYNC_HIERARQUIA_SUITES`, `SYNC_RESPONSABILIDADES`, `SYNC_FRENTES_VALIDAS`, `SYNC_LIMPAR_ANTES`, `SYNC_CRIAR_CABECALHO`, `FRONTEND_ORIGIN`.
 
@@ -42,8 +42,14 @@ A proteção do projeto `fourqa` (conta `heltonmarques-8008`) é Vercel Authenti
 
 O repositório GitHub não está ligado ao projeto. Ligá-lo publicaria a branch de produção, e isso não está autorizado. `vercel.json` desliga deploy automático de `main` e `master` quando o commit implantado contém essa regra. O Preview sobe pela CLI, sem `--prod`. O primeiro deploy de um projeto vazio é marcado como Production pela Vercel; o alias público desse deploy foi removido. Os seguintes, sem `--prod`, ficam em Preview.
 
+## Último Preview validado
+
+2026-11-03, commit `b66af70` (branch `feat/java-25-foundation`): `https://fourqa-39r7ntm08-heltonmarques-8008.vercel.app`. `/api/health` respondeu `{"ok":true,"database":"ready"}`, com a migration 005 aplicada no Supabase. `/api/auth/me` mostrou o login por PAT ligado (Entra desligado). `/api/home` sem sessão respondeu 401. `FOURQA_SESSION_SECRET` e `FOURQA_PAT_ENCRYPTION_KEY` estão no ambiente Preview como Sensitive. `FOURQA_BOOTSTRAP_HEADS` ainda não foi definido.
+
+O alias de homologação não foi reatribuído, por decisão do responsável. Ele ainda aponta para um deployment anterior que responde `FUNCTION_INVOCATION_FAILED` em `/api/*`.
+
 ## Rollback
 
-Na Vercel, promova o deployment anterior. O schema não ganhou migração nova. Um sync concluído substitui só `execucoes` e `falhas`; o planejamento permanece. Sync interrompido não troca o lote.
+Na Vercel, promova o deployment anterior. A migration 005 só adicionou tabelas; deployments anteriores as ignoram. Removê-las apaga usuários, conexões e PATs salvos e exige autorização. Um sync concluído substitui só `execucoes` e `falhas`; o planejamento permanece. Sync interrompido não troca o lote.
 
 Não rode `vercel deploy --prod`. Production continua sem variáveis e sem autorização.
