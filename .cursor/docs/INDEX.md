@@ -15,7 +15,9 @@
 | Identidade Entra ID e autorização propostas (não implementadas) | `JAVA-IDENTITY.md` |
 | Contratos HTTP atuais e matriz de invariantes | `HTTP-CONTRACTS.md` |
 | Arquitetura e dependências | `ARCHITECTURE.md` |
+| Identidade visual, tokens e componentes (DEC-034) | `DESIGN_SYSTEM.md` |
 | Priorização e sequência de entrega | `ROADMAP.md` |
+| Plano Multi-QA (login PAT, conexões, Evolução QA, hierarquia, Planejar leve) | `PLANO_MULTIQA.md` |
 | Invariantes já decididas | `adr/001-*.md` a `adr/006-*.md` (somente o relevante; 005 é histórico) |
 | Protocolo agêntico (estados, gates, ledger) | `AGENT_PROTOCOL.md` |
 | Entrada Cloud Agent / celular | `AGENTS.md` (raiz do repo) |

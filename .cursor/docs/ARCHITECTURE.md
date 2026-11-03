@@ -41,7 +41,7 @@ flowchart LR
 | Azure | `backend/src/azure/{client,execucoes,falhas,kpis,config}.ts` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
 | Testes | `backend/package.json`, `backend/src/**/*.test.ts` | Testes de domínio, store, migração, report, auth, deploy; existência verificada, não executados nesta análise. |
 | Fundação Java | — | Removida (`DEC-033`). API operacional: Python (`backend/src/fourqa/`). |
-| Segurança transitória | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts` | Bearer compartilhado; browser armazena em `localStorage`; Vercel Authentication é proteção de hospedagem. |
+| Segurança transitória | `backend/src/fourqa/http/write_auth.py`, `frontend/src/api.ts` | Bearer compartilhado; browser guarda cookie HttpOnly `fourqa_session`; Vercel Authentication é proteção de hospedagem. |
 
 ### 3.1 Contratos HTTP existentes
 
@@ -71,7 +71,7 @@ flowchart LR
 
 ## 4. Modelo de dados atual `[VERIFICADO]`
 
-Migrações versionadas em `backend/src/db/postgres/migrations/001_baseline.sql`, `002_plan_item_identity.sql`, `003_plan_suite_fill.sql` (schema v3).
+Migrações versionadas só em `backend/src/db/postgres/migrations/` (`001_baseline.sql` a `005_users_connections.sql`). O runtime Python lê esse diretório.
 
 | Entidade/tabela | Explicação para negócio | Relação técnica e limite |
 |---|---|---|

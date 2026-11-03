@@ -19,26 +19,21 @@ Se a validação falhar (lote vazio, TestPointId ou BugId duplicado, suíte sem 
 
 ## Como executar
 
-Requisitos: Node.js 22+ (`node:sqlite`). Python só é necessário para importar a planilha legada.
+Requisitos: Node.js 22 (frontend) e Python 3.12+ (API FastAPI).
 
 ```bash
 npm install
-cp .env.example .env   # preencha org, projeto, PAT e SYNC_TEST_PLANS
+pip install -r requirements.txt
+cp .env.example .env   # preencha org, projeto, PAT, DATABASE_URL e SYNC_TEST_PLANS
 npm run dev
 ```
 
 - UI: http://localhost:5173
-- API: http://localhost:3001
+- API: http://localhost:3001 (`python -m fourqa`)
 
-A API exige `DB_PROVIDER=postgres` e `DATABASE_URL`. O schema fica nas migrations `backend/src/db/postgres/migrations` e não é aplicado no boot. No Windows, a partir da raiz:
+A API só sobe com `DB_PROVIDER=postgres` e `DATABASE_URL`. A única árvore SQL é `backend/src/db/postgres/migrations` (001 a 005). A primeira abertura dos stores Postgres aplica o que ainda falta. Não existe workspace npm `backend` nem `npm run db:postgres:*`.
 
-```bash
-npm.cmd run db:postgres:preflight -w backend
-npm.cmd run db:postgres:migrate -w backend
-npm.cmd run db:postgres:verify -w backend
-```
-
-SQLite permanece para testes, backup e importação histórica (`data/fourqa.db`, alterável com `FOURQA_DB`). `npm run import:planilha` continua disponível só para trazer o snapshot da planilha. A URL fica só no `.env`, que o Git ignora.
+SQLite fica nos testes e na importação histórica (`data/fourqa.db`, alterável com `FOURQA_DB`). `npm run import:planilha` traz o snapshot da planilha. A URL fica só no `.env`, que o Git ignora.
 
 ## Testes e build
 
@@ -59,16 +54,12 @@ npm run build
 ## Segurança antes de compartilhar
 
 - `FRONTEND_ORIGIN` restringe o CORS. Vazio permite só localhost.
-- `FOURQA_API_TOKEN`, se preenchido, protege `POST /api/sync` e `PUT /api/cabecalho`. No navegador, grave o mesmo valor em `localStorage.fourqa_token`.
+- `FOURQA_API_TOKEN`, se preenchido, protege as escritas. O navegador grava a sessão em cookie `fourqa_session` (HttpOnly). O JavaScript não lê o valor.
 - Não há login de usuários. Não publique o FourQA na internet só com o token vazio.
 - O health check responde `{ ok, database }` e não devolve caminho de arquivo.
 
 ## Vercel
 
-O Preview usa o frontend Vite em `frontend/dist` e o Express em `api/[...path].mjs`. Na Vercel o snapshot Azure fica no PostgreSQL. Variáveis, pooler, sync e proteção estão em [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
+O Preview usa o frontend Vite em `frontend/dist` e a Function Python `api/index.py`. Na Vercel o snapshot Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção: [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
 
 Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.
-
-## Vercel
-
-O Preview usa o frontend estático e uma Function Express em `/api`. Na Vercel o snapshot do Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção do Preview: [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.

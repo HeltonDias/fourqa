@@ -439,7 +439,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como QA, quero ver meu planejado, executado, finalizado sem falha e diferença.\
 **Como saber que deu certo (aceite):** Cada pessoa aparece isoladamente, com plano/período filtrados; QA não edita números.\
 **Detalhe técnico/testes:** Criar DTO por QA, distinguir Planned/Executed/Passed+N/A/Failed.\
-**Estado:** Planejada.
+**Estado:** MVP atribuível em `PLANO_MULTIQA.md` Fase 2 (DEC-037).
 
 
 ##### FN-05.01.02 — Derivar metas do FourQA | US-037
@@ -447,7 +447,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como gestor, quero que o planejado da Evolução seja exatamente o aprovado no Planejamento.\
 **Como saber que deu certo (aceite):** Alterar meta aprovada recalcula view prospectivamente, sem reescrever datas históricas.\
 **Detalhe técnico/testes:** Fonte única `planning_qa_allocation` após modelagem; versões por revisão.\
-**Estado:** Planejada.
+**Estado:** MVP atribuível em `PLANO_MULTIQA.md` Fase 2 (DEC-037): planejado vem das allocations da revisão atual.
 
 
 #### FEAT-05.02 — Execução factual e status
@@ -469,7 +469,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como QA, quero ver Passed, N/A, Failed, Blocked e outros estados aplicáveis.\
 **Como saber que deu certo (aceite):** Categorias não se sobrepõem no mesmo universo; Failed conta executado mas não finalizado sem falha.\
 **Detalhe técnico/testes:** Reutilizar classificador, definir recorte temporal e unidade de contagem.\
-**Estado:** Planejada.
+**Estado:** MVP atribuível em `PLANO_MULTIQA.md` Fase 2 (DEC-037).
 
 
 ##### FN-05.02.03 — Conciliar histórico e reexecuções | US-040
@@ -781,7 +781,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como QA, quero usar minha conta Microsoft ou Google quando suportada.\
 **Como saber que deu certo (aceite):** Login autenticado valida identidade e sessão; falha de provedor é tratada; token API transitório não vira identidade.\
 **Detalhe técnico/testes:** Discovery OIDC/OAuth, cookies/JWT, CSRF, expiração e convite.\
-**Estado:** Planejada.
+**Estado:** Parcial: login por PAT pessoal (DEC-035, `PLANO_MULTIQA.md` Fase 1). OIDC Microsoft/Google segue planejado.
 
 
 ##### FN-09.01.02 — Autorizar administrador no backend | US-069
@@ -789,7 +789,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como admin, quero editar config e planejamento, e somente pessoas autorizadas fazerem isso.\
 **Como saber que deu certo (aceite):** API verifica organização, plano, papel e ação; UI escondida não basta.\
 **Detalhe técnico/testes:** RBAC server-side e testes de escalonamento de privilégio.\
-**Estado:** Planejada.
+**Estado:** Em `PLANO_MULTIQA.md` Fase 3 (DEC-036, DEC-038).
 
 
 ##### FN-09.01.03 — Permitir QA apenas leitura | US-070
@@ -797,7 +797,7 @@ Os títulos de Stories são escritos para negócio; cada função indica o compo
 **História de usuário:** Como QA, quero consultar todas as visões sem risco de editar.\
 **Como saber que deu certo (aceite):** Tentativas PUT/POST negadas na API; Report, Planejamento, Status, Execuções, Falhas e Evolução futura legíveis.\
 **Detalhe técnico/testes:** Testar HTTP 403, escopo e navegação.\
-**Estado:** Planejada.
+**Estado:** Em `PLANO_MULTIQA.md` Fase 3 (DEC-038).
 
 
 #### FEAT-09.02 — Report compartilhável

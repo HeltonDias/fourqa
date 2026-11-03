@@ -47,6 +47,11 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | DEC-028 | Aprovada | Prioridades atuais de implementação: (1) Status dos Cenários; (2) Impacto do Cliente e totais; (3) KPIs configuráveis; (4) ofensores/mapeamento; (5) validação do Report. | Etapa 3.1 implementada no ZIP; etapas seguintes ainda a desenvolver. EP-02/03, ROADMAP. |
 | DEC-029 | Aprovada | Nunca presumir que todos os dados do cliente existem no Azure; ausência de campo/valor deve resultar em indisponível/não classificado, não em zero ou atribuição inventada. | EP-03/07, RPT-005/006/008. |
 | DEC-031 | Aprovada | Escrita de revisão e célula exige `planKey` explícito. Não gravar em plano implícito. | `POST /api/planejamento/revisao` e `PUT /api/planejamento/celula` no Node. Leituras mantêm fallback. HTTP 400. 2026-10-22. |
+| DEC-035 | Aprovada | Login por **PAT pessoal** do Azure DevOps; org, projeto e Test Plan escolhidos por conexão, sem depender do `.env`. Entra ID OAuth fica para fase posterior. | PAT criptografado no servidor, nunca devolvido ao navegador. `PLANO_MULTIQA.md` Fase 1. Fecha parte do OPEN-013. |
+| DEC-036 | Aprovada | Hierarquia Head > Líder > QA > Visitante: papel global padrão + papel por projeto que sobrescreve. Heads iniciais por `FOURQA_BOOTSTRAP_HEADS`. | Quem conecta vira Líder do projeto; só Head altera papel global; último Head protegido. `PLANO_MULTIQA.md` Fase 3. |
+| DEC-037 | Aprovada | Evolução QA MVP só com dados atribuíveis: suíte com responsável único no FourQA; demais em "não atribuível". | Realizado = último estado do Azure (`date_completed`), com aviso; respeita OPEN-001/OPEN-007. US-036/037/039. |
+| DEC-038 | Aprovada | Revisa DEC-004: escrita = Líder ou Head do projeto; QA autenticado consulta; Visitante vê só Report. | Backend valida papel efetivo por conexão. US-069/US-070. |
+| DEC-039 | Aprovada | Revisa DEC-035: login padrão por **Microsoft Entra ID** (conta institucional); PAT só para dev/teste. | Organizações listadas pela conta; refresh token criptografado. Pendente: App Registration da TI. |
 
 ## 2. Decisões de arquitetura vigentes no repositório
 
@@ -59,7 +64,7 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | ADR 005 | Superseded | Direção ASP.NET Core 10 abandonada. Histórico. | `.cursor/docs/adr/005-dotnet-incremental-migration.md`; `DEC-032`. |
 | ADR 006 | Superseded | Backend futuro Java abandonado em favor de Python (`DEC-033`, ADR 007). | `.cursor/docs/adr/006-java-incremental-migration.md`. |
 | ADR 007 | Direcionamento aprovado; cutover pendente | Backend definitivo: Python 3.12+ / FastAPI em `backend/`. Vercel unificado SPA + `/api`. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
-| DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. | `backend/src/persistence/provider.ts`; migrações `001`–`003`. |
+| DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. Exceção aprovada em 2026-11-03: dev local com `FOURQA_LOCAL_SQLITE=1` (`npm run dev:auth`), recusada quando `VERCEL=1`. | `backend/src/persistence/provider.ts`; migrações `001`–`003`. |
 | DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts`. |
 | DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `syncService.ts`, `postgresAzureSnapshotStore.ts`; `.cursor/docs/vercel.md`. |
 | DEC-T04 | Vigente transitório | Últimos registros de Test Point não constituem histórico completo de execução. | `execucoes` e coletores Azure; nenhum event store. |
@@ -157,3 +162,65 @@ Impacto: reescrever gates CI/agent para pytest/pyright; `formulas:parity` passa 
 Rastreabilidade: plano Backend Python cutover 2026-10-29; pedido do responsável do produto.
 Aprovador e evidência: implementação autorizada nesta conversa.
 Validação: pytest backend, `npm run formulas:parity`, `npm run typecheck`, `npm run build`, `npm run agent:gates`; homologação Preview sem `--prod`.
+
+ID: DEC-034
+Data: 2026-10-30
+Estado: Aprovada
+Problema: o FourQA precisa ter visual alinhado ao de outra ferramenta da equipe (Portal de Massa v0.4, baseado no portal de ofertas QA), mas aquele design system descreve outro produto e usa MUI.
+Escolha: adotar a identidade visual (navy `#222239`, laranja `#FF5315`, baunilha, menta, Roboto + Roboto Slab, hero navy + card elevado) em `.cursor/docs/DESIGN_SYSTEM.md` v1.0, aplicada por tokens em `frontend/src/styles.css`, sem MUI. Telas e regras do Portal de Massa são descartadas e adaptadas para Login, Hub de planos e Reports do FourQA.
+Alternativas rejeitadas: migrar o frontend para MUI / Material Kit; manter a paleta anterior (`#22233d`/`#ff6333`, IBM Plex Sans).
+Impacto: mudança visual global por tokens; nenhuma regra de negócio, cálculo, rota ou contrato muda. Login Microsoft (Entra ID) e tokens por usuário são etapas seguintes, fora desta decisão.
+Rastreabilidade: pedido do responsável do produto em 2026-10-30; `DESIGN_SYSTEM.md`.
+Aprovador e evidência: responsável do produto nesta conversa ("vale pro nosso… desconsidere e adapte").
+Validação: `npm run typecheck`, `npm run build`; inspeção visual pendente.
+
+ID: DEC-035
+Data: 2026-11-03
+Estado: Aprovada
+Problema: a API só falava com uma org/projeto/PAT do `.env`; outros QAs não tinham acesso próprio nem conseguiam conectar outro projeto.
+Escolha: o QA entra colando um PAT pessoal (escopos de leitura: Test Management, Project and Team, User Profile; "All accessible organizations" para listar orgs, ou informa a organização). O backend valida o PAT no Azure DevOps, guarda o PAT criptografado (Fernet, `FOURQA_PAT_ENCRYPTION_KEY`) e emite cookie HttpOnly assinado (`FOURQA_SESSION_SECRET`). Cada conexão guarda org, projeto e Test Plan; o sync usa o PAT de quem dispara. O env vira fallback legado.
+Alternativas rejeitadas: Entra ID OAuth agora (exige App Registration no tenant; fica para fase posterior); continuar com PAT único no env.
+Impacto: tabelas novas (migração 005 / SQLite v9); metadados por conexão em `workbook_meta` com prefixo `conn:{id}:`; sync apaga só os planos sincronizados.
+Rastreabilidade: `PLANO_MULTIQA.md` Fase 1; US-068 (parcial); OPEN-013 (parcial).
+Aprovador e evidência: responsável do produto, escolha nesta conversa em 2026-11-03.
+Validação: pytest de login, cripto, isolamento e 401/403; typecheck e build.
+
+ID: DEC-036
+Data: 2026-11-03
+Estado: Aprovada
+Problema: definir quem pode mudar o cargo de quem, inclusive do primeiro usuário.
+Escolha: papéis Head > Líder > QA > Visitante. Papel efetivo = papel no projeto, se definido; senão, papel global. Usuário novo = QA; e-mails em `FOURQA_BOOTSTRAP_HEADS` = Head. Quem conecta um projeto vira Líder dele. Líder ou Head altera papéis no projeto; só Head concede Head ou altera papel global (tela `/admin/usuarios`). O último Head não pode ser rebaixado.
+Alternativas rejeitadas: "primeiro a acessar vira Head" (corrida e risco); só papel global; só papel por projeto.
+Impacto: RBAC no backend; telas Configurações > Usuários e `/admin/usuarios`.
+Rastreabilidade: `PLANO_MULTIQA.md` Fase 3; US-069, US-070.
+Aprovador e evidência: responsável do produto, escolha nesta conversa em 2026-11-03.
+Validação: testes da matriz papel × rota e proteção do último Head.
+
+ID: DEC-037
+Data: 2026-11-03
+Estado: Aprovada
+Problema: OPEN-001 impede atribuir fatos por QA em suíte compartilhada.
+Escolha: Evolução QA mostra planejado por QA a partir do Planejamento (responsável no FourQA, DEC-018) e realizado só das suítes com responsável único. Suítes sem responsável ou com mais de um nome entram em "não atribuível". Executado (Passed, N/A, Failed) separado de finalizado (Passed + N/A), conforme DEC-019. Realizado diário usa `date_completed` do último estado, com aviso.
+Alternativas rejeitadas: rateio proporcional (estimativa apresentada como fato); esperar o spike.
+Impacto: rota somente leitura `GET /api/evolucao-qa`.
+Rastreabilidade: US-036, US-037, US-039; EQA-001/002/003/008/010.
+Aprovador e evidência: responsável do produto, escolha nesta conversa em 2026-11-03.
+Validação: testes de domínio (suíte única vs compartilhada, Failed vs Passed, N/A, período vazio).
+
+ID: DEC-038
+Data: 2026-11-03
+Estado: Aprovada (revisa DEC-004)
+Problema: DEC-004 falava só em "Administrador"; o novo modelo tem Head e Líder por projeto.
+Escolha: escrita exige papel efetivo Líder ou Head na conexão; QA autenticado só consulta; Visitante só vê o Report.
+Rastreabilidade: DEC-004, DEC-036; US-069, US-070.
+Aprovador e evidência: aprovação do plano Multi-QA em 2026-11-03.
+Validação: 403 para QA em rotas de escrita.
+
+ID: DEC-039
+Data: 2026-11-03
+Estado: Aprovada (revisa DEC-035)
+Problema: PAT exige que cada QA crie token e informe a organização; o produto deve usar a conta institucional.
+Escolha: login padrão por Microsoft Entra ID (authorization code + PKCE, cliente confidencial, permissão delegada do Azure DevOps). Refresh token criptografado no servidor; organizações listadas pela conta. PAT fica só para dev/teste: vale sem Entra configurado ou com `FOURQA_PAT_LOGIN=1`. Mesmo e-mail reaproveita o usuário.
+Rastreabilidade: DEC-035, DEC-036; `PLANO_MULTIQA.md`.
+Aprovador e evidência: responsável do produto, escolha nesta conversa em 2026-11-03 (organizações no tenant Foursys; App Registration pedido à TI).
+Validação: `backend/tests/test_entra_login.py` (PKCE, state, callback, renovação, bloqueio do PAT). Login real pendente do App Registration.
