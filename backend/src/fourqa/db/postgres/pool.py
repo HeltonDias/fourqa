@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -102,8 +103,8 @@ def postgres_ca_file(connection_string: str) -> str | None:
     if inline:
         if "BEGIN CERTIFICATE" not in inline:
             raise RuntimeError("Certificado CA do PostgreSQL não está em PEM")
-        target = _repo_root / "data" / ".pg-ca.pem"
-        target.parent.mkdir(parents=True, exist_ok=True)
+        # Na Vercel só o diretório temporário aceita escrita; o bundle é somente leitura.
+        target = Path(tempfile.gettempdir()) / "fourqa-pg-ca.pem"
         target.write_text(inline, encoding="utf-8")
         return str(target)
     configured = env_value("DATABASE_SSL_CA_FILE")

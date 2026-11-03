@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, cast
@@ -11,6 +12,8 @@ from fourqa.azure.config import env_value
 from fourqa.persistence.contracts import AzureSnapshotStore, PersistenceStores
 
 ProviderName = Literal["sqlite", "postgres"]
+
+_log = logging.getLogger(__name__)
 
 _cached: dict[str, Any] | None = None
 
@@ -163,5 +166,6 @@ async def persistence_ready() -> bool:
         async with get_pool().connection() as conn:
             await conn.execute("SELECT 1")
         return True
-    except Exception:
+    except Exception as err:
+        _log.warning("persistence not ready: %s: %s", type(err).__name__, public_db_error(err))
         return False
