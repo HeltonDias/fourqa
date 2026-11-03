@@ -1,8 +1,9 @@
-"""Report service (mirrors backend/src/services/reportService.ts)."""
+"""Report service."""
 
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
@@ -10,6 +11,7 @@ from fourqa.domain.dimensions import DetectedDimension, infer_dimensions
 from fourqa.domain.evolucao_status import status_evolucao, status_geral_de
 from fourqa.domain.formulas import (
     DEFAULT_PLAN_KEY,
+    FalhaFilter,
     classificar_impactos_kpi,
     count_falhas,
     finalizados_com_cancelados,
@@ -23,7 +25,9 @@ from fourqa.domain.legacy_plan_owner import is_legacy_plan_owner
 from fourqa.domain.plan_period import assert_planning_period, assert_stored_planning_period
 from fourqa.domain.report_groups import group_execucoes_for_report
 from fourqa.domain.status_frente import ha_sobreposicao_frentes, indicadores_frente
+from fourqa.persistence.contracts import LegacyPlanRow
 from fourqa.persistence.provider import get_stores
+from fourqa.types import ExecucaoRow, FalhaRow
 
 PERIOD_KEYS = ("data_inicio", "data_fim", "data_fim_linha")
 HEADER_KEYS = ("cabecalho_titulo", "title", "cabecalho_subtitulo")
@@ -61,7 +65,7 @@ def _suite_label(processo: str) -> str:
     return p if len(p) <= 36 else f"{p[:33]}…"
 
 
-def _is_linha_totais(row: dict[str, Any]) -> bool:
+def _is_linha_totais(row: Mapping[str, Any]) -> bool:
     import re
 
     return bool(re.search(r"valores\s+totais", str(row.get("processo") or ""), re.I))
@@ -79,7 +83,7 @@ async def _periodo_geral() -> dict[str, str]:
     return _periodo_from(await _load_meta(PERIOD_KEYS))
 
 
-async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) -> list[dict[str, Any]]:
+async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) -> list[LegacyPlanRow]:
     stores = await _stores()
     owner = _meta(bag, "planejamento_legado_plan_key") if bag else await stores["meta"].get("planejamento_legado_plan_key")
     if not is_legacy_plan_owner(plan_key, owner):
@@ -88,7 +92,7 @@ async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) 
     return [r for r in rows if not _is_linha_totais(r)]
 
 
-async def _build_planejamento(plan_key: str, exec_rows: list[dict[str, Any]], dimensoes: list[DetectedDimension], bag: dict[str, str | None] | None = None):
+async def _build_planejamento(plan_key: str, exec_rows: list[ExecucaoRow], dimensoes: list[DetectedDimension], bag: dict[str, str | None] | None = None):
     periodo = _periodo_from(bag) if bag else await _periodo_geral()
     key = lambda s: (s or "").strip().lower()
     planejamento = {key(r.get("processo")): r for r in await _legacy_base(plan_key, bag)}
@@ -155,7 +159,7 @@ def _contar_por(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
     return [{"key": k, "label": k, "value": v} for k, v in sorted(counts.items())]
 
 
-def _catalog(plan_key: str, exec_rows: list[dict[str, Any]], bag: dict[str, str | None]) -> list[DetectedDimension]:
+def _catalog(plan_key: str, exec_rows: list[ExecucaoRow], bag: dict[str, str | None]) -> list[DetectedDimension]:
     raw = _meta(bag, f"dimensoes_catalog:{plan_key}")
     if raw:
         try:
@@ -212,7 +216,8 @@ async def set_cabecalho(title: str, subtitle: str, opts: dict[str, Any] | None =
 async def set_periodo_plano(inicio: str, fim: str, opts: dict[str, Any] | None = None) -> dict[str, str]:
     stores = await _stores()
     opts = opts or {}
-    start, end = assert_planning_period(inicio, fim)
+    period = assert_planning_period(inicio, fim)
+    start, end = period["inicio"], period["fim"]
     if opts.get("guard") and hasattr(stores["meta"], "replace_period_if"):
         await stores["meta"].replace_period_if(opts.get("baseInicio") or "", opts.get("baseFim") or "", start, end)
     else:
@@ -301,7 +306,7 @@ async def get_home(plan_key: str = DEFAULT_PLAN_KEY) -> dict[str, Any]:
     }
 
 
-def _bugs_painel(plan_key: str, falhas: list[dict[str, Any]]) -> dict[str, int]:
+def _bugs_painel(plan_key: str, falhas: list[FalhaRow]) -> dict[str, int]:
     return {
         "total": count_falhas(falhas, {"planKey": plan_key, "idNotEmpty": True}),
         "fechados": count_falhas(falhas, {"planKey": plan_key, "fechamentoNotEmpty": True}),
@@ -350,7 +355,7 @@ def _bugs_painel(plan_key: str, falhas: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def _gestao_impactos(plan_key: str, falhas: list[dict[str, Any]]) -> dict[str, Any]:
+def _gestao_impactos(plan_key: str, falhas: list[FalhaRow]) -> dict[str, Any]:
     bugs = [f for f in falhas if (f.get("plan_key") or "").strip() == plan_key and f.get("bug_id") is not None]
     vazio = lambda v: not (v or "").strip()
     abertos = [f for f in bugs if vazio(f.get("fechamento"))]
@@ -419,29 +424,15 @@ async def get_status_por_frente(plan_key: str = DEFAULT_PLAN_KEY) -> dict[str, A
                 "frente": frente,
                 "cenarios": cenarios,
                 "bugs": bugs,
-                "indicadores": indicadores_frente(
-                    {
-                        "ttl": cenarios["ttl"],
-                        "planAteHoje": cenarios["planAteHoje"],
-                        "finalizado": cenarios["finalizado"],
-                        "na": cenarios["na"],
-                        "passeds": cenarios["passeds"],
-                        "falha": cenarios["falha"],
-                        "bloqueado": cenarios["bloqueado"],
-                        "impactosDev": bugs["impactosDev"],
-                        "impactosCliente": bugs["impactosCliente"],
-                        "bugsTotal": bugs["total"],
-                        "bugsFechados": bugs["fechados"],
-                    }
-                ),
+                "indicadores": _indicadores_dto(cenarios, bugs),
             }
         )
     total = _somar_blocos(blocos)
     return {"planKey": plan_key, "blocos": blocos, "total": total, "sobreposicao": ha_sobreposicao_frentes(frentes)}
 
 
-def _bugs_por_frente(plan_key: str, frente: str, falhas: list[dict[str, Any]], falhas_uat: list[dict[str, Any]]) -> dict[str, int]:
-    base = {"planKey": plan_key, "frenteContains": frente, "idNotEmpty": True}
+def _bugs_por_frente(plan_key: str, frente: str, falhas: list[FalhaRow], falhas_uat: list[FalhaRow]) -> dict[str, int]:
+    base: FalhaFilter = {"planKey": plan_key, "frenteContains": frente, "idNotEmpty": True}
     return {
         "total": count_falhas(falhas, base),
         "fechados": count_falhas(falhas, {**base, "status": "Closed"}),
@@ -461,6 +452,36 @@ def _bugs_por_frente(plan_key: str, frente: str, falhas: list[dict[str, Any]], f
     }
 
 
+def _indicadores_dto(cenarios: Mapping[str, float], bugs: Mapping[str, float]) -> dict[str, Any]:
+    ind = indicadores_frente(
+        {
+            "ttl": float(cenarios.get("ttl", 0)),
+            "plan_ate_hoje": float(cenarios.get("planAteHoje", 0)),
+            "finalizado": float(cenarios.get("finalizado", 0)),
+            "na": float(cenarios.get("na", 0)),
+            "passeds": float(cenarios.get("passeds", 0)),
+            "falha": float(cenarios.get("falha", 0)),
+            "bloqueado": float(cenarios.get("bloqueado", 0)),
+            "impactos_dev": float(bugs.get("impactosDev", 0)),
+            "impactos_cliente": float(bugs.get("impactosCliente", 0)),
+            "bugs_total": float(bugs.get("total", 0)),
+            "bugs_fechados": float(bugs.get("fechados", 0)),
+        }
+    )
+    return {
+        "planAteHoje": ind["plan_ate_hoje"],
+        "na": ind["na"],
+        "passeds": ind["passeds"],
+        "gap": ind["gap"],
+        "pctPlan": ind["pct_plan"],
+        "pctReal": ind["pct_real"],
+        "pctBugsDev": ind["pct_bugs_dev"],
+        "pctBugsCliente": ind["pct_bugs_cliente"],
+        "bugsAbertos": ind["bugs_abertos"],
+        "status": ind["status"],
+    }
+
+
 def _somar_blocos(blocos: list[dict[str, Any]]) -> dict[str, Any]:
     cenarios_keys = list(blocos[0]["cenarios"].keys()) if blocos else []
     bugs_keys = list(blocos[0]["bugs"].keys()) if blocos else []
@@ -471,21 +492,7 @@ def _somar_blocos(blocos: list[dict[str, Any]]) -> dict[str, Any]:
             cenarios[k] += bloco["cenarios"][k]
         for k in bugs_keys:
             bugs[k] += bloco["bugs"][k]
-    indicadores = indicadores_frente(
-        {
-            "ttl": cenarios.get("ttl", 0),
-            "planAteHoje": cenarios.get("planAteHoje", 0),
-            "finalizado": cenarios.get("finalizado", 0),
-            "na": cenarios.get("na", 0),
-            "passeds": cenarios.get("passeds", 0),
-            "falha": cenarios.get("falha", 0),
-            "bloqueado": cenarios.get("bloqueado", 0),
-            "impactosDev": bugs.get("impactosDev", 0),
-            "impactosCliente": bugs.get("impactosCliente", 0),
-            "bugsTotal": bugs.get("total", 0),
-            "bugsFechados": bugs.get("fechados", 0),
-        }
-    )
+    indicadores = _indicadores_dto(cenarios, bugs)
     if blocos:
         indicadores["status"] = status_geral_de([b["indicadores"]["status"] for b in blocos])
     return {"cenarios": cenarios, "bugs": bugs, "indicadores": indicadores}

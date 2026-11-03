@@ -1,10 +1,11 @@
-"""Planejamento domain (mirrors backend/src/domain/planning.ts)."""
+"""Planejamento domain."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict, TypeVar
 
 from fourqa.domain.formulas import StatusCenario, classify_execution
 from fourqa.domain.plan_period import PLAN_PERIOD_MAX_DAYS, calendar_day_span_inclusive, parse_calendar_day
@@ -12,6 +13,8 @@ from fourqa.domain.plan_period import PLAN_PERIOD_MAX_DAYS, calendar_day_span_in
 SUITE_FILL_MAX_LENGTH = 80
 
 PointIntegrity = Literal["consistent", "inconsistent", "unmapped"]
+T = TypeVar("T")
+Row = TypeVar("Row", bound=Mapping[str, Any])
 
 
 class ScopeRef(TypedDict, total=False):
@@ -32,7 +35,7 @@ class ScheduleDraft(TypedDict):
     responsavel: str | None
     prioridade: str | None
     baseline_quantity: int
-    allocations: list[dict[str, object]]
+    allocations: list[dict[str, Any]]
 
 
 class PlanningRevision(TypedDict):
@@ -44,7 +47,7 @@ class PlanningRevision(TypedDict):
     scope: list[ScopeRef]
 
 
-def scope_group_key(item: ScopeRef, index: int) -> str:
+def scope_group_key(item: Mapping[str, Any], index: int) -> str:
     if item.get("suite_id") is not None:
         return f"suite:{item['suite_id']}"
     if item.get("test_point_id") is not None:
@@ -52,11 +55,11 @@ def scope_group_key(item: ScopeRef, index: int) -> str:
     return f"loose:{index}"
 
 
-def lone_loose_fill(previous: list[object], next_groups: int) -> object | None:
+def lone_loose_fill(previous: Sequence[T], next_groups: int) -> T | None:
     return previous[0] if len(previous) == 1 and next_groups == 1 else None
 
 
-def previous_fill_key(item: dict[str, int | None]) -> str | None:
+def previous_fill_key(item: Mapping[str, Any]) -> str | None:
     if item.get("suite_id") is not None:
         return f"suite:{item['suite_id']}"
     if item.get("test_point_id") is not None:
@@ -77,12 +80,12 @@ def normalize_suite_fill(value: str | None) -> str | None:
 
 def schedule_items_for_scope(
     *,
-    scope: list[ScopeRef],
-    suite_names: dict[int, str],
-    previous: list[ScheduleDraft],
-    inherited: object | None = None,
+    scope: Sequence[Mapping[str, Any]],
+    suite_names: Mapping[int | None, str | None],
+    previous: Sequence[Mapping[str, Any]],
+    inherited: Callable[[str], Mapping[str, str | None] | None] | None = None,
 ) -> list[ScheduleDraft]:
-    groups: dict[str, dict[str, object]] = {}
+    groups: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(scope):
         key = scope_group_key(item, index)
         found = groups.get(key)
@@ -96,8 +99,8 @@ def schedule_items_for_scope(
             "test_case_id": None if with_suite else item.get("test_case_id"),
             "count": 1,
         }
-    prev_map: dict[str, ScheduleDraft] = {}
-    loose_previous: list[ScheduleDraft] = []
+    prev_map: dict[str, Mapping[str, Any]] = {}
+    loose_previous: list[Mapping[str, Any]] = []
     for item in previous:
         key = previous_fill_key(item)  # type: ignore[arg-type]
         if key:
@@ -113,8 +116,8 @@ def schedule_items_for_scope(
         suite_id = group.get("suite_id")
         suite_name = suite_names.get(suite_id) if isinstance(suite_id, int) else None  # type: ignore[arg-type]
         inherited_dates = None
-        if inherited and suite_name and callable(inherited):
-            inherited_dates = inherited(suite_name)  # type: ignore[misc]
+        if inherited and suite_name:
+            inherited_dates = inherited(suite_name)
         out.append(
             {
                 "suite_id": group.get("suite_id"),  # type: ignore[dict-item]
@@ -132,7 +135,7 @@ def schedule_items_for_scope(
                 ],
             }
         )
-        if inherited_dates and isinstance(inherited_dates, dict):
+        if inherited_dates:
             if not out[-1]["planned_start"]:
                 out[-1]["planned_start"] = inherited_dates.get("start")
             if not out[-1]["planned_end"]:
@@ -140,7 +143,7 @@ def schedule_items_for_scope(
     return out
 
 
-def match_schedule_item(items: list[dict[str, object]], input_row: dict[str, object]) -> dict[str, object] | None:
+def match_schedule_item(items: Sequence[Row], input_row: Mapping[str, Any]) -> Row | None:
     suite_id = input_row.get("suite_id")
     test_point_id = input_row.get("test_point_id")
     if suite_id is not None:
@@ -157,17 +160,17 @@ def match_schedule_item(items: list[dict[str, object]], input_row: dict[str, obj
     return loose[0] if len(loose) == 1 else None
 
 
-def scope_identity(ref: ScopeRef) -> str:
+def scope_identity(ref: Mapping[str, Any]) -> str:
     return f"{ref.get('plan_id') or ''}|{ref.get('suite_id') or ''}|{ref.get('test_point_id') or ''}|{ref.get('test_case_id') or ''}"
 
 
-def diff_scope(baseline: list[ScopeRef], source: list[ScopeRef]) -> dict[str, object]:
+def diff_scope(baseline: Sequence[Mapping[str, Any]], source: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     base = {scope_identity(item): item for item in baseline}
     current = {scope_identity(item): item for item in source}
     added_items = [current[k] for k in current if k not in base]
     removed_items = [base[k] for k in base if k not in current]
 
-    def suite_ids(items: list[ScopeRef]) -> set[int]:
+    def suite_ids(items: Sequence[Mapping[str, Any]]) -> set[int]:
         return {i["suite_id"] for i in items if i.get("suite_id") is not None}  # type: ignore[misc]
 
     base_suites = suite_ids(baseline)
@@ -197,7 +200,7 @@ def calendar_date(value: str | None) -> str | None:
 def schedule_of(
     *,
     baseline_count: int,
-    allocations: list[dict[str, object]],
+    allocations: list[dict[str, Any]],
     as_of: str,
     finalized_count: int,
 ) -> dict[str, int | float]:
@@ -241,7 +244,7 @@ def _norm(value: str | None) -> str:
     return (value or "").strip().lower()
 
 
-def assess_point(point: dict[str, str | None]) -> dict[str, StatusCenario | Literal["unclassified"] | PointIntegrity]:
+def assess_point(point: Mapping[str, Any]) -> dict[str, StatusCenario | Literal["unclassified"] | PointIntegrity]:
     outcome = _norm(point.get("outcome"))
     test_case = _norm(point.get("test_case_state"))
     classification = classify_execution(point)  # type: ignore[arg-type]
@@ -255,7 +258,7 @@ def assess_point(point: dict[str, str | None]) -> dict[str, StatusCenario | Lite
     return {"classification": "unclassified", "integrity": "unmapped"}
 
 
-def count_assessments(points: list[dict[str, str | None]]) -> dict[str, int]:
+def count_assessments(points: Sequence[Mapping[str, Any]]) -> dict[str, int]:
     rows = [assess_point(p) for p in points]
     return {
         "classified_count": sum(1 for row in rows if row["classification"] != "unclassified"),
@@ -286,15 +289,19 @@ def scope_integrity_message(*, scope_snapshot_available: bool, added_count: int,
     return ". ".join(parts) + "."
 
 
-def schedule_integrity_message(baseline_count: int, distributed_count: int) -> str | None:
+def _count_text(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else str(value)
+
+
+def schedule_integrity_message(baseline_count: float, distributed_count: float) -> str | None:
     gap = distributed_count - baseline_count
     if gap == 0:
         return None
     if gap < 0:
         suffix = "" if gap == -1 else "s"
-        return f"{-gap} cenário{suffix} ainda não distribuído{suffix} no cronograma"
+        return f"{_count_text(-gap)} cenário{suffix} ainda não distribuído{suffix} no cronograma"
     suffix = "" if gap == 1 else "s"
-    return f"{gap} cenário{suffix} distribuído{suffix} além do baseline"
+    return f"{_count_text(gap)} cenário{suffix} distribuído{suffix} além do baseline"
 
 
 def classification_integrity_message(unclassified: int, inconsistent: int) -> str | None:
@@ -312,13 +319,13 @@ def next_revision(
     *,
     at: str,
     reason: str,
-    scope: list[ScopeRef],
+    scope: Sequence[ScopeRef],
     adopt_source: bool,
 ) -> dict[str, PlanningRevision | None]:
     if previous and not adopt_source:
-        scope_copy = [{**item} for item in previous["scope"]]
+        scope_copy = [item.copy() for item in previous["scope"]]
     else:
-        scope_copy = [{**item} for item in scope]
+        scope_copy = [item.copy() for item in scope]
     current: PlanningRevision = {
         "version": (previous["version"] if previous else 0) + 1,
         "created_at": at,

@@ -1,4 +1,4 @@
-"""SQLite Azure snapshot store (mirrors backend/src/db/sqliteAzureSnapshotStore.ts)."""
+"""SQLite Azure snapshot store."""
 
 from __future__ import annotations
 
@@ -37,14 +37,16 @@ def replace_snapshot(input: AzureSnapshot) -> None:
     db = get_db()
     db.execute("BEGIN IMMEDIATE")
     try:
-        db.execute("DELETE FROM execucoes")
-        db.execute("DELETE FROM falhas")
+        if "plan_keys" in input:
+            plan_keys = [k.strip().lower() for k in input["plan_keys"] if k.strip()]
+            if plan_keys:
+                ph = ", ".join("?" for _ in plan_keys)
+                db.execute(f"DELETE FROM execucoes WHERE lower(plan_key) IN ({ph})", plan_keys)
+                db.execute(f"DELETE FROM falhas WHERE lower(plan_key) IN ({ph})", plan_keys)
+        else:
+            db.execute("DELETE FROM execucoes")
+            db.execute("DELETE FROM falhas")
         exec_ph = ", ".join("?" for _ in EXECUCAO_COLUMNS)
-        ins_exec = db.execute(
-            f"INSERT INTO execucoes ({', '.join(EXECUCAO_COLUMNS)}) VALUES ({exec_ph})",
-            [],
-        )
-        del ins_exec
         stmt_exec = f"INSERT INTO execucoes ({', '.join(EXECUCAO_COLUMNS)}) VALUES ({exec_ph})"
         for row in input["execucoes"]:
             db.execute(stmt_exec, [row.get(c) for c in EXECUCAO_COLUMNS])

@@ -1,8 +1,8 @@
-"""Shared DTO types (mirrors backend/src/types.ts)."""
+"""Shared DTO types."""
 
 from __future__ import annotations
 
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from fourqa.domain.dimensions import DetectedDimension
 from fourqa.domain.evolucao_status import EvolucaoStatus
@@ -144,18 +144,21 @@ class GraficoPontoDiaDetalhado(GraficoPontoDia):
     realizado_dia: float
 
 
+ProgressSituacao = Literal["adiantado", "dentro", "atrasado"]
+
+
 class PlanningProgressSnapshot(TypedDict):
     serie: list[GraficoPontoDiaDetalhado]
     planejado_ate_hoje: int
-    realizado_ate_hoje: int
-    diferenca: int
-    situacao: Literal["adiantado", "dentro", "atrasado"]
+    realizado_ate_hoje: float
+    diferenca: float
+    situacao: ProgressSituacao
 
 
 class GraficoFatia(TypedDict):
     key: str
     label: str
-    value: int
+    value: float
 
 
 class HomeGraficos(TypedDict):
@@ -207,7 +210,7 @@ class StatusFrenteBloco(TypedDict):
 class StatusFrenteDto(TypedDict):
     plan_key: str
     blocos: list[StatusFrenteBloco]
-    total: dict[str, object]
+    total: dict[str, Any]
     sobreposicao: bool
 
 

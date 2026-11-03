@@ -1,9 +1,9 @@
-"""Formula layer (mirrors backend/src/domain/formulas.ts)."""
+"""Formula layer."""
 
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping, TypedDict
+from typing import Any, Mapping, Required, TypedDict
 
 from fourqa.types import ExecucaoRow, FalhaRow, StatusCenario
 
@@ -58,19 +58,19 @@ class ExecFilter(TypedDict, total=False):
 def count_execucoes(rows: list[ExecucaoRow], f: ExecFilter) -> int:
     n = 0
     for r in rows:
-        if f.get("planKey") and _norm(r.get("plan_key")) != f["planKey"]:
+        if (plan_key := f.get("planKey")) and _norm(r.get("plan_key")) != plan_key:
             continue
-        if f.get("suiteName") is not None and _norm(r.get("suite_name")) != _norm(str(f["suiteName"])):
+        if (suite_name := f.get("suiteName")) is not None and _norm(r.get("suite_name")) != _norm(str(suite_name)):
             continue
-        if f.get("suiteId") is not None and str(r.get("suite_id") or "") != str(f["suiteId"]):
+        if (suite_id := f.get("suiteId")) is not None and str(r.get("suite_id") or "") != str(suite_id):
             continue
-        if f.get("testPointState") is not None and estado_ponto(r) != f["testPointState"]:
+        if (point_state := f.get("testPointState")) is not None and estado_ponto(r) != point_state:
             continue
-        if f.get("testCaseState") is not None and _norm(r.get("test_case_state")) != f["testCaseState"]:
+        if (case_state := f.get("testCaseState")) is not None and _norm(r.get("test_case_state")) != case_state:
             continue
-        if f.get("outcome") is not None and _norm(r.get("outcome")) != f["outcome"]:
+        if (outcome := f.get("outcome")) is not None and _norm(r.get("outcome")) != outcome:
             continue
-        if f.get("responsabilidade") is not None and _norm(r.get("responsabilidade")) != f["responsabilidade"]:
+        if (resp := f.get("responsabilidade")) is not None and _norm(r.get("responsabilidade")) != resp:
             continue
         n += 1
     return n
@@ -129,7 +129,7 @@ def total_realizado_linha(metrics: Mapping[str, int]) -> int:
     return int(metrics["cts_passeds"]) + int(metrics["cts_na"])
 
 
-def finalizados_com_cancelados(metrics: Mapping[str, int], cts_cancelados: int) -> int:
+def finalizados_com_cancelados(metrics: Mapping[str, float], cts_cancelados: float) -> float:
     return int(metrics["cts_passeds"]) + int(metrics["cts_na"]) + (cts_cancelados or 0)
 
 
@@ -196,7 +196,7 @@ def classificar_impactos_kpi(
 
 
 class FalhaFilter(TypedDict, total=False):
-    planKey: str
+    planKey: Required[str]
     frenteContains: str
     responsavel: str
     status: str
@@ -212,13 +212,13 @@ def count_falhas(rows: list[FalhaRow], f: FalhaFilter) -> int:
     for r in rows:
         if _norm(r.get("plan_key")) != f["planKey"]:
             continue
-        if f.get("frenteContains") and not _match_contains(_norm(r.get("frente")), f["frenteContains"]):
+        if (frente := f.get("frenteContains")) and not _match_contains(_norm(r.get("frente")), frente):
             continue
-        if f.get("responsavel") is not None and _norm(r.get("responsavel")) != f["responsavel"]:
+        if (responsavel := f.get("responsavel")) is not None and _norm(r.get("responsavel")) != responsavel:
             continue
-        if f.get("status") is not None and _norm(r.get("status")) != f["status"]:
+        if (status := f.get("status")) is not None and _norm(r.get("status")) != status:
             continue
-        if f.get("statusNot") is not None and _norm(r.get("status")) == f["statusNot"]:
+        if (status_not := f.get("statusNot")) is not None and _norm(r.get("status")) == status_not:
             continue
         if f.get("fechamentoEmpty") and _norm(r.get("fechamento")) != "":
             continue

@@ -1,4 +1,4 @@
-"""Feriados e fins de semana (mirrors backend/src/domain/offDays.ts)."""
+"""Feriados e fins de semana."""
 
 from __future__ import annotations
 

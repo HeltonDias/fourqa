@@ -1,4 +1,4 @@
-"""Persistência de data/hora (mirrors backend/src/domain/dates.ts)."""
+"""Persistência de data/hora."""
 
 from __future__ import annotations
 

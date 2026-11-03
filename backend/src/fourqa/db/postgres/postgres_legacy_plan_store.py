@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from fourqa.db.postgres.pool import as_number_or_null, as_text, query
+from typing import Any
+
+from fourqa.db.postgres.pool import as_int_or_null, as_number_or_null, as_text, query
 from fourqa.persistence.contracts import LegacyPlanRow
 
 
-def _row_of(row: dict[str, object]) -> LegacyPlanRow:
+def _row_of(row: dict[str, Any]) -> LegacyPlanRow:
     return {
-        "row_num": as_number_or_null(row.get("row_num")) or 0,
+        "row_num": as_int_or_null(row.get("row_num")) or 0,
         "qa": as_text(row.get("qa")),
         "prioridades": as_text(row.get("prioridades")),
         "frente": as_text(row.get("frente")),

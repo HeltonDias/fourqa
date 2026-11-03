@@ -28,7 +28,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 300,
-      "excludeFiles": "{.env,.env.*,certs/**,**/*.pem,backend/src/**/*.ts}"
+      "excludeFiles": "{.env,.env.*,certs/**,**/*.pem}"
     }
   }
 }

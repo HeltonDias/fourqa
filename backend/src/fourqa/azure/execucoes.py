@@ -9,6 +9,7 @@ from fourqa.azure.client import AzureClient
 from fourqa.azure.util import empty_to_null, map_in_batches, normalize
 from fourqa.domain.dates import persist_timestamp
 from fourqa.domain.dimensions import (
+    DimensionResolutionContext,
     build_dimension_catalog,
     detect_dimensions,
     dimension_definitions_for_plan,
@@ -42,7 +43,7 @@ async def load_plan_executions(
         {"known_fronts": known_fronts or []},
     )
     definitions = dimension_definitions_for_plan(plan["planKey"], hierarchy)
-    path_contexts = [
+    path_contexts: list[DimensionResolutionContext] = [
         {
             "path_names": [str(n.get("name") or "").strip() for n in s["path"]],
             "current_suite_name": str(s["path"][-1].get("name") or "").strip(),

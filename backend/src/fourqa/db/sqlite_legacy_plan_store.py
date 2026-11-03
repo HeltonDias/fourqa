@@ -1,4 +1,4 @@
-"""SQLite legacy plan store (mirrors backend/src/db/sqliteLegacyPlanStore.ts)."""
+"""SQLite legacy plan store."""
 
 from __future__ import annotations
 

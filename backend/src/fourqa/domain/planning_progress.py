@@ -1,4 +1,4 @@
-"""Progresso planejamento (mirrors backend/src/domain/planningProgress.ts)."""
+"""Progresso planejamento."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from fourqa.domain.graficos import business_days
 from fourqa.domain.plan_period import assert_stored_planning_period, parse_calendar_day
 from fourqa.domain.formulas import status_cenario
-from fourqa.types import ExecucaoRow, GraficoPontoDiaDetalhado, PlanningProgressSnapshot
+from fourqa.types import ExecucaoRow, GraficoPontoDiaDetalhado, PlanningProgressSnapshot, ProgressSituacao
 
 
 def _to_date_only(v: str | None) -> datetime | None:
@@ -51,7 +51,7 @@ def sum_allocations_by_day(allocations: list[dict[str, int]]) -> dict[str, int]:
     return plan_por_dia
 
 
-def situacao_progresso(planejado: int, realizado: int) -> PlanningProgressSnapshot["situacao"]:
+def situacao_progresso(planejado: float, realizado: float) -> ProgressSituacao:
     if realizado > planejado:
         return "adiantado"
     if realizado < planejado:

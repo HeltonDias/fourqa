@@ -1,4 +1,4 @@
-"""Planning cell optimistic base (mirrors backend/src/http/planningCellBase.ts)."""
+"""Planning cell optimistic base."""
 
 from __future__ import annotations
 

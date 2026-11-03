@@ -1,9 +1,10 @@
-"""Distribuição de planejamento (mirrors backend/src/domain/distribute.ts)."""
+"""Distribuição de planejamento."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
-from typing import Literal, TypedDict
+from typing import Any, Literal, Required, TypedDict
 
 from fourqa.domain.off_days import is_off_day, is_weekend_date
 from fourqa.domain.planning import calendar_date, dates_between
@@ -106,11 +107,11 @@ class AllocationDelta(TypedDict):
 
 
 class DistributionMode(TypedDict, total=False):
-    replace: bool
+    replace: Required[bool]
     total: int | None
 
 
-def _taken_quantity(allocations: list[dict[str, object]]) -> dict[str, int]:
+def _taken_quantity(allocations: list[dict[str, Any]]) -> dict[str, int]:
     previous: dict[str, int] = {}
     for row in allocations:
         day = calendar_date(str(row.get("date", "")))
@@ -143,7 +144,7 @@ def count_planning_balance(classifications: list[str]) -> dict[str, int]:
     return {"scope": scope, "finalized": finalized, "pending": scope - finalized}
 
 
-def quantity_outside_days(allocations: list[dict[str, object]], days: list[str]) -> int:
+def quantity_outside_days(allocations: list[dict[str, Any]], days: list[str]) -> int:
     window = set(days)
     total = 0
     for row in allocations:
@@ -156,7 +157,7 @@ def quantity_outside_days(allocations: list[dict[str, object]], days: list[str])
     return total
 
 
-def quantity_before_cut(allocations: list[dict[str, object]], cut: str) -> int:
+def quantity_before_cut(allocations: list[dict[str, Any]], cut: str) -> int:
     limit = calendar_date(cut)
     if not limit:
         return 0
@@ -170,10 +171,10 @@ def quantity_before_cut(allocations: list[dict[str, object]], cut: str) -> int:
 
 
 def saldo_deltas(
-    allocations: list[dict[str, object]],
+    allocations: list[dict[str, Any]],
     days: list[str],
     strategy: DistributionStrategy,
-    mode: dict[str, object],
+    mode: dict[str, Any],
 ) -> list[AllocationDelta] | None:
     pending = mode.get("pending")
     if not isinstance(pending, int) or pending < 0:
@@ -197,7 +198,7 @@ def saldo_deltas(
     return allocation_deltas(window_rows, days, strategy, {"replace": replace, "total": to_place})
 
 
-def trim_allocations_to_keep(allocations: list[dict[str, object]], keep: int) -> list[AllocationDelta]:
+def trim_allocations_to_keep(allocations: Sequence[Mapping[str, Any]], keep: int) -> list[AllocationDelta]:
     if not isinstance(keep, int) or keep < 0:
         raise ValueError("Quantidade finalizada inválida.")
     by_date: dict[str, int] = {}
@@ -225,7 +226,7 @@ def trim_allocations_to_keep(allocations: list[dict[str, object]], keep: int) ->
 
 
 def allocation_deltas(
-    allocations: list[dict[str, object]],
+    allocations: list[dict[str, Any]],
     days: list[str],
     strategy: DistributionStrategy,
     mode: DistributionMode | None = None,
@@ -258,14 +259,14 @@ def allocation_deltas(
 
 
 class DistributionShare(TypedDict, total=False):
-    key: str
-    total: int
-    allocations: list[dict[str, object]]
+    key: Required[str]
+    total: Required[int]
+    allocations: list[dict[str, Any]]
     clear_window: bool
 
 
 def _deal_days(
-    quotas: list[dict[str, object]],
+    quotas: list[dict[str, Any]],
     days: list[str],
     curve: list[int],
 ) -> dict[str, dict[str, int]]:
@@ -336,7 +337,7 @@ def apportion_distribution(
             next_map = {day: assigned.get(day, 0) for day in days}
             result[share["key"]] = _deltas_from(previous, next_map)
         return result
-    remainders: list[dict[str, object]] = []
+    remainders: list[dict[str, Any]] = []
     for share, previous in active:
         locked = sum(previous.values())
         quota = max(0, share["total"] - locked)

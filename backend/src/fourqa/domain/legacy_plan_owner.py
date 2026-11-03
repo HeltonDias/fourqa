@@ -1,4 +1,4 @@
-"""Legado planejamento_linhas (mirrors backend/src/domain/legacyPlanOwner.ts)."""
+"""Legado planejamento_linhas."""
 
 
 def is_legacy_plan_owner(plan_key: str, owner: str | None) -> bool:

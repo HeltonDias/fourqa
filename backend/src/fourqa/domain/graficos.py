@@ -1,6 +1,8 @@
-"""Gráficos Home (mirrors backend/src/domain/graficos.ts)."""
+"""Gráficos Home."""
 
 from __future__ import annotations
+
+from collections.abc import Mapping
 
 import re
 from datetime import datetime, timezone
@@ -140,7 +142,7 @@ def planejado_vs_realizado(
     return pontos
 
 
-def status_execucoes(totais: dict[str, int]) -> list[GraficoFatia]:
+def status_execucoes(totais: Mapping[str, float]) -> list[GraficoFatia]:
     return [
         {"key": "passeds", "label": "CTS Passeds", "value": totais.get("passeds", 0)},
         {"key": "na", "label": "CTS N/A", "value": totais.get("na", 0)},

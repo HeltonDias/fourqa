@@ -1,4 +1,4 @@
-"""PostgreSQL pool (mirrors backend/src/db/postgres/pool.ts — psycopg)."""
+"""PostgreSQL pool."""
 
 from __future__ import annotations
 
@@ -7,17 +7,24 @@ import re
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, TypeVar
+from typing import Any, AsyncIterator, Callable, LiteralString, TypeVar, cast
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from psycopg import AsyncConnection, AsyncCursor
-from psycopg.rows import dict_row
+from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from fourqa.azure.config import env_value
 
 _ssl_query_keys = frozenset({"sslmode", "ssl", "uselibpqcompat", "sslrootcert", "sslcert", "sslkey"})
 _placeholder = re.compile(r"\$(\d+)")
+
+PgConnection = AsyncConnection[DictRow]
+
+
+def trusted_sql(text: str) -> LiteralString:
+    """Somente SQL escrito no repositório (constantes, migrations, nomes de coluna fixos); nunca entrada do usuário."""
+    return cast(LiteralString, text)
 
 
 def adapt_placeholders(sql: str, params: Any) -> tuple[str, Any]:
@@ -39,7 +46,7 @@ _cursor_execute = AsyncCursor.execute
 
 async def _execute_adapted(self: AsyncCursor, query: str, params: Any = None, **kwargs: Any):
     query, params = adapt_placeholders(query, params)
-    return await _cursor_execute(self, query, params, **kwargs)
+    return await _cursor_execute(self, trusted_sql(query), params, **kwargs)
 
 
 AsyncCursor.execute = _execute_adapted  # type: ignore[method-assign]
@@ -123,9 +130,9 @@ def bind_postgres_test_pool(next_pool: Any | None) -> None:
 
 
 @lru_cache(maxsize=1)
-def get_pool() -> AsyncConnectionPool:
+def get_pool() -> AsyncConnectionPool[PgConnection]:
     if _test_pool is not None:
-        return _test_pool  # type: ignore[return-value]
+        return cast(AsyncConnectionPool[PgConnection], _test_pool)
     url = _strip_ssl_params(database_url())
     parsed = urlparse(url)
     if not parsed.hostname:
@@ -147,7 +154,7 @@ def get_pool() -> AsyncConnectionPool:
         kwargs["kwargs"]["sslmode"] = "require"
         if isinstance(ssl, dict) and ssl.get("ca"):
             kwargs["kwargs"]["sslrootcert"] = ssl["ca"]
-    return AsyncConnectionPool(open=False, **kwargs)
+    return AsyncConnectionPool(open=False, connection_class=PgConnection, **kwargs)
 
 
 async def query(sql: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
@@ -156,19 +163,19 @@ async def query(sql: str, params: list[Any] | None = None) -> list[dict[str, Any
         await pool.open()
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
-            await cur.execute(sql, params or [])
+            await cur.execute(trusted_sql(sql), params or [])
             rows = await cur.fetchall()
             return list(rows)
 
 
-async def with_transaction(fn: Callable[[AsyncConnection], Any], lock_sql: str | None = None) -> T:
+async def with_transaction(fn: Callable[[PgConnection], Any], lock_sql: str | None = None) -> Any:
     pool = get_pool()
     if pool.closed:
         await pool.open()
     async with pool.connection() as conn:
         async with conn.transaction():
             if lock_sql:
-                await conn.execute(lock_sql)
+                await conn.execute(trusted_sql(lock_sql))
             return await fn(conn)
 
 
@@ -190,6 +197,11 @@ def as_number_or_null(value: Any) -> int | float | None:
     if value is None:
         return None
     return as_number(value)
+
+
+def as_int_or_null(value: Any) -> int | None:
+    number = as_number_or_null(value)
+    return None if number is None else int(number)
 
 
 def as_text(value: Any) -> str | None:

@@ -1,4 +1,4 @@
-"""Plan key parsing (mirrors backend/src/persistence/planKey.ts)."""
+"""Plan key parsing."""
 
 from __future__ import annotations
 

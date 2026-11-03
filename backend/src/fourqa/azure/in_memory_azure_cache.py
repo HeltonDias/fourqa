@@ -58,11 +58,11 @@ class InMemoryAzureCache:
                 "kpi": deepcopy(plan["kpi"]) if plan.get("kpi") else None,
                 "fetchedAt": at,
             }
-        self._plans = next_plans
+        self._plans = {**self._plans, **next_plans}
         self._fetched_at = at
         self._stale = False
         self._kpi_plan_key = draft["kpiPlanKey"]
-        self._generation_meta = dict(artifacts["workbookMeta"])
+        self._generation_meta = {**(self._generation_meta or {}), **artifacts["workbookMeta"]}
 
     def has_published_generation(self) -> bool:
         return self._generation_meta is not None

@@ -11,6 +11,7 @@ dependencies = [
   "psycopg[binary,pool]>=3.2.0",
   "python-multipart>=0.0.18",
   "holidays>=0.63",
+  "cryptography>=43",
 ]
 
 [project.optional-dependencies]
@@ -30,12 +31,6 @@ pythonpath = ["src"]
 include = ["src"]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
-reportArgumentType = "none"
-reportGeneralTypeIssues = "none"
-reportOptionalMemberAccess = "none"
-reportUnknownMemberType = "none"
-reportUnknownArgumentType = "none"
-reportUnknownVariableType = "none"
 
 [build-system]
 requires = ["hatchling"]

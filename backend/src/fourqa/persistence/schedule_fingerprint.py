@@ -1,4 +1,4 @@
-"""Fingerprint de cronograma (mirrors backend/src/persistence/scheduleFingerprint.ts)."""
+"""Fingerprint de cronograma."""
 
 from __future__ import annotations
 

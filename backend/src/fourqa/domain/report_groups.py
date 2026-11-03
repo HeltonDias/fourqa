@@ -1,4 +1,4 @@
-"""Agrupamento Report (mirrors backend/src/domain/reportGroups.ts)."""
+"""Agrupamento Report."""
 
 from __future__ import annotations
 

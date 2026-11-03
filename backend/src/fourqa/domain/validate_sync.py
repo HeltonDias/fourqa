@@ -1,8 +1,9 @@
-"""Validação pós-sync (mirrors backend/src/domain/validateSync.ts)."""
+"""Validação pós-sync."""
 
 from __future__ import annotations
 
-from typing import TypedDict
+from collections.abc import Mapping, Sequence
+from typing import Any, TypedDict
 
 from fourqa.domain.formulas import StatusCenario, classify_execution
 from fourqa.types import ExecucaoRow, FalhaRow
@@ -33,9 +34,9 @@ _STATUS: list[StatusCenario] = [
 
 def validate_sync_result(
     *,
-    execucoes: list[ExecucaoRow],
-    falhas: list[FalhaRow],
-    suites: list[SyncSuiteRef],
+    execucoes: Sequence[Mapping[str, Any]],
+    falhas: Sequence[Mapping[str, Any]],
+    suites: Sequence[Mapping[str, Any]],
 ) -> None:
     errors: list[str] = []
 

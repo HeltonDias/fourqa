@@ -1,4 +1,4 @@
-"""Conflitos de concorrência (mirrors backend/src/persistence/planningConflict.ts)."""
+"""Conflitos de concorrência."""
 
 
 class PlanningConflictError(Exception):

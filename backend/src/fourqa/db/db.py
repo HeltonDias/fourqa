@@ -1,4 +1,4 @@
-"""SQLite access for tests (mirrors backend/src/db.ts)."""
+"""SQLite access for tests."""
 
 from __future__ import annotations
 

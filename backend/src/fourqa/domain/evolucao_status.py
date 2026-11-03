@@ -1,4 +1,4 @@
-"""Status evolução (mirrors backend/src/domain/evolucaoStatus.ts)."""
+"""Status evolução."""
 
 from __future__ import annotations
 

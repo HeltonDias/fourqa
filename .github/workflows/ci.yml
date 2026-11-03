@@ -25,6 +25,7 @@ jobs:
             exit 1
           fi
       - run: npm run typecheck
+      - run: npm run typecheck:backend
       - run: npm test
       - run: npm run formulas:parity
       - run: npm run build

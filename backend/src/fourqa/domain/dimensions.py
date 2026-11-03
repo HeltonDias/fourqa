@@ -1,10 +1,11 @@
-"""Dimensões dinâmicas (mirrors backend/src/domain/dimensions.ts)."""
+"""Dimensões dinâmicas."""
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Literal, TypedDict
+from collections.abc import Mapping, Sequence
+from typing import Any, Literal, Required, TypedDict
 
 DimensionRole = Literal["priority", "front", "process", "subprocess", "generic"]
 
@@ -12,9 +13,9 @@ PRIORITY_NAME = re.compile(r"^(prioridade\s*\d+|p\s*\d+)$", re.I)
 
 
 class DetectedDimension(TypedDict, total=False):
-    key: str
-    label: str
-    level: int
+    key: Required[str]
+    label: Required[str]
+    level: Required[int]
     values: list[str]
     role: DimensionRole
     confidence: float
@@ -48,10 +49,10 @@ class DimensionDefinition(TypedDict):
 
 class HierarchyConfigInput(TypedDict, total=False):
     order: int
-    column_name: str
+    column_name: Required[str]
     source_level: str
     active: bool
-    plan_key: str
+    plan_key: Required[str]
     source_type: Literal["hierarchy_level", "current_suite"]
 
 
@@ -97,7 +98,7 @@ def _resolve_source_value(context: DimensionResolutionContext, source: Dimension
     return (context["path_names"][index] or "").strip()
 
 
-def dimension_definitions_for_plan(plan_key: str, entries: list[HierarchyConfigInput]) -> list[DimensionDefinition]:
+def dimension_definitions_for_plan(plan_key: str, entries: Sequence[Mapping[str, Any]]) -> list[DimensionDefinition]:
     norm = lambda value: value.strip().lower()
     keyed = [e for e in entries if e.get("active") and e.get("plan_key") and norm(e["plan_key"]) == norm(plan_key)]
     chosen = keyed if keyed else [e for e in entries if e.get("active") and not (e.get("plan_key") or "").strip()]
@@ -143,7 +144,7 @@ def resolve_dimension_values(
 def build_dimension_catalog(
     definitions: list[DimensionDefinition],
     suggestions: list[DetectedDimension],
-    paths: list[DimensionResolutionContext],
+    paths: Sequence[DimensionResolutionContext],
 ) -> list[DetectedDimension]:
     values_by_key: dict[str, set[str]] = {}
     for path in paths:
@@ -165,7 +166,7 @@ def build_dimension_catalog(
                 "visible": True,
             }
         )
-    suggested = [
+    suggested: list[DetectedDimension] = [
         {
             **dim,
             "values": sorted(
@@ -306,7 +307,7 @@ def values_for_path(ancestors: list[dict[str, str]], dims: list[DetectedDimensio
     return resolve_dimension_values({"path_names": path_names, "current_suite_name": leaf}, [], dims)
 
 
-def infer_dimensions(rows: list[dict[str, str | None]]) -> list[DetectedDimension]:
+def infer_dimensions(rows: Sequence[Mapping[str, Any]]) -> list[DetectedDimension]:
     from_json: dict[str, set[str]] = {}
     for row in rows:
         raw = row.get("dimensions_json")
@@ -324,7 +325,7 @@ def infer_dimensions(rows: list[dict[str, str | None]]) -> list[DetectedDimensio
     if from_json:
         out: list[DetectedDimension] = []
         for key, values in from_json.items():
-            level = int(re.search(r"(\d+)$", key).group(1)) if re.search(r"(\d+)$", key) else 1
+            level = int(m.group(1)) if (m := re.search(r"(\d+)$", key)) else 1
             if key.startswith("priority"):
                 role: DimensionRole = "priority"
             elif key.startswith("front"):

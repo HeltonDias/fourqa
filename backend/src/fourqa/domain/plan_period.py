@@ -1,4 +1,4 @@
-"""Período do plano (mirrors backend/src/domain/planPeriod.ts)."""
+"""Período do plano."""
 
 from __future__ import annotations
 

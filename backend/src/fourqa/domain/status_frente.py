@@ -1,4 +1,4 @@
-"""Indicadores por frente (mirrors backend/src/domain/statusFrente.ts)."""
+"""Indicadores por frente."""
 
 from __future__ import annotations
 

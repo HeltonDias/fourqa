@@ -25,7 +25,10 @@ class AzureClient:
     def __init__(self, cfg: dict[str, str]) -> None:
         self._cfg = cfg
         token = cfg["pat"]
-        self._authorization = "Basic " + base64.b64encode(f":{token}".encode()).decode()
+        if token.startswith(("Basic ", "Bearer ")):
+            self._authorization = token
+        else:
+            self._authorization = "Basic " + base64.b64encode(f":{token}".encode()).decode()
         org = quote(cfg["organization"])
         project = quote(cfg["project"])
         self.base_url = f"https://dev.azure.com/{org}/{project}"

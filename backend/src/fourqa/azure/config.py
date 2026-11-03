@@ -1,4 +1,4 @@
-"""Azure/sync config (mirrors backend/src/azure/config.ts — env helpers)."""
+"""Azure/sync config."""
 
 from __future__ import annotations
 

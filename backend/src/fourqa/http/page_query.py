@@ -1,25 +1,28 @@
-"""Pagination query (mirrors backend/src/http/pageQuery.ts)."""
+"""Pagination query."""
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
 
-
-class PageQuery(TypedDict):
-    limit: int
-    offset: int
-    q: str
-
+from fourqa.persistence.contracts import PageParams
 
 PAGE_MIN = 1
 PAGE_MAX = 200
+PAGE_DEFAULT = 50
 
 
-def parse_page_query(query: dict[str, Any]) -> PageQuery:
-    limit_raw = query.get("limit")
-    limit = min(PAGE_MAX, max(PAGE_MIN, int(float(limit_raw)) if limit_raw is not None else 50))
-    offset_raw = query.get("offset")
-    offset = max(0, int(float(offset_raw)) if offset_raw is not None else 0)
+def _int_or(raw: Any, default: int) -> int:
+    if raw is None:
+        return default
+    try:
+        return int(float(raw))
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def parse_page_query(query: dict[str, Any], plan_key: str) -> PageParams:
+    limit = min(PAGE_MAX, max(PAGE_MIN, _int_or(query.get("limit"), PAGE_DEFAULT)))
+    offset = max(0, _int_or(query.get("offset"), 0))
     q_raw = query.get("q")
     q = q_raw.strip()[:200] if isinstance(q_raw, str) else ""
-    return {"limit": limit, "offset": offset, "q": q}
+    return {"plan_key": plan_key, "limit": limit, "offset": offset, "q": q}

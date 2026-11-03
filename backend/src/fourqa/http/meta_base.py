@@ -1,4 +1,4 @@
-"""Meta pair base parsing (mirrors backend/src/http/metaBase.ts)."""
+"""Meta pair base parsing."""
 
 from __future__ import annotations
 

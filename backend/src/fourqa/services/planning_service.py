@@ -1,9 +1,10 @@
-"""Planning service (mirrors backend/src/services/planningService.ts)."""
+"""Planning service."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from collections.abc import Iterable, Mapping, Sequence
+from datetime import datetime, timezone
 from typing import Any
 
 from fourqa.domain.legacy_plan_owner import is_legacy_plan_owner
@@ -22,7 +23,7 @@ from fourqa.domain.planning import (
     schedule_of,
     scope_integrity_message,
 )
-from fourqa.domain.dimensions import infer_dimensions
+from fourqa.domain.dimensions import DetectedDimension, infer_dimensions
 from fourqa.domain.formulas import classify_execution, metricas_dos_pontos
 from fourqa.domain.distribute import (
     DISTRIBUTION_ASSIGNMENT,
@@ -34,13 +35,19 @@ from fourqa.domain.distribute import (
     shift_calendar_day,
     trim_allocations_to_keep,
 )
+from fourqa.persistence.contracts import LegacyPlanRow, PlanningItemWrite, PlanningScopeWrite
 from fourqa.persistence.planning_conflict import PlanningConflictError
 from fourqa.persistence.provider import get_stores
 from fourqa.persistence.schedule_fingerprint import schedule_fingerprint
+from fourqa.types import ExecucaoRow
 
 
 async def _stores():
     return await get_stores()
+
+
+def _utc_stamp() -> str:
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
 
 
 def _hoje_local() -> str:
@@ -57,7 +64,7 @@ def _meta(bag: dict[str, str | None], key: str) -> str | None:
     return bag.get(key)
 
 
-async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) -> list[dict[str, Any]]:
+async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) -> list[LegacyPlanRow]:
     stores = await _stores()
     owner = _meta(bag, "planejamento_legado_plan_key") if bag else await stores["meta"].get("planejamento_legado_plan_key")
     if not is_legacy_plan_owner(plan_key, owner):
@@ -66,7 +73,7 @@ async def _legacy_base(plan_key: str, bag: dict[str, str | None] | None = None) 
     return [r for r in rows if not __import__("re").search(r"valores\s+totais", str(r.get("processo") or ""), __import__("re").I)]
 
 
-def _dims_of(row: dict[str, Any]) -> dict[str, str]:
+def _dims_of(row: Mapping[str, Any]) -> dict[str, str]:
     raw = row.get("dimensions_json")
     if not raw:
         return {}
@@ -77,7 +84,7 @@ def _dims_of(row: dict[str, Any]) -> dict[str, str]:
         return {}
 
 
-def _catalog(plan_key: str, rows: list[dict[str, Any]], bag: dict[str, str | None]) -> list[dict[str, Any]]:
+def _catalog(plan_key: str, rows: Sequence[ExecucaoRow], bag: dict[str, str | None]) -> list[DetectedDimension]:
     raw = _meta(bag, f"dimensoes_catalog:{plan_key}")
     if raw:
         try:
@@ -95,7 +102,7 @@ def _scope_note(origin: str, snapshot: bool, added: int, removed: int) -> str | 
     return scope_integrity_message(scope_snapshot_available=snapshot, added_count=added, removed_count=removed)
 
 
-def _scope_of_group(sample: dict[str, Any] | None, scope: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _scope_of_group(sample: Mapping[str, Any] | None, scope: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     if not sample:
         return []
     if sample.get("suite_id") is not None:
@@ -120,7 +127,7 @@ async def get_planning_view(plan_key: str, version: int | None = None) -> dict[s
     editable = version is None
     snapshot = bool(revision and revision.get("scope_snapshot") == 1)
     baseline_scope = await planning.load_scope(revision["id"]) if revision and snapshot else []
-    source_scope = [
+    source_scope: list[PlanningScopeWrite] = [
         {
             "plan_id": r.get("plan_id"),
             "suite_id": r.get("suite_id"),
@@ -148,7 +155,7 @@ async def get_planning_view(plan_key: str, version: int | None = None) -> dict[s
     )
     legacy_rows = await _legacy_base(plan_key, bag)
     legacy = {(r.get("processo") or "").strip().lower(): r for r in legacy_rows}
-    groups: dict[str, list[dict[str, Any]]] = {}
+    groups: dict[str, list[ExecucaoRow]] = {}
     for index, row in enumerate(exec_rows):
         key = previous_fill_key({"suite_id": row.get("suite_id"), "test_point_id": row.get("test_point_id") if row.get("suite_id") is None else None}) or f"loose:{index}"
         groups.setdefault(key, []).append(row)
@@ -293,7 +300,7 @@ async def get_planning_view(plan_key: str, version: int | None = None) -> dict[s
     }
 
 
-def _legacy_planning_view(plan_key: str, as_of: str, legacy_rows: list[dict[str, Any]], exec_rows: list[dict[str, Any]], source_count: int) -> dict[str, Any]:
+def _legacy_planning_view(plan_key: str, as_of: str, legacy_rows: list[LegacyPlanRow], exec_rows: list[ExecucaoRow], source_count: int) -> dict[str, Any]:
     points = [assess_point(r) for r in exec_rows]
     metrics = metricas_dos_pontos(exec_rows)
     cancelados = sum(float(r.get("cts_cancelados") or 0) for r in legacy_rows)
@@ -318,8 +325,8 @@ def _legacy_planning_view(plan_key: str, as_of: str, legacy_rows: list[dict[str,
                 "responsavel": None,
                 "prioridade": None,
                 "dimensions": {
-                    **({"prioridades": row["prioridades"].strip()} if has_priority and (row.get("prioridades") or "").strip() else {}),
-                    **({"frente": row["frente"].strip()} if has_front and (row.get("frente") or "").strip() else {}),
+                    **({"prioridades": (row.get("prioridades") or "").strip()} if has_priority and (row.get("prioridades") or "").strip() else {}),
+                    **({"frente": (row.get("frente") or "").strip()} if has_front and (row.get("frente") or "").strip() else {}),
                 },
                 "plannedStart": calendar_date(row.get("data_inicio")),
                 "plannedEnd": calendar_date(row.get("data_fim")),
@@ -403,7 +410,7 @@ async def get_planning_history(plan_key: str, limit: int = 300) -> dict[str, Any
     return {"supported": True, "entries": [_entry_camel(e) for e in entries]}
 
 
-def _entry_camel(e: dict[str, Any]) -> dict[str, Any]:
+def _entry_camel(e: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "id": e.get("id"),
         "createdAt": e.get("created_at"),
@@ -425,7 +432,7 @@ async def confirm_or_revise(plan_key: str, input: dict[str, Any]) -> dict[str, A
     if not input.get("adoptSource", True) and (not current or current.get("scope_snapshot") != 1):
         raise ValueError("Confirme um baseline com snapshot antes de replanejar.")
     scope = await _source_scope(plan_key) if input.get("adoptSource", True) or not current else await planning.load_scope(current["id"])
-    now = datetime.utcnow().isoformat() + "Z"
+    now = _utc_stamp()
     source_schedule = await planning.load_schedule(current["id"]) if current else []
     items = (
         await _copied_schedule(current["id"])
@@ -449,7 +456,7 @@ async def confirm_or_revise(plan_key: str, input: dict[str, Any]) -> dict[str, A
     return await get_planning_view(plan_key)
 
 
-async def _source_scope(plan_key: str) -> list[dict[str, Any]]:
+async def _source_scope(plan_key: str) -> list[PlanningScopeWrite]:
     exec_rows = await (await _stores())["azure_snapshot"].list_execucoes(plan_key)
     return [
         {
@@ -464,8 +471,11 @@ async def _source_scope(plan_key: str) -> list[dict[str, Any]]:
     ]
 
 
-async def _copied_schedule(revision_id: int) -> list[dict[str, Any]]:
-    rows = await (await _stores())["planning"].load_schedule(revision_id)
+async def _copied_schedule(revision_id: int) -> list[PlanningItemWrite]:
+    return _item_writes(await (await _stores())["planning"].load_schedule(revision_id))
+
+
+def _item_writes(rows: Iterable[Mapping[str, Any]]) -> list[PlanningItemWrite]:
     return [
         {
             "suite_id": r.get("suite_id"),
@@ -483,26 +493,21 @@ async def _copied_schedule(revision_id: int) -> list[dict[str, Any]]:
     ]
 
 
-async def _items_for_new_revision(plan_key: str, scope: list[dict[str, Any]], previous_revision_id: int | None) -> list[dict[str, Any]]:
+async def _items_for_new_revision(
+    plan_key: str, scope: Sequence[Mapping[str, Any]], previous_revision_id: int | None
+) -> list[PlanningItemWrite]:
     exec_rows = await (await _stores())["azure_snapshot"].list_execucoes(plan_key)
-    names = {r["suite_id"]: r["suite_name"] for r in exec_rows if r.get("suite_id") is not None and r.get("suite_name")}
+    names = {r.get("suite_id"): r.get("suite_name") for r in exec_rows if r.get("suite_id") is not None and r.get("suite_name")}
     legacy = {(r.get("processo") or "").strip().lower(): r for r in await _legacy_base(plan_key)}
     previous = [] if previous_revision_id is None else await _copied_schedule(previous_revision_id)
-    return schedule_items_for_scope(
-        {
-            "scope": scope,
-            "suiteNames": names,
-            "previous": previous,
-            "inherited": lambda suite_name: (
-                {
-                    "start": calendar_date(legacy[suite_name.strip().lower()]["data_inicio"]),
-                    "end": calendar_date(legacy[suite_name.strip().lower()]["data_fim"]),
-                }
-                if suite_name.strip().lower() in legacy
-                else None
-            ),
-        }
-    )
+
+    def inherited(suite_name: str) -> dict[str, str | None] | None:
+        row = legacy.get(suite_name.strip().lower())
+        if row is None:
+            return None
+        return {"start": calendar_date(row.get("data_inicio")), "end": calendar_date(row.get("data_fim"))}
+
+    return _item_writes(schedule_items_for_scope(scope=scope, suite_names=names, previous=previous, inherited=inherited))
 
 
 async def save_planning_cell(plan_key: str, input: dict[str, Any]) -> dict[str, Any]:
@@ -694,7 +699,7 @@ async def distribute_planning(plan_key: str, input: dict[str, Any]) -> dict[str,
     if not days:
         raise ValueError("Nenhum dia habilitado nesse período.")
     scope = await (await _stores())["planning"].load_scope(revision["id"]) if revision else await _source_scope(plan_key)
-    schedule = await (await _stores())["planning"].load_schedule(revision["id"]) if revision else []
+    schedule: Sequence[Mapping[str, Any]] = await (await _stores())["planning"].load_schedule(revision["id"]) if revision else []
     if not schedule and not preview:
         schedule = [{"id": -(i + 1), **item} for i, item in enumerate(await _items_for_new_revision(plan_key, scope, None))]
     balances = await _balance_by_suite(plan_key, scope)
@@ -810,7 +815,7 @@ async def _ensure_operational_revision(plan_key: str) -> None:
     if current and current.get("scope_snapshot") == 1:
         return
     scope = await _source_scope(plan_key)
-    now = datetime.utcnow().isoformat() + "Z"
+    now = _utc_stamp()
     scheduled = await planning.load_schedule(current["id"]) if current else []
     items = await _copied_schedule(current["id"]) if current and scheduled else await _items_for_new_revision(plan_key, scope, current["id"] if current else None)
     source_schedule = await planning.load_schedule(current["id"]) if current else []
@@ -830,15 +835,16 @@ async def _ensure_operational_revision(plan_key: str) -> None:
     )
 
 
-async def _balance_by_suite(plan_key: str, scope: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+async def _balance_by_suite(plan_key: str, scope: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
     exec_rows = await (await _stores())["azure_snapshot"].list_execucoes(plan_key)
-    exec_by_point = {r["test_point_id"]: r for r in exec_rows if r.get("test_point_id") is not None}
+    exec_by_point = {point: r for r in exec_rows if (point := r.get("test_point_id")) is not None}
     groups: dict[str, list[str]] = {}
     for ref in scope:
         key = previous_fill_key({"suite_id": ref.get("suite_id"), "test_point_id": ref.get("test_point_id")})
         if not key:
             continue
-        row = exec_by_point.get(ref.get("test_point_id"))
+        point = ref.get("test_point_id")
+        row = exec_by_point.get(point) if point is not None else None
         classification = classify_execution(row) if row else "pendente"
         groups.setdefault(key, []).append(classification)
     return {k: count_planning_balance(v) for k, v in groups.items()}
