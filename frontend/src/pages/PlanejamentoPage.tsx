@@ -25,6 +25,7 @@ import {
   resolvePlanningDates,
   resolvePlanningRange,
   rowKey,
+  shareUnchangedItems,
   soma,
   uniqueMonthKeys,
   type ColumnSort,
@@ -33,11 +34,15 @@ import { useReportChrome } from "../context/ReportChromeContext";
 import type { PlanningItem, PlanningView } from "../types";
 
 export function PlanejamentoPage() {
-  const { dataVersion, home, planKey: chromePlanKey } = useReportChrome();
+  const { dataVersion, home, planKey: chromePlanKey, canWrite } = useReportChrome();
   const [tab, setTab] = useState<PlanningTabId>("acompanhamento");
   const [planejarSubview, setPlanejarSubview] = useState<"grid" | "history">("grid");
   const [version, setVersion] = useState<number | undefined>(undefined);
-  const [view, setView] = useState<PlanningView | null>(null);
+  const [view, setViewRaw] = useState<PlanningView | null>(null);
+  const setView = useCallback(
+    (next: PlanningView | null) => setViewRaw((prev) => shareUnchangedItems(prev, next)),
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -262,7 +267,7 @@ export function PlanejamentoPage() {
 
   const scopedPlanKey = view?.planning.planKey?.trim() || chromePlanKey || undefined;
   const summary = view?.summary;
-  const canEdit = version == null;
+  const canEdit = version == null && canWrite;
   const confirmed = view?.revision?.baselineOrigin === "motor";
   const baseline = summary ? (summary.sourceCount > 0 ? summary.sourceCount : summary.baselineCount) : 0;
 

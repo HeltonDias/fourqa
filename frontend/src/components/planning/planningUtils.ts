@@ -206,6 +206,22 @@ export function rowKey(item: PlanningItem): string {
   return `${item.suiteId ?? "s"}-${item.testPointId ?? "p"}-${item.suiteName}`;
 }
 
+/** Reaproveita os itens que não mudaram, para a grade memoizada não redesenhar linhas iguais. */
+export function shareUnchangedItems(prev: PlanningView | null, next: PlanningView | null): PlanningView | null {
+  if (!prev || !next || prev.planning.planKey !== next.planning.planKey) return next;
+  const previous = new Map(prev.items.map((item) => [rowKey(item), item]));
+  let reused = 0;
+  const items = next.items.map((item) => {
+    const old = previous.get(rowKey(item));
+    if (old && JSON.stringify(old) === JSON.stringify(item)) {
+      reused += 1;
+      return old;
+    }
+    return item;
+  });
+  return reused > 0 ? { ...next, items } : next;
+}
+
 export function isPriority(col: { kind: string; label: string; dimKey?: string }): boolean {
   return /prior/i.test(`${col.label} ${col.dimKey ?? ""}`);
 }

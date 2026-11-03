@@ -8,14 +8,17 @@ function atNoon(iso: string): Date | null {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
 }
 
+const holidayCache = new Map<string, string | null>();
+
 /** Nome do feriado público nacional (date-holidays, país BR). */
 export function holidayName(iso: string): string | null {
+  const cached = holidayCache.get(iso);
+  if (cached !== undefined) return cached;
   const date = atNoon(iso);
-  if (!date) return null;
-  const hits = brHolidays.isHoliday(date);
-  if (!hits) return null;
-  const holiday = hits.find((row) => row.type === "public");
-  return holiday?.name ?? null;
+  const hits = date ? brHolidays.isHoliday(date) : false;
+  const name = hits ? (hits.find((row) => row.type === "public")?.name ?? null) : null;
+  holidayCache.set(iso, name);
+  return name;
 }
 
 export function isHolidayDate(iso: string): boolean {
