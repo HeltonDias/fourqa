@@ -1,56 +1,79 @@
 :root,
 html[data-theme="light"] {
   color-scheme: light;
-  --ink: #22233d;
-  --accent: #ff6333;
+  /* Marca Foursys — .cursor/docs/DESIGN_SYSTEM.md (DEC-034) */
+  --navy: #222239;
+  --navy-mid: #2e2e4f;
+  --orange: #ff5315;
+  --orange-focus: #e8470c;
+  --orange-ink: #c2400d;
+  --vanilla: #ffe2a9;
+  --mint: #89bab1;
+  --mint-deep: #4f8a80;
+  --ok: #4caf50;
+  --warn: #fb8c00;
+  --danger: #f44335;
+  --neutral: #8a8ca3;
+  --hero-bg:
+    radial-gradient(circle at 88% 18%, rgba(255, 83, 21, 0.38), transparent 42%),
+    radial-gradient(circle at 8% 92%, rgba(137, 186, 177, 0.28), transparent 40%),
+    linear-gradient(135deg, #222239 0%, #2e2e4f 100%);
+  --font-sans: "Roboto", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Roboto Slab", "Roboto", Georgia, serif;
+  --radius-xl: 16px;
+  --shadow-card: 0 8px 26px -4px rgba(34, 34, 57, 0.12), 0 8px 9px -5px rgba(34, 34, 57, 0.05);
+  --shadow-xxl: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+
+  --ink: var(--navy);
+  --accent: var(--orange);
   --chrome-bg: #ffffff;
-  --chrome-ink: #22233d;
-  --chrome-muted: #5c6780;
-  --chrome-line: rgba(34, 35, 61, 0.1);
-  --chrome-hover: rgba(34, 35, 61, 0.06);
+  --chrome-ink: var(--navy);
+  --chrome-muted: #5b5d75;
+  --chrome-line: rgba(34, 34, 57, 0.1);
+  --chrome-hover: rgba(34, 34, 57, 0.06);
   --sidebar-bg: #ffffff;
   --topbar-bg: #ffffff;
-  --sidebar-text: #5c6780;
-  --sidebar-active: #22233d;
-  --sidebar-active-bg: #fff1eb;
+  --sidebar-text: #5b5d75;
+  --sidebar-active: var(--navy);
+  --sidebar-active-bg: #fff0ea;
   --sidebar-width: 217px;
   --sidebar-collapsed: 72px;
-  --page-bg: #f5f6fa;
-  --glow: radial-gradient(440px 280px at 100% 100%, rgba(255, 99, 51, 0.14), transparent 70%);
+  --page-bg: #f6f5f2;
+  --glow: radial-gradient(440px 280px at 100% 100%, rgba(255, 83, 21, 0.14), transparent 70%);
   --card-bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f4f6fa;
-  --text: #22233d;
-  --muted: #5c6780;
-  --border: #e4e7ef;
-  --tertiary: #ff6333;
-  --tertiary-hover: #e64910;
-  --tertiary-soft: #fff1eb;
-  --tertiary-soft-border: #ffc9b0;
-  --tertiary-muted: #ffb088;
-  --tertiary-ink: #c43d0f;
+  --surface-2: #f2f1ed;
+  --text: var(--navy);
+  --muted: #5b5d75;
+  --border: #e6e4df;
+  --tertiary: var(--orange);
+  --tertiary-hover: var(--orange-focus);
+  --tertiary-soft: #fff0ea;
+  --tertiary-soft-border: #ffc7b0;
+  --tertiary-muted: #ffab8a;
+  --tertiary-ink: var(--orange-ink);
   --primary: var(--tertiary);
   --primary-hover: var(--tertiary-hover);
   --radius: 12px;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   color: var(--text);
   background: var(--page-bg);
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --chrome-bg: #22233d;
+  --chrome-bg: var(--navy);
   --chrome-ink: #f7f8fc;
   --chrome-muted: #b7c0d4;
   --chrome-line: rgba(255, 255, 255, 0.08);
   --chrome-hover: rgba(255, 255, 255, 0.08);
   --sidebar-bg: var(--topbar-bg);
-  --topbar-bg: #262844;
+  --topbar-bg: var(--navy-mid);
   --sidebar-text: #c5cce0;
   --sidebar-active: #ffffff;
-  --sidebar-active-bg: rgba(255, 99, 51, 0.16);
-  --page-bg: #22233d;
-  --glow: radial-gradient(520px 340px at 100% 100%, rgba(255, 99, 51, 0.22), transparent 68%);
+  --sidebar-active-bg: rgba(255, 83, 21, 0.16);
+  --page-bg: var(--navy);
+  --glow: radial-gradient(520px 340px at 100% 100%, rgba(255, 83, 21, 0.22), transparent 68%);
   --card-bg: rgba(255, 255, 255, 0.06);
   --surface: rgba(16, 17, 36, 0.72);
   --surface-2: rgba(255, 255, 255, 0.045);
@@ -67,6 +90,10 @@ html[data-theme="dark"] {
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+h1 {
+  font-family: var(--font-display);
 }
 
 .app {
@@ -101,6 +128,7 @@ body {
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.01em;
+  text-decoration: none;
 }
 
 .topbar-logo-mark {
@@ -199,11 +227,13 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 160px;
+  z-index: 50;
+  min-width: 200px;
   padding: 0.55rem 0.7rem;
-  background: var(--card-bg);
+  background: var(--topbar-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   color: var(--text);
 }
 
@@ -221,6 +251,25 @@ body {
 .topbar-menu-id span {
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+.topbar-menu-item {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topbar-menu-item:hover {
+  background: var(--chrome-hover);
 }
 
 .theme-glyph {
@@ -262,6 +311,38 @@ body {
 
 .app.sidebar-collapsed .sidebar {
   width: var(--sidebar-collapsed);
+}
+
+.sidebar-back {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  margin: 0 0 0.5rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  color: var(--chrome-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.sidebar-back svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.sidebar-back:hover {
+  background: var(--chrome-hover);
+  color: var(--chrome-ink);
+  opacity: 1;
+}
+
+.app.sidebar-collapsed .sidebar-back {
+  justify-content: center;
 }
 
 .sidebar-top-rule {
@@ -1923,7 +2004,7 @@ html[data-theme="dark"] .sync-msg--ok {
 }
 
 .recharts-tooltip-label {
-  color: #22233d !important;
+  color: var(--navy) !important;
 }
 
 .chart-legend-value {
@@ -2633,7 +2714,7 @@ html[data-theme="dark"] .chart-panel-line .recharts-legend-item:nth-child(2) lin
 }
 
 .plan-table--planejar th.plan-weekend-on {
-  background: rgba(255, 99, 51, 0.1);
+  background: rgba(255, 83, 21, 0.1);
 }
 
 .plan-table--planejar td.plan-weekend-on:not(.plan-weekend-off) {
@@ -4492,8 +4573,8 @@ html[data-theme="dark"] .plan-acc-strip {
 }
 
 .plan-distribute-cal-day.is-weekend.is-selectable {
-  border: 1px solid rgba(255, 99, 51, 0.45);
-  background: rgba(255, 99, 51, 0.08);
+  border: 1px solid rgba(255, 83, 21, 0.45);
+  background: rgba(255, 83, 21, 0.08);
   color: var(--text);
   cursor: pointer;
   font: inherit;
@@ -4959,7 +5040,7 @@ html[data-theme="dark"] .plan-table--planejar thead tr.plan-cols th.plan-c-dayhe
 }
 
 html[data-theme="dark"] .plan-table--planejar th.plan-weekend-on {
-  background: rgba(255, 99, 51, 0.16);
+  background: rgba(255, 83, 21, 0.16);
 }
 
 html[data-theme="dark"] .plan-weekend-on .plan-dnum,
@@ -4978,8 +5059,8 @@ html[data-theme="dark"] .plan-filter-icon {
 }
 
 html[data-theme="dark"] .plan-pages button.is-on {
-  background: #ff6333;
-  border-color: #ff6333;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 

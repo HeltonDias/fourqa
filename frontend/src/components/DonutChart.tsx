@@ -67,7 +67,7 @@ export function DonutChart({
                   String(name),
                 ]}
                 contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0", background: "#fff" }}
-                labelStyle={{ color: "#22233d" }}
+                labelStyle={{ color: "#222239" }}
               />
             </PieChart>
           </ResponsiveContainer>
