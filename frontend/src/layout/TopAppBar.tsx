@@ -1,14 +1,28 @@
 import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { readActiveConnection } from "../auth/connectionStore";
+import { signOut, useSession } from "../auth/session";
 import { FoursysMark } from "../components/FoursysMark";
 import moonIcon from "../../../fonte/util/estilo/moon (1).png";
 import bellIcon from "../../../fonte/util/notification (1).png";
 import sunIcon from "../../../fonte/util/estilo/sun (1).png";
 import { readTheme, THEME_KEY, toggleTheme, type ThemeName } from "../theme";
 
-export function TopAppBar() {
+export function TopAppBar({ toolLabel = "Relatórios" }: { toolLabel?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeName>(() => readTheme());
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { state } = useSession();
+  const user = state?.user ?? null;
+  const connection = readActiveConnection();
+  const roleLabel = connection?.roleLabel ?? user?.globalRoleLabel;
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await signOut().catch(() => undefined);
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -40,12 +54,12 @@ export function TopAppBar() {
 
   return (
     <header className="topbar">
-      <div className="topbar-brand">
+      <Link to="/" className="topbar-brand" title="Página inicial">
         <FoursysMark className="topbar-logo-mark" />
         <span className="topbar-name">FourQA</span>
-      </div>
+      </Link>
 
-      <span className="topbar-tool">Relatórios</span>
+      <span className="topbar-tool">{toolLabel}</span>
 
       <div className="topbar-actions">
         <button
@@ -83,17 +97,31 @@ export function TopAppBar() {
           >
             <span className="topbar-avatar" aria-hidden />
             <span className="topbar-user-text">
-              <span className="topbar-user-name">Usuário</span>
-              <span className="topbar-user-role">Cargo</span>
+              <span className="topbar-user-name">{user?.name ?? "Modo local"}</span>
+              <span className="topbar-user-role">{roleLabel ?? "Sem login"}</span>
             </span>
             <ChevronIcon open={menuOpen} />
           </button>
           {menuOpen && (
             <div className="topbar-menu" role="menu">
               <div className="topbar-menu-id">
-                <strong>Usuário</strong>
-                <span>Cargo</span>
+                <strong>{user?.name ?? "Modo local"}</strong>
+                <span>{user?.email ?? "—"}</span>
               </div>
+              {user?.globalRole === "head" ? (
+                <Link className="topbar-menu-item" role="menuitem" to="/admin/usuarios" onClick={() => setMenuOpen(false)}>
+                  Papéis globais
+                </Link>
+              ) : null}
+              {user ? (
+                <button type="button" className="topbar-menu-item" role="menuitem" onClick={handleSignOut}>
+                  Sair
+                </button>
+              ) : (
+                <Link className="topbar-menu-item" role="menuitem" to="/login" onClick={() => setMenuOpen(false)}>
+                  Entrar com PAT
+                </Link>
+              )}
             </div>
           )}
         </div>

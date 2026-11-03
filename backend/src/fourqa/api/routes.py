@@ -1,13 +1,16 @@
-"""API router (mirrors backend/src/routes/api.ts)."""
+"""API router."""
 
 from __future__ import annotations
 
 import os
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from fourqa.auth.access import guard_plan_key, require_write_access
+from fourqa.auth.context import current_connection
+from fourqa.azure.azure_cache_read_source import AzureCacheUnavailableError
 from fourqa.azure.config import SyncConfigError, env_value, read_sync_settings
 from fourqa.azure.sync_parameters import (
     SYNC_PARAMETERS_KEY,
@@ -20,16 +23,19 @@ from fourqa.domain.plan_period import PlanningPeriodError
 from fourqa.http.meta_base import parse_meta_pair
 from fourqa.http.page_query import parse_page_query
 from fourqa.http.planning_cell_base import parse_planning_cell_base
-from fourqa.http.write_auth import decide_read_auth, decide_write_auth, open_writes_allowed
+from fourqa.http.write_auth import (
+    SESSION_COOKIE,
+    cookie_is_secure,
+    decide_write_auth,
+    open_writes_allowed,
+    presented_authorization,
+    token_matches,
+)
 from fourqa.persistence.plan_key import explicit_plan_key_from_query, plan_key_from_raw, plan_key_write_error
 from fourqa.persistence.planning_conflict import PlanningConflictError
 from fourqa.persistence.provider import get_stores, persistence_ready
 
 router = APIRouter()
-
-
-def _reads_are_protected() -> bool:
-    return os.environ.get("VERCEL") == "1" and env_value("FOURQA_PROTECT_READS") != "0"
 
 
 def _write_decision(authorization: str | None) -> str:
@@ -49,25 +55,81 @@ async def _ready() -> None:
 
 
 async def _plan_key_from_query(plan_key: str | None) -> str:
+    connection = current_connection.get()
+    if connection is not None:
+        return plan_key.strip() if isinstance(plan_key, str) and plan_key.strip() else str(connection["plan_key"])
     fallback = DEFAULT_PLAN_KEY
     try:
         stores = await get_stores()
         fallback = (await stores["meta"].get("kpi_plan_key")) or DEFAULT_PLAN_KEY
     except Exception:
         fallback = DEFAULT_PLAN_KEY
-    return plan_key_from_raw(plan_key, fallback)
+    resolved = plan_key_from_raw(plan_key, fallback)
+    await guard_plan_key(resolved)
+    return resolved
 
 
-def require_write_auth(authorization: Annotated[str | None, Header()] = None) -> None:
-    decision = _write_decision(authorization)
-    if decision == "allow":
-        return
-    if decision == "unconfigured":
+def _request_authorization(request: Request) -> str | None:
+    return presented_authorization(request.headers.get("authorization"), request.cookies.get(SESSION_COOKIE))
+
+
+def _raise_client_or_hide(err: Exception, fallback: str) -> None:
+    if isinstance(err, (HTTPException, PlanningPeriodError, AzureCacheUnavailableError)):
+        raise err
+    if isinstance(err, PlanningConflictError):
+        raise HTTPException(status_code=409, detail=str(err)) from err
+    if isinstance(err, ValueError):
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    raise HTTPException(status_code=500, detail=fallback) from err
+
+
+async def require_write_auth(request: Request) -> None:
+    await require_write_access(request)
+
+
+def _session_secure(request: Request) -> bool:
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    return cookie_is_secure(vercel=os.environ.get("VERCEL") == "1", scheme=scheme)
+
+
+@router.post("/session")
+async def open_session(body: dict[str, Any], request: Request):
+    presented = body.get("token")
+    if not isinstance(presented, str):
+        raise HTTPException(status_code=400, detail="Informe o token.")
+    configured = env_value("FOURQA_API_TOKEN").strip()
+    if not configured:
         raise HTTPException(
             status_code=503,
-            detail="Escrita desabilitada. Configure FOURQA_API_TOKEN ou FOURQA_ALLOW_OPEN_WRITES=1 neste ambiente.",
+            detail="Escrita desabilitada. Configure FOURQA_API_TOKEN neste ambiente.",
         )
-    raise HTTPException(status_code=401, detail="Não autorizado.")
+    if not token_matches(configured, presented.strip()):
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=configured,
+        httponly=True,
+        secure=_session_secure(request),
+        samesite="lax",
+        path="/",
+        max_age=12 * 60 * 60,
+    )
+    return response
+
+
+@router.delete("/session")
+async def close_session(request: Request):
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(key=SESSION_COOKIE, path="/", httponly=True, secure=_session_secure(request), samesite="lax")
+    return response
+
+
+@router.get("/session")
+async def session_state(request: Request):
+    configured = env_value("FOURQA_API_TOKEN").strip()
+    decision = _write_decision(_request_authorization(request))
+    return {"active": bool(configured) and decision == "allow"}
 
 
 @router.get("/health")
@@ -122,10 +184,8 @@ async def cabecalho(body: dict[str, Any], _: None = Depends(require_write_auth))
                 "baseSubtitle": header_base["b"],
             },
         )
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar o cabeçalho.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar o cabeçalho.")
 
 
 @router.put("/periodo")
@@ -145,10 +205,8 @@ async def periodo(body: dict[str, Any], _: None = Depends(require_write_auth)):
             fim,
             {"guard": period_base["present"], "baseInicio": period_base["a"], "baseFim": period_base["b"]},
         )
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar o período.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar o período.")
 
 
 @router.get("/planejamento")
@@ -183,10 +241,8 @@ async def planejamento_revisao(body: dict[str, Any], planKey: str | None = None,
         raise HTTPException(status_code=400, detail=plan_key_write_error(planKey))
     try:
         return await confirm_or_revise(pk, {"reason": body.get("reason") if isinstance(body.get("reason"), str) else "", "adoptSource": body.get("adoptSource") is not False})
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar a revisão.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar a revisão.")
 
 
 @router.put("/planejamento/celula")
@@ -218,10 +274,8 @@ async def planejamento_celula(body: dict[str, Any], planKey: str | None = None, 
                 "expectedQuantity": cell_base.get("expected_quantity"),
             },
         )
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar a célula.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar a célula.")
 
 
 @router.put("/planejamento/lote")
@@ -259,10 +313,8 @@ async def planejamento_lote(body: dict[str, Any], planKey: str | None = None, _:
         )
     try:
         return await save_planning_batch(pk, changes)
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar as alterações.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar as alterações.")
 
 
 @router.put("/planejamento/distribuir")
@@ -295,10 +347,8 @@ async def planejamento_distribuir(body: dict[str, Any], planKey: str | None = No
                 "preview": body.get("preview") is True,
             },
         )
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível distribuir.") from err
+        _raise_client_or_hide(err, "Não foi possível distribuir.")
 
 
 @router.put("/planejamento/limpar")
@@ -312,10 +362,8 @@ async def planejamento_limpar(body: dict[str, Any] | None = None, planKey: str |
     body = body or {}
     try:
         return await clear_planning_to_finalized(pk, {"preview": body.get("preview") is True})
-    except PlanningConflictError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível limpar o planejamento.") from err
+        _raise_client_or_hide(err, "Não foi possível limpar o planejamento.")
 
 
 @router.get("/status-frente")
@@ -324,6 +372,17 @@ async def status_frente(planKey: str | None = None):
     from fourqa.services.report_service import get_status_por_frente
 
     return await get_status_por_frente(await _plan_key_from_query(planKey))
+
+
+@router.get("/evolucao-qa")
+async def evolucao_qa(planKey: str | None = None, start: str | None = Query(None, alias="from"), to: str | None = None):
+    await _ready()
+    from fourqa.services.evolucao_service import get_evolucao_qa
+
+    try:
+        return await get_evolucao_qa(await _plan_key_from_query(planKey), start, to)
+    except (ValueError, PlanningPeriodError) as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
 
 
 @router.post("/sync")
@@ -337,6 +396,8 @@ async def sync_start(_: None = Depends(require_write_auth)):
         return JSONResponse(status_code=code, content=result)
     except SyncConfigError as err:
         raise HTTPException(status_code=400, detail={"error": str(err), "missing": err.missing}) from err
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=500, detail={"error": "Falha ao iniciar a sincronização."})
 
@@ -354,37 +415,48 @@ async def sync_config():
     stores = await get_stores()
     raw = await stores["meta"].get(SYNC_PARAMETERS_KEY)
     decoded = decode_stored_parameters(raw if isinstance(raw, str) else None)
-    return present_parameters(read_sync_settings(), decoded.get("draft"), decoded.get("warning"))
+    return present_parameters(await _sync_settings_view(), decoded.get("draft"), decoded.get("warning"))
+
+
+async def _sync_settings_view() -> dict[str, object]:
+    from fourqa.services.sync_service import connection_sync_settings
+
+    connection = current_connection.get()
+    if connection is None:
+        return read_sync_settings()
+    return await connection_sync_settings(connection)
 
 
 @router.put("/sync/config")
 async def sync_config_put(body: dict[str, Any], _: None = Depends(require_write_auth)):
     await _ready()
     stores = await get_stores()
+    connection = current_connection.get()
     if body.get("reset") is True:
         await stores["meta"].set(SYNC_PARAMETERS_KEY, "")
-        env_plan = read_sync_settings().get("kpiPlanKey")
-        if env_plan:
-            await stores["meta"].set("kpi_plan_key", str(env_plan))
+        settings = await _sync_settings_view()
+        if settings.get("kpiPlanKey"):
+            await stores["meta"].set("kpi_plan_key", str(settings["kpiPlanKey"]))
         decoded = decode_stored_parameters("")
-        return present_parameters(read_sync_settings(), decoded.get("draft"), decoded.get("warning"))
+        return present_parameters(settings, decoded.get("draft"), decoded.get("warning"))
     try:
+        if connection is not None:
+            body = {**body, "kpiPlanKey": connection["plan_key"]}
         draft = parse_sync_parameters(body)
         import json
 
         await stores["meta"].set(SYNC_PARAMETERS_KEY, json.dumps(draft))
         await stores["meta"].set("kpi_plan_key", draft["kpiPlanKey"])
-        return present_parameters(read_sync_settings(), draft, None)
+        return present_parameters(await _sync_settings_view(), draft, None)
     except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err) if str(err) else "Não foi possível gravar os parâmetros.") from err
+        _raise_client_or_hide(err, "Não foi possível gravar os parâmetros.")
 
 
 @router.get("/execucoes")
 async def execucoes(request: Request, planKey: str | None = None):
     await _ready()
     stores = await get_stores()
-    page = parse_page_query(dict(request.query_params))
-    page["plan_key"] = await _plan_key_from_query(planKey)
+    page = parse_page_query(dict(request.query_params), await _plan_key_from_query(planKey))
     return await stores["azure_snapshot"].query_execucoes(page)
 
 
@@ -392,6 +464,5 @@ async def execucoes(request: Request, planKey: str | None = None):
 async def falhas(request: Request, planKey: str | None = None):
     await _ready()
     stores = await get_stores()
-    page = parse_page_query(dict(request.query_params))
-    page["plan_key"] = await _plan_key_from_query(planKey)
+    page = parse_page_query(dict(request.query_params), await _plan_key_from_query(planKey))
     return await stores["azure_snapshot"].query_falhas(page)

@@ -1,4 +1,4 @@
-"""Port of backend/src/vercel/deployShape.test.ts."""
+"""Shape do deploy Vercel e árvore única de migrations."""
 
 import json
 from pathlib import Path
@@ -39,3 +39,26 @@ def test_vercelignore_excludes_local_data():
     }
     for pattern in required:
         assert pattern in lines
+
+
+def test_single_sql_tree():
+    live = ROOT / "backend" / "src" / "db" / "postgres" / "migrations"
+    ghost = ROOT / "backend" / "src" / "fourqa" / "db" / "postgres" / "migrations"
+    assert sorted(p.name for p in live.glob("*.sql")) == [
+        "001_baseline.sql",
+        "002_plan_item_identity.sql",
+        "003_plan_suite_fill.sql",
+        "004_planning_change_log.sql",
+        "005_users_connections.sql",
+    ]
+    assert not ghost.exists()
+    from fourqa.db.postgres.migrate import _MIGRATIONS_DIR
+
+    assert _MIGRATIONS_DIR.resolve() == live.resolve()
+
+
+def test_pyright_checks_are_not_silenced():
+    text = (ROOT / "backend" / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'reportArgumentType = "none"' not in text
+    assert 'reportGeneralTypeIssues = "none"' not in text
+    assert 'reportUnknownMemberType = "none"' not in text

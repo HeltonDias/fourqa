@@ -344,3 +344,43 @@ export type FalhaRow = {
   links: string | null;
   tags: string | null;
 };
+
+export type EvolucaoQaStatus = "done" | "ok" | "warn" | "risk" | "na";
+
+export type EvolucaoQaDay = {
+  date: string;
+  planned: number;
+  finalized: number;
+  executed: number;
+  plannedCumulative: number;
+  finalizedCumulative: number | null;
+};
+
+export type EvolucaoQaBucket = {
+  key: string;
+  name: string;
+  attributable: boolean;
+  suiteCount: number;
+  suites: { suiteId: number | null; testPointId: number | null; suiteName: string | null; responsavel: string | null }[];
+  baseline: number;
+  planned: number;
+  plannedToDate: number;
+  finalized: number;
+  executed: number;
+  passed: number;
+  na: number;
+  failed: number;
+  blocked: number;
+  finalizedInRange: number;
+  gap: number;
+  status: EvolucaoQaStatus | null;
+  reasons: { sem_responsavel: number; compartilhada: number };
+  daily: EvolucaoQaDay[];
+};
+
+export type EvolucaoQaDto = {
+  planKey: string;
+  range: { from: string; to: string; asOf: string };
+  qas: EvolucaoQaBucket[];
+  unattributed: EvolucaoQaBucket | null;
+};

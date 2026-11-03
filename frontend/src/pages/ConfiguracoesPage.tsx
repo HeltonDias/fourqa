@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { api, fmtDateTime, isConflict, type SyncSettingsView } from "../api";
+import { accessTokenActive, api, clearAccessToken, fmtDateTime, isConflict, saveAccessToken, type SyncSettingsView } from "../api";
 import { PageHeader } from "../components/PageHeader";
 import { SyncMessage } from "../components/SyncMessage";
+import { ProjectMembersPanel } from "../components/users/ProjectMembersPanel";
 import { useReportChrome } from "../context/ReportChromeContext";
 import "./configuracoes.css";
 
@@ -100,9 +101,7 @@ export function ConfiguracoesPage() {
       <div key={section} className="cfg-stage" id="cfg-panel">
         {section === "ambiente" ? <Ambiente /> : null}
         {section === "integracoes" ? <Integracoes settings={settings} /> : null}
-        {section === "usuarios" ? (
-          <Unavailable title="Usuários" text="Acessos e perfis ainda não estão nesta central." />
-        ) : null}
+        {section === "usuarios" ? <ProjectMembersPanel /> : null}
         {section === "seguranca" ? <Seguranca /> : null}
         {section === "parametros" ? <Parametros settings={settings} onSaved={settings.reload} /> : null}
         {section === "dados" ? <Dados settings={settings} /> : null}
@@ -115,30 +114,49 @@ function Seguranca() {
   const { refreshHome } = useReportChrome();
   const [token, setToken] = useState("");
   const [saved, setSaved] = useState("");
-  const [hasToken, setHasToken] = useState(() => Boolean(localStorage.getItem("fourqa_token")?.trim()));
+  const [error, setError] = useState("");
+  const [hasToken, setHasToken] = useState(false);
+
+  useEffect(() => {
+    void accessTokenActive().then(setHasToken);
+  }, []);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const value = token.trim();
     if (!value) return;
-    localStorage.setItem("fourqa_token", value);
-    setToken("");
-    setHasToken(true);
-    setSaved("Token salvo neste navegador.");
-    refreshHome();
+    setError("");
+    void saveAccessToken(value)
+      .then(() => {
+        setToken("");
+        setHasToken(true);
+        setSaved("Sessão gravada neste navegador. O JavaScript não lê o token.");
+        refreshHome();
+      })
+      .catch((err: unknown) => {
+        setSaved("");
+        setError(err instanceof Error ? err.message : "Não foi possível gravar a sessão.");
+      });
   }
 
   function clear() {
-    localStorage.removeItem("fourqa_token");
-    setHasToken(false);
-    setSaved("Token removido deste navegador.");
-    refreshHome();
+    setError("");
+    void clearAccessToken()
+      .then(() => {
+        setHasToken(false);
+        setSaved("Sessão removida deste navegador.");
+        refreshHome();
+      })
+      .catch((err: unknown) => {
+        setSaved("");
+        setError(err instanceof Error ? err.message : "Não foi possível remover a sessão.");
+      });
   }
 
   return (
     <section className="cfg-panel">
       <h2>Segurança</h2>
-      <p>Token de acesso da API. O valor fica só neste navegador.</p>
+      <p>Token de acesso da API. O valor fica num cookie HttpOnly. O JavaScript da página não consegue lê-lo.</p>
       <form className="cfg-form" onSubmit={submit}>
         <label className="cfg-field cfg-field-wide">
           <span>Token de acesso</span>
@@ -162,16 +180,8 @@ function Seguranca() {
           </button>
         </div>
         {saved ? <p className="cfg-note">{saved}</p> : null}
+        {error ? <p className="cfg-note">{error}</p> : null}
       </form>
-    </section>
-  );
-}
-
-function Unavailable({ title, text }: { title: string; text: string }) {
-  return (
-    <section className="cfg-panel">
-      <h2>{title}</h2>
-      <p className="cfg-unavailable">{text}</p>
     </section>
   );
 }

@@ -9,7 +9,7 @@ from fourqa.azure.azure_cache_query import EXEC_SEARCH, FALHA_SEARCH, list_cache
 from fourqa.azure.config import env_value
 from fourqa.azure.in_memory_azure_cache import InMemoryAzureCache, get_in_memory_azure_cache
 from fourqa.azure.plan_key_match import plan_key_match
-from fourqa.persistence.contracts import PersistenceStores
+from fourqa.persistence.contracts import PageParams, PersistenceStores
 from fourqa.persistence.plan_key import required_plan_key
 
 
@@ -42,7 +42,11 @@ _BATCH_PREFIX = ("dimensoes_catalog:", "kpi_impactos:")
 
 
 def _is_batch_meta_key(key: str) -> bool:
-    return key in _BATCH_EXACT or any(key.startswith(p) for p in _BATCH_PREFIX)
+    from fourqa.persistence.meta_scope import current_meta_scope
+
+    if key in _BATCH_EXACT:
+        return current_meta_scope() is None
+    return any(key.startswith(p) for p in _BATCH_PREFIX)
 
 
 def read_batch_meta(meta: dict[str, str], key: str) -> str | None:
@@ -83,17 +87,19 @@ def _wrap_azure(cache: InMemoryAzureCache, snapshot: Any) -> Any:
                 return await snapshot.list_falhas(plan_key)
             return list_cached_rows(_published_rows(cache, plan_key, "falhas"))
 
-        async def query_execucoes(self, params: dict[str, Any]):
+        async def query_execucoes(self, params: PageParams):
             plan_key = required_plan_key(params.get("plan_key"))
             if not cache.has_published_generation():
                 return await snapshot.query_execucoes({**params, "plan_key": plan_key})
-            return page_cached_rows(_published_rows(cache, plan_key, "execucoes"), EXEC_SEARCH, {**params, "plan_key": plan_key})
+            scoped: PageParams = {**params, "plan_key": plan_key}
+            return page_cached_rows(_published_rows(cache, plan_key, "execucoes"), EXEC_SEARCH, scoped)
 
-        async def query_falhas(self, params: dict[str, Any]):
+        async def query_falhas(self, params: PageParams):
             plan_key = required_plan_key(params.get("plan_key"))
             if not cache.has_published_generation():
                 return await snapshot.query_falhas({**params, "plan_key": plan_key})
-            return page_cached_rows(_published_rows(cache, plan_key, "falhas"), FALHA_SEARCH, {**params, "plan_key": plan_key})
+            scoped: PageParams = {**params, "plan_key": plan_key}
+            return page_cached_rows(_published_rows(cache, plan_key, "falhas"), FALHA_SEARCH, scoped)
 
     return Azure()
 

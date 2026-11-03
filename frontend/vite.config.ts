@@ -38,9 +38,16 @@ function localTokenPlugin() {
           res.end();
           return;
         }
-        res.setHeader("content-type", "text/plain; charset=utf-8");
+        const token = localApiToken();
         res.setHeader("cache-control", "no-store");
-        res.end(localApiToken());
+        if (token) {
+          res.setHeader(
+            "set-cookie",
+            `fourqa_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`,
+          );
+        }
+        res.statusCode = 204;
+        res.end();
       });
     },
   };

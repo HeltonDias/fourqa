@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { api, fmtDateTime, isConflict, type HomeDto } from "../api";
+import { api, fmtDateTime, isConflict, saveAccessToken, type HomeDto } from "../api";
 import { useReportChrome } from "../context/ReportChromeContext";
 import { ReportTitles } from "./ReportTitles";
 import { SyncMessage } from "./SyncMessage";
@@ -128,8 +128,10 @@ export function ReportChrome() {
     syncing,
     now,
     refreshHome,
+    canWrite,
   } = useReportChrome();
   const [accessToken, setAccessToken] = useState("");
+  const [accessError, setAccessError] = useState<string | null>(null);
   const needsAccessToken = homeError === "Não autorizado." || homeError === "Unauthorized";
   const { pathname } = useLocation();
   const onPlanning = pathname === "/planejamento" || pathname.startsWith("/planejamento/");
@@ -153,7 +155,7 @@ export function ReportChrome() {
 
         <div className="report-dates-row">
           <div className="report-dates-block card-soft">
-            {onPlanning && home ? (
+            {onPlanning && home && canWrite ? (
               <ChromePlanDates
                 inicio={home.periodo.inicio}
                 fim={home.periodo.fim}
@@ -190,14 +192,16 @@ export function ReportChrome() {
       </header>
 
       <div className="report-actions">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleAtualizar}
-          disabled={syncing || homeLoading}
-        >
-          {syncing ? "Atualizando…" : "Atualizar"}
-        </button>
+        {canWrite ? (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleAtualizar}
+            disabled={syncing || homeLoading}
+          >
+            {syncing ? "Atualizando…" : "Atualizar"}
+          </button>
+        ) : null}
         <p className="last-update">
           Última Atualização:{" "}
           {home
@@ -214,22 +218,32 @@ export function ReportChrome() {
               event.preventDefault();
               const value = accessToken.trim();
               if (!value) return;
-              localStorage.setItem("fourqa_token", value);
-              setAccessToken("");
-              refreshHome();
+              void saveAccessToken(value)
+                .then(() => {
+                  setAccessToken("");
+                  setAccessError(null);
+                  refreshHome();
+                })
+                .catch((err: unknown) => {
+                  setAccessError(err instanceof Error ? err.message : "Não foi possível entrar.");
+                });
             }}
           >
-            <p>Informe o token de acesso. Ele fica só neste navegador.</p>
+            <p>Informe o token de acesso. Ele fica num cookie HttpOnly deste navegador.</p>
             <input
               type="password"
               name="fourqa-access-token"
               autoComplete="off"
               value={accessToken}
-              onChange={(event) => setAccessToken(event.target.value)}
+              onChange={(event) => {
+                setAccessError(null);
+                setAccessToken(event.target.value);
+              }}
             />
             <button type="submit" className="btn-primary">
               Entrar
             </button>
+            {accessError ? <p className="report-date-error">{accessError}</p> : null}
           </form>
         ) : null}
       </div>

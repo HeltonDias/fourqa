@@ -1,4 +1,4 @@
-"""FastAPI application (mirrors backend/src/app.ts)."""
+"""FastAPI application."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from fourqa.api.identity_routes import router as identity_router
 from fourqa.api.routes import router as api_router
 from fourqa.azure.azure_cache_read_source import assert_vercel_cache_mode
 from fourqa.azure.config import env_value
@@ -48,6 +49,62 @@ def create_app(*, skip_operational_assert: bool = False) -> FastAPI:
     )
 
     @app.middleware("http")
+    async def identity_middleware(request, call_next):
+        from fastapi.responses import JSONResponse
+
+        from fourqa.auth.access import read_access_error, service_token_ok
+        from fourqa.auth.context import (
+            IdentityError,
+            RequestIdentity,
+            current_connection,
+            current_role,
+            current_user,
+            needs_identity,
+            resolve_request_identity,
+            service_access,
+        )
+        from fourqa.persistence.meta_scope import (
+            connection_scope,
+            reset_actor_name,
+            reset_meta_scope,
+            set_actor_name,
+            set_meta_scope,
+        )
+
+        path = request.url.path
+        if not path.startswith("/api") or path.endswith("/health") or request.method == "OPTIONS":
+            return await call_next(request)
+        try:
+            ident = await resolve_request_identity(request)
+        except IdentityError as err:
+            return JSONResponse(status_code=err.status, content={"error": str(err)})
+        except Exception:
+            if needs_identity(request) and (request.cookies.get("fourqa_user") or request.headers.get("x-fourqa-connection")):
+                return JSONResponse(status_code=503, content={"error": "Banco indisponível."})
+            ident = RequestIdentity()
+        denied = read_access_error(request, ident)
+        if denied:
+            return JSONResponse(status_code=denied[0], content={"error": denied[1]})
+        tokens = (
+            current_user.set(ident.user),
+            current_connection.set(ident.connection),
+            current_role.set(ident.role),
+            service_access.set(service_token_ok(request)),
+        )
+        scope_token = set_meta_scope(connection_scope(ident.connection))
+        actor = ident.user.get("display_name") or ident.user.get("email") if ident.user else None
+        actor_token = set_actor_name(actor)
+        try:
+            return await call_next(request)
+        finally:
+            reset_actor_name(actor_token)
+            reset_meta_scope(scope_token)
+            service_access.reset(tokens[3])
+            current_role.reset(tokens[2])
+            current_connection.reset(tokens[1])
+            current_user.reset(tokens[0])
+
+    @app.middleware("http")
     async def security_headers(request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -78,29 +135,8 @@ def create_app(*, skip_operational_assert: bool = False) -> FastAPI:
             request.scope["path"] = path
         return await call_next(request)
 
-    @app.middleware("http")
-    async def read_auth_middleware(request, call_next):
-        from fourqa.http.write_auth import decide_read_auth
-
-        protected = os.environ.get("VERCEL") == "1" and env_value("FOURQA_PROTECT_READS") != "0"
-        if not protected or request.url.path.endswith("/health"):
-            return await call_next(request)
-        if request.method not in ("GET", "HEAD"):
-            return await call_next(request)
-        decision = decide_read_auth(
-            protect_reads=True,
-            configured_token=env_value("FOURQA_API_TOKEN"),
-            authorization_header=request.headers.get("authorization"),
-        )
-        if decision == "allow":
-            return await call_next(request)
-        from fastapi.responses import JSONResponse
-
-        if decision == "unconfigured":
-            return JSONResponse(status_code=503, content={"error": "Acesso desabilitado. Configure FOURQA_API_TOKEN neste ambiente."})
-        return JSONResponse(status_code=401, content={"error": "Não autorizado."})
-
     app.include_router(api_router, prefix="/api")
+    app.include_router(identity_router, prefix="/api")
 
     from fastapi.responses import JSONResponse
 

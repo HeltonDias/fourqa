@@ -1,4 +1,11 @@
-from fourqa.http.write_auth import decide_read_auth, decide_write_auth, open_writes_allowed
+from fourqa.http.write_auth import (
+    cookie_is_secure,
+    decide_read_auth,
+    decide_write_auth,
+    open_writes_allowed,
+    presented_authorization,
+    token_matches,
+)
 
 
 def test_accepts_configured_bearer():
@@ -40,6 +47,17 @@ def test_unconfigured_server_closed_unless_open_writes():
         decide_write_auth(configured_token="", allow_open_writes=True, authorization_header=None)
         == "allow"
     )
+
+
+def test_cookie_falls_back_when_header_absent():
+    assert presented_authorization("Bearer segredo", "outro") == "Bearer segredo"
+    assert presented_authorization(None, "segredo") == "Bearer segredo"
+    assert presented_authorization("  ", None) is None
+    assert token_matches("segredo", "segredo") is True
+    assert token_matches("segredo", "outro") is False
+    assert cookie_is_secure(vercel=True, scheme="http") is True
+    assert cookie_is_secure(vercel=False, scheme="http") is False
+    assert cookie_is_secure(vercel=False, scheme="https") is True
 
 
 def test_vercel_open_writes_and_read_auth():

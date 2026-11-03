@@ -11,6 +11,7 @@ from typing import Any, Literal
 from fourqa.db.postgres.postgres_azure_snapshot_store import apply_azure_snapshot_on_client
 from fourqa.db.postgres.pool import query, with_transaction
 from fourqa.persistence.contracts import AzureSnapshot
+from fourqa.persistence.meta_scope import scoped_meta_key
 
 SYNC_HEARTBEAT_STALE_MS = 90_000
 SYNC_JOB_KEY = "sync_job"
@@ -21,6 +22,10 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
 REPLACE_LOCK = "LOCK TABLE execucoes, falhas, workbook_meta IN EXCLUSIVE MODE"
 
 SyncStatus = Literal["idle", "running", "success", "error"]
+
+
+def _job_key() -> str:
+    return scoped_meta_key(SYNC_JOB_KEY)
 
 
 def is_durable_sync_runtime() -> bool:
@@ -103,7 +108,7 @@ def running_sync_job(now: datetime, job_id: str) -> dict[str, Any]:
 
 async def read_sync_job(now_ms: int | None = None, stale_ms: int = SYNC_HEARTBEAT_STALE_MS) -> dict[str, Any]:
     now_ms = now_ms if now_ms is not None else int(datetime.now(tz=timezone.utc).timestamp() * 1000)
-    rows = await query("SELECT value FROM workbook_meta WHERE key = $1", [SYNC_JOB_KEY])
+    rows = await query("SELECT value FROM workbook_meta WHERE key = $1", [_job_key()])
     raw = rows[0]["value"] if rows else None
     return visible_sync_job(parse_sync_job(raw if isinstance(raw, str) else None), now_ms, stale_ms)
 
@@ -112,7 +117,7 @@ async def save_sync_job_if_owner(job: dict[str, Any], now_ms: int | None = None,
     now_ms = now_ms if now_ms is not None else int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
     async def work(conn):
-        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (SYNC_JOB_KEY,))
+        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (_job_key(),))
         row = await cur.fetchone()
         current = parse_sync_job(row["value"] if row else None)
         if not (
@@ -123,7 +128,7 @@ async def save_sync_job_if_owner(job: dict[str, Any], now_ms: int | None = None,
             return False
         beat = job.get("beatAt") or datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat()
         payload = {**job, "beatAt": beat}
-        await conn.execute(UPSERT, (SYNC_JOB_KEY, json.dumps(payload)))
+        await conn.execute(UPSERT, (_job_key(), json.dumps(payload)))
         return True
 
     return await with_transaction(work)
@@ -133,7 +138,7 @@ async def fail_sync_job_if_owner(job_id: str, error: str, now_ms: int | None = N
     now_ms = now_ms if now_ms is not None else int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
     async def work(conn):
-        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (SYNC_JOB_KEY,))
+        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (_job_key(),))
         row = await cur.fetchone()
         current = parse_sync_job(row["value"] if row else None)
         if current.get("status") != "running" or current.get("jobId") != job_id:
@@ -146,7 +151,7 @@ async def fail_sync_job_if_owner(job_id: str, error: str, now_ms: int | None = N
             "beatAt": datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat(),
             "error": error,
         }
-        await conn.execute(UPSERT, (SYNC_JOB_KEY, json.dumps(failed)))
+        await conn.execute(UPSERT, (_job_key(), json.dumps(failed)))
         return True
 
     return await with_transaction(work)
@@ -162,14 +167,14 @@ async def publish_sync_if_owner(
     now_ms = now_ms if now_ms is not None else int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
     async def work(conn):
-        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (SYNC_JOB_KEY,))
+        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (_job_key(),))
         row = await cur.fetchone()
         current = parse_sync_job(row["value"] if row else None)
         if current.get("status") != "running" or current.get("jobId") != job_id or not is_sync_job_alive(current, now_ms, stale_ms):
             return False
         await apply_azure_snapshot_on_client(conn, snapshot)
         payload = {**success, "jobId": job_id, "beatAt": success.get("beatAt") or datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat()}
-        await conn.execute(UPSERT, (SYNC_JOB_KEY, json.dumps(payload)))
+        await conn.execute(UPSERT, (_job_key(), json.dumps(payload)))
         return True
 
     return await with_transaction(work, REPLACE_LOCK)
@@ -182,16 +187,16 @@ async def claim_sync_job(now: datetime | None = None, stale_ms: int = SYNC_HEART
     async def work(conn):
         await conn.execute(
             "INSERT INTO workbook_meta (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
-            (SYNC_JOB_KEY, json.dumps({**empty_sync_state(), "beatAt": None, "jobId": None})),
+            (_job_key(), json.dumps({**empty_sync_state(), "beatAt": None, "jobId": None})),
         )
-        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (SYNC_JOB_KEY,))
+        cur = await conn.execute("SELECT value FROM workbook_meta WHERE key = $1 FOR UPDATE", (_job_key(),))
         row = await cur.fetchone()
         current = parse_sync_job(row["value"] if row else None)
         visible = visible_sync_job(current, int(now.timestamp() * 1000), stale_ms)
         if visible.get("status") == "running":
             return {"started": False, "state": visible, "jobId": None}
         nxt = running_sync_job(now, job_id)
-        await conn.execute(UPSERT, (SYNC_JOB_KEY, json.dumps(nxt)))
+        await conn.execute(UPSERT, (_job_key(), json.dumps(nxt)))
         return {"started": True, "state": visible_sync_job(nxt, int(now.timestamp() * 1000), stale_ms), "jobId": job_id}
 
     return await with_transaction(work)

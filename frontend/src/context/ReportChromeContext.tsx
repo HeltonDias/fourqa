@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, type HomeDto, type SyncState } from "../api";
+import { readActiveConnection, roleAtLeast, type Role } from "../auth/connectionStore";
 
 type ReportChromeContextValue = {
   home: HomeDto | null;
@@ -25,6 +26,10 @@ type ReportChromeContextValue = {
   now: Date;
   /** Incrementa quando um sync termina com sucesso, para as outras abas buscarem de novo. */
   dataVersion: number;
+  /** Papel na conexão ativa; null no modo legado sem login. */
+  role: Role | null;
+  /** Líder ou Head na conexão ativa. No modo legado o servidor decide. */
+  canWrite: boolean;
 };
 
 const ReportChromeContext = createContext<ReportChromeContextValue | null>(null);
@@ -140,6 +145,9 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncing = sync?.status === "running";
+  const [connection] = useState(() => readActiveConnection());
+  const role = connection?.role ?? null;
+  const canWrite = connection ? roleAtLeast(role, "lider") : true;
 
   return (
     <ReportChromeContext.Provider
@@ -157,6 +165,8 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
         syncing,
         now,
         dataVersion,
+        role,
+        canWrite,
       }}
     >
       {children}

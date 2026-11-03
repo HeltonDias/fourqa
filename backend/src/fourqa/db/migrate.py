@@ -1,4 +1,4 @@
-"""SQLite schema migrations (mirrors backend/src/db/migrate.ts)."""
+"""SQLite schema migrations."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Callable
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 def _index_if(db: sqlite3.Connection, name: str, table: str, columns: list[str]) -> None:
@@ -161,6 +161,36 @@ def _migration_v8(db: sqlite3.Connection) -> None:
     _index_if(db, "idx_plan_change_log", "planning_change_log", ["planning_id", "created_at"])
 
 
+def _migration_v9(db: sqlite3.Connection) -> None:
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS app_user (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, ado_profile_id TEXT NOT NULL UNIQUE, email TEXT,
+          display_name TEXT, global_role TEXT NOT NULL DEFAULT 'qa', created_at TEXT NOT NULL,
+          last_login_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS user_credential (
+          user_id INTEGER PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+          pat_encrypted TEXT NOT NULL, org_hint TEXT, validated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS qa_connection (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, org TEXT NOT NULL, project TEXT NOT NULL,
+          test_plan_id INTEGER NOT NULL, test_plan_name TEXT, plan_key TEXT NOT NULL UNIQUE,
+          title TEXT, legacy INTEGER NOT NULL DEFAULT 0,
+          created_by INTEGER REFERENCES app_user(id) ON DELETE SET NULL, created_at TEXT NOT NULL,
+          UNIQUE (org, project, test_plan_id)
+        );
+        CREATE TABLE IF NOT EXISTS connection_member (
+          connection_id INTEGER NOT NULL REFERENCES qa_connection(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+          role TEXT, added_at TEXT NOT NULL, PRIMARY KEY (connection_id, user_id)
+        );
+        """
+    )
+    _index_if(db, "idx_connection_member_user", "connection_member", ["user_id"])
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_qa_connection_plan_key_lower ON qa_connection (lower(plan_key))")
+
+
 MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (1, _migration_v1),
     (2, _migration_v2),
@@ -170,6 +200,7 @@ MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (6, _migration_v6),
     (7, _migration_v7),
     (8, _migration_v8),
+    (9, _migration_v9),
 ]
 
 

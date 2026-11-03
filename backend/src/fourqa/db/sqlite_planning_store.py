@@ -1,19 +1,23 @@
-"""SQLite planning store (mirrors backend/src/db/sqlitePlanningStore.ts)."""
+"""SQLite planning store."""
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import datetime, timezone
+from typing import Any
 
 from fourqa.db.db import get_db
 from fourqa.domain.planning import normalize_suite_fill
 from fourqa.persistence.contracts import (
     CommitRevisionInput,
+    PlanningAllocationWrite,
     PlanningChangeLogEntry,
     PlanningChangeLogWrite,
     PlanningRevisionRecord,
     PlanningScheduleItem,
     PlanningScopeWrite,
 )
+from fourqa.persistence.meta_scope import current_actor_name
 from fourqa.persistence.planning_conflict import PlanningConflictError
 
 REVISION_SQL = """
@@ -36,7 +40,7 @@ def revision_by_version(plan_key: str, version: int) -> PlanningRevisionRecord |
     return dict(row) if row else None  # type: ignore[return-value]
 
 
-def list_revisions(plan_key: str) -> list[dict[str, object]]:
+def list_revisions(plan_key: str) -> list[dict[str, Any]]:
     rows = get_db().execute(
         """
         SELECT r.version, r.created_at, r.reason
@@ -89,7 +93,7 @@ def load_schedule(revision_id: int) -> list[PlanningScheduleItem]:
         """,
         (revision_id,),
     ).fetchall()
-    by_item: dict[int, list[dict[str, object]]] = {}
+    by_item: dict[int, list[PlanningAllocationWrite]] = {}
     for row in allocs:
         by_item.setdefault(int(row[0]), []).append({"date": row[1], "quantity": row[2]})
     out: list[PlanningScheduleItem] = []
@@ -113,6 +117,12 @@ def load_schedule(revision_id: int) -> list[PlanningScheduleItem]:
     return out
 
 
+def _inserted_id(cur: sqlite3.Cursor) -> int:
+    if cur.lastrowid is None:
+        raise RuntimeError("INSERT não retornou id")
+    return cur.lastrowid
+
+
 def commit_revision(input: CommitRevisionInput) -> int:
     db = get_db()
     db.execute("BEGIN IMMEDIATE")
@@ -125,7 +135,7 @@ def commit_revision(input: CommitRevisionInput) -> int:
                 "INSERT INTO planning (plan_key, created_at) VALUES (?, ?)",
                 (input["plan_key"], input["created_at"]),
             )
-            planning_id = int(cur.lastrowid)
+            planning_id = _inserted_id(cur)
         cur = db.execute(
             """
             INSERT INTO planning_revision (planning_id, version, created_at, reason, baseline_origin, scope_snapshot)
@@ -140,7 +150,7 @@ def commit_revision(input: CommitRevisionInput) -> int:
                 input["scope_snapshot"],
             ),
         )
-        revision_id = int(cur.lastrowid)
+        revision_id = _inserted_id(cur)
         for item in input["scope"]:
             db.execute(
                 """
@@ -177,7 +187,7 @@ def commit_revision(input: CommitRevisionInput) -> int:
                     normalize_suite_fill(item.get("prioridade")),
                 ),
             )
-            item_id = int(cur.lastrowid)
+            item_id = _inserted_id(cur)
             for alloc in item.get("allocations") or []:
                 db.execute(
                     "INSERT INTO planning_allocation (item_id, alloc_date, planned_quantity) VALUES (?, ?, ?)",
@@ -190,7 +200,7 @@ def commit_revision(input: CommitRevisionInput) -> int:
         raise
 
 
-def _apply_cell(input: dict[str, object]) -> None:
+def _apply_cell(input: dict[str, Any]) -> None:
     db = get_db()
     field = input["field"]
     item_id = input["item_id"]
@@ -239,7 +249,7 @@ def _insert_change_log(input: PlanningChangeLogWrite) -> None:
         (
             planning_id,
             created_at,
-            input.get("actor"),
+            input.get("actor") or current_actor_name(),
             input.get("suite_id"),
             input.get("test_point_id"),
             input.get("suite_name"),
@@ -252,7 +262,7 @@ def _insert_change_log(input: PlanningChangeLogWrite) -> None:
     get_db().commit()
 
 
-def save_cell(input: dict[str, object]) -> None:
+def save_cell(input: dict[str, Any]) -> None:
     db = get_db()
     transactional = input.get("field") == "day" or input.get("change_log") is not None
     if not transactional:
@@ -270,7 +280,7 @@ def save_cell(input: dict[str, object]) -> None:
         raise
 
 
-def _assert_batch(inputs: list[dict[str, object]]) -> None:
+def _assert_batch(inputs: list[dict[str, Any]]) -> None:
     if any(inp.get("change_log") is None for inp in inputs):
         raise RuntimeError(BATCH_HISTORY_UNAVAILABLE)
     db = get_db()
@@ -306,7 +316,7 @@ def _assert_batch(inputs: list[dict[str, object]]) -> None:
                 raise PlanningConflictError(PlanningConflictError.cell_changed)
 
 
-def save_cells(inputs: list[dict[str, object]]) -> None:
+def save_cells(inputs: list[dict[str, Any]]) -> None:
     if not inputs:
         return
     db = get_db()

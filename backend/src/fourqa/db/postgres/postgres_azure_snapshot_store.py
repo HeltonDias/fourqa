@@ -5,9 +5,16 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from psycopg import AsyncConnection
-
-from fourqa.db.postgres.pool import as_number, as_number_or_null, as_text, bind, query, with_transaction
+from fourqa.db.postgres.pool import (
+    PgConnection,
+    as_number,
+    as_number_or_null,
+    as_text,
+    bind,
+    query,
+    trusted_sql,
+    with_transaction,
+)
 from fourqa.persistence.contracts import AzureSnapshot, PageParams, PageResult
 from fourqa.persistence.plan_key import required_plan_key
 from fourqa.types import ExecucaoRow, FalhaRow
@@ -65,16 +72,22 @@ def _falha_of(row: dict[str, Any]) -> FalhaRow:
     return out  # type: ignore[return-value]
 
 
-async def _insert_rows(conn: AsyncConnection, table: str, columns: list[str], rows: list[dict[str, Any]]) -> None:
+async def _insert_rows(conn: PgConnection, table: str, columns: list[str], rows: list[dict[str, Any]]) -> None:
     ph = ", ".join(f"${i + 1}" for i in range(len(columns)))
     sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({ph})"
     for row in rows:
-        await conn.execute(sql, [bind(row.get(c)) for c in columns])
+        await conn.execute(trusted_sql(sql), [bind(row.get(c)) for c in columns])
 
 
-async def apply_azure_snapshot_on_client(conn: AsyncConnection, input: AzureSnapshot) -> None:
-    await conn.execute("DELETE FROM execucoes")
-    await conn.execute("DELETE FROM falhas")
+async def apply_azure_snapshot_on_client(conn: PgConnection, input: AzureSnapshot) -> None:
+    if "plan_keys" in input:
+        plan_keys = [k.strip().lower() for k in input["plan_keys"] if k.strip()]
+        if plan_keys:
+            await conn.execute("DELETE FROM execucoes WHERE lower(plan_key) = ANY(%s)", (plan_keys,))
+            await conn.execute("DELETE FROM falhas WHERE lower(plan_key) = ANY(%s)", (plan_keys,))
+    else:
+        await conn.execute("DELETE FROM execucoes")
+        await conn.execute("DELETE FROM falhas")
     await _insert_rows(conn, "execucoes", EXECUCAO_COLUMNS, input["execucoes"])
     await _insert_rows(conn, "falhas", FALHA_COLUMNS, input["falhas"])
     for key, value in input["meta"].items():
@@ -90,7 +103,7 @@ async def apply_azure_snapshot_on_client(conn: AsyncConnection, input: AzureSnap
 
 
 async def replace_snapshot(input: AzureSnapshot) -> None:
-    async def work(conn: AsyncConnection) -> None:
+    async def work(conn: PgConnection) -> None:
         await apply_azure_snapshot_on_client(conn, input)
 
     await with_transaction(work, REPLACE_LOCK)

@@ -1,4 +1,4 @@
-"""HTTP write/read auth (mirrors backend/src/http/writeAuth.ts)."""
+"""HTTP write/read auth."""
 
 from __future__ import annotations
 
@@ -6,12 +6,37 @@ import hmac
 from typing import Literal
 
 WriteAuthDecision = Literal["allow", "unauthorized", "unconfigured"]
+SESSION_COOKIE = "fourqa_session"
+
+
+def presented_authorization(authorization_header: str | None, session_cookie: str | None) -> str | None:
+    header = (authorization_header or "").strip()
+    if header:
+        return header
+    cookie = (session_cookie or "").strip()
+    if not cookie:
+        return None
+    return f"Bearer {cookie}"
+
+
+def cookie_is_secure(*, vercel: bool, scheme: str) -> bool:
+    if vercel:
+        return True
+    return scheme == "https"
 
 
 def open_writes_allowed(*, vercel: bool, allow_open_writes_flag: str) -> bool:
     if vercel:
         return False
     return allow_open_writes_flag == "1"
+
+
+def token_matches(configured: str, presented: str) -> bool:
+    expected = configured.encode()
+    received = presented.encode()
+    if len(expected) != len(received):
+        return False
+    return hmac.compare_digest(expected, received)
 
 
 def _bearer_matches(token: str, authorization_header: str | None) -> bool:

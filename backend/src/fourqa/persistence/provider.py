@@ -1,16 +1,18 @@
-"""Persistence provider (mirrors backend/src/persistence/provider.ts)."""
+"""Persistence provider."""
 
 from __future__ import annotations
 
+import inspect
 import re
-from typing import Literal
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal, cast
 
 from fourqa.azure.config import env_value
 from fourqa.persistence.contracts import AzureSnapshotStore, PersistenceStores
 
 ProviderName = Literal["sqlite", "postgres"]
 
-_cached: dict[str, object] | None = None
+_cached: dict[str, Any] | None = None
 
 
 class PersistenceProviderError(Exception):
@@ -35,200 +37,53 @@ def resolve_db_provider(value: str) -> ProviderName:
     raise PersistenceProviderError(f'DB_PROVIDER "{value.strip()}" is not supported.')
 
 
-def _wrap_sync_stores(raw: PersistenceStores) -> PersistenceStores:
-    meta = raw["meta"]
-    azure = raw["azure_snapshot"]
-    legacy = raw["legacy_plan"]
-    planning = raw["planning"]
+class _StoreProxy:
+    """Expõe um store síncrono (dict de funções) ou assíncrono (módulo) pelo contrato assíncrono."""
 
-    def _call(store: object, name: str, *args: object):
+    def __init__(self, store: Any) -> None:
+        self._store = store
+
+    def __getattr__(self, name: str) -> Callable[..., Awaitable[Any]]:
+        store = self._store
         if isinstance(store, dict):
-            return store[name](*args)
-        return getattr(store, name)(*args)
+            if name not in store:
+                raise AttributeError(name)
+            target = store[name]
+        else:
+            target = getattr(store, name)
 
-    class _Meta:
-        async def get(self, key: str) -> str | None:
-            return _call(meta, "get", key)
+        async def call(*args: Any, **kwargs: Any) -> Any:
+            result = target(*args, **kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
 
-        async def get_many(self, keys: list[str]) -> dict[str, str | None]:
-            return _call(meta, "get_many", keys)
+        return call
 
-        async def set(self, key: str, value: str) -> None:
-            _call(meta, "set", key, value)
 
-        async def set_many(self, entries: dict[str, str]) -> None:
-            _call(meta, "set_many", entries)
-
-        async def replace_header_if(self, *args: object) -> None:
-            _call(meta, "replace_header_if", *args)
-
-        async def replace_period_if(self, *args: object) -> None:
-            _call(meta, "replace_period_if", *args)
-
-    class _Azure:
-        async def replace_snapshot(self, input: object) -> None:
-            fn = azure["replace_snapshot"] if isinstance(azure, dict) else azure.replace_snapshot  # type: ignore[union-attr]
-            return fn(input)
-
-        async def list_execucoes(self, plan_key: str):
-            fn = azure["list_execucoes"] if isinstance(azure, dict) else azure.list_execucoes  # type: ignore[union-attr]
-            return fn(plan_key)
-
-        async def list_falhas(self, plan_key: str):
-            fn = azure["list_falhas"] if isinstance(azure, dict) else azure.list_falhas  # type: ignore[union-attr]
-            return fn(plan_key)
-
-        async def query_execucoes(self, params: object):
-            fn = azure["query_execucoes"] if isinstance(azure, dict) else azure.query_execucoes  # type: ignore[union-attr]
-            return fn(params)
-
-        async def query_falhas(self, params: object):
-            fn = azure["query_falhas"] if isinstance(azure, dict) else azure.query_falhas  # type: ignore[union-attr]
-            return fn(params)
-
-    class _Legacy:
-        async def list_base(self):
-            return _call(legacy, "list_base")
-
-    class _Planning:
-        async def latest_revision(self, plan_key: str):
-            return _call(planning, "latest_revision", plan_key)
-
-        async def revision_by_version(self, plan_key: str, version: int):
-            return _call(planning, "revision_by_version", plan_key, version)
-
-        async def list_revisions(self, plan_key: str):
-            return _call(planning, "list_revisions", plan_key)
-
-        async def load_scope(self, revision_id: int):
-            return _call(planning, "load_scope", revision_id)
-
-        async def load_schedule(self, revision_id: int):
-            return _call(planning, "load_schedule", revision_id)
-
-        async def commit_revision(self, input: object) -> int:
-            return _call(planning, "commit_revision", input)
-
-        async def save_cell(self, input: object) -> None:
-            _call(planning, "save_cell", input)
-
-        async def save_cells(self, inputs: list[object]) -> None:
-            _call(planning, "save_cells", inputs)
-
-        async def append_change_log(self, input: object) -> None:
-            _call(planning, "append_change_log", input)
-
-        async def list_change_log(self, plan_key: str, limit: int = 300):
-            return _call(planning, "list_change_log", plan_key, limit)
-
-        async def change_log_supported(self) -> bool:
-            return _call(planning, "change_log_supported")
-
-    return {
-        "meta": _Meta(),  # type: ignore[typeddict-item]
-        "azure_snapshot": _Azure(),  # type: ignore[typeddict-item]
-        "legacy_plan": _Legacy(),  # type: ignore[typeddict-item]
-        "planning": _Planning(),  # type: ignore[typeddict-item]
-    }
+def _wrap_stores(raw: dict[str, Any]) -> PersistenceStores:
+    return cast(
+        PersistenceStores,
+        {
+            "meta": _StoreProxy(raw["meta"]),
+            "azure_snapshot": _StoreProxy(raw["azure_snapshot"]),
+            "legacy_plan": _StoreProxy(raw["legacy_plan"]),
+            "planning": _StoreProxy(raw["planning"]),
+        },
+    )
 
 
 def _sqlite_stores() -> PersistenceStores:
     from fourqa.db import sqlite_azure_snapshot_store, sqlite_legacy_plan_store, sqlite_meta_store, sqlite_planning_store
 
-    raw: PersistenceStores = {
-        "meta": sqlite_meta_store.sqlite_meta_store,  # type: ignore[typeddict-item]
-        "azure_snapshot": sqlite_azure_snapshot_store.sqlite_azure_snapshot_store,  # type: ignore[typeddict-item]
-        "legacy_plan": sqlite_legacy_plan_store.sqlite_legacy_plan_store,  # type: ignore[typeddict-item]
-        "planning": sqlite_planning_store.sqlite_planning_store,  # type: ignore[typeddict-item]
-    }
-    return _wrap_sync_stores(raw)
-
-
-def _wrap_async_stores(raw: PersistenceStores) -> PersistenceStores:
-    meta = raw["meta"]
-    azure = raw["azure_snapshot"]
-    legacy = raw["legacy_plan"]
-    planning = raw["planning"]
-
-    class _Meta:
-        async def get(self, key: str) -> str | None:
-            return await meta.get(key)  # type: ignore[union-attr]
-
-        async def get_many(self, keys: list[str]) -> dict[str, str | None]:
-            return await meta.get_many(keys)  # type: ignore[union-attr]
-
-        async def set(self, key: str, value: str) -> None:
-            await meta.set(key, value)  # type: ignore[union-attr]
-
-        async def set_many(self, entries: dict[str, str]) -> None:
-            await meta.set_many(entries)  # type: ignore[union-attr]
-
-        async def replace_header_if(self, *args: object) -> None:
-            await meta.replace_header_if(*args)  # type: ignore[union-attr]
-
-        async def replace_period_if(self, *args: object) -> None:
-            await meta.replace_period_if(*args)  # type: ignore[union-attr]
-
-    class _Azure:
-        async def replace_snapshot(self, input: object) -> None:
-            await azure.replace_snapshot(input)  # type: ignore[union-attr]
-
-        async def list_execucoes(self, plan_key: str):
-            return await azure.list_execucoes(plan_key)  # type: ignore[union-attr]
-
-        async def list_falhas(self, plan_key: str):
-            return await azure.list_falhas(plan_key)  # type: ignore[union-attr]
-
-        async def query_execucoes(self, params: object):
-            return await azure.query_execucoes(params)  # type: ignore[union-attr]
-
-        async def query_falhas(self, params: object):
-            return await azure.query_falhas(params)  # type: ignore[union-attr]
-
-    class _Legacy:
-        async def list_base(self):
-            return await legacy.list_base()  # type: ignore[union-attr]
-
-    class _Planning:
-        async def latest_revision(self, plan_key: str):
-            return await planning.latest_revision(plan_key)  # type: ignore[union-attr]
-
-        async def revision_by_version(self, plan_key: str, version: int):
-            return await planning.revision_by_version(plan_key, version)  # type: ignore[union-attr]
-
-        async def list_revisions(self, plan_key: str):
-            return await planning.list_revisions(plan_key)  # type: ignore[union-attr]
-
-        async def load_scope(self, revision_id: int):
-            return await planning.load_scope(revision_id)  # type: ignore[union-attr]
-
-        async def load_schedule(self, revision_id: int):
-            return await planning.load_schedule(revision_id)  # type: ignore[union-attr]
-
-        async def commit_revision(self, input: object) -> int:
-            return await planning.commit_revision(input)  # type: ignore[union-attr]
-
-        async def save_cell(self, input: object) -> None:
-            await planning.save_cell(input)  # type: ignore[union-attr]
-
-        async def save_cells(self, inputs: list[object]) -> None:
-            await planning.save_cells(inputs)  # type: ignore[union-attr]
-
-        async def append_change_log(self, input: object) -> None:
-            await planning.append_change_log(input)  # type: ignore[union-attr]
-
-        async def list_change_log(self, plan_key: str, limit: int = 300):
-            return await planning.list_change_log(plan_key, limit)  # type: ignore[union-attr]
-
-        async def change_log_supported(self) -> bool:
-            return await planning.change_log_supported()  # type: ignore[union-attr]
-
-    return {
-        "meta": _Meta(),  # type: ignore[typeddict-item]
-        "azure_snapshot": _Azure(),  # type: ignore[typeddict-item]
-        "legacy_plan": _Legacy(),  # type: ignore[typeddict-item]
-        "planning": _Planning(),  # type: ignore[typeddict-item]
-    }
+    return _wrap_stores(
+        {
+            "meta": sqlite_meta_store.sqlite_meta_store,
+            "azure_snapshot": sqlite_azure_snapshot_store.sqlite_azure_snapshot_store,
+            "legacy_plan": sqlite_legacy_plan_store.sqlite_legacy_plan_store,
+            "planning": sqlite_planning_store.sqlite_planning_store,
+        }
+    )
 
 
 async def _postgres_stores() -> PersistenceStores:
@@ -247,13 +102,14 @@ async def _postgres_stores() -> PersistenceStores:
     )
 
     await pg_migrate.assert_postgres_schema()
-    raw: PersistenceStores = {
-        "meta": postgres_meta_store,  # type: ignore[typeddict-item]
-        "azure_snapshot": postgres_azure_snapshot_store,  # type: ignore[typeddict-item]
-        "legacy_plan": postgres_legacy_plan_store,  # type: ignore[typeddict-item]
-        "planning": postgres_planning_store,  # type: ignore[typeddict-item]
-    }
-    return _wrap_async_stores(raw)
+    return _wrap_stores(
+        {
+            "meta": postgres_meta_store,
+            "azure_snapshot": postgres_azure_snapshot_store,
+            "legacy_plan": postgres_legacy_plan_store,
+            "planning": postgres_planning_store,
+        }
+    )
 
 
 async def get_stores() -> PersistenceStores:
@@ -267,18 +123,31 @@ async def get_stores() -> PersistenceStores:
         and _cached.get("provider") == provider
         and _cached.get("read_cache") == read_cache
     ):
-        return _cached["stores"]  # type: ignore[return-value]
+        return cast(PersistenceStores, _cached["stores"])
     base = _sqlite_stores() if provider == "sqlite" else await _postgres_stores()
     stores = apply_experimental_azure_cache_read(base)
     _cached = {"provider": provider, "read_cache": read_cache, "stores": stores, "durable_snapshot": base["azure_snapshot"]}
     return stores
 
 
+async def get_identity_store() -> Any:
+    """Usuários, PATs, conexões e membros. Garante o schema antes do primeiro uso."""
+    provider = resolve_db_provider(env_value("DB_PROVIDER"))
+    if provider == "sqlite":
+        from fourqa.db.sqlite_identity_store import sqlite_identity_store
+
+        return _StoreProxy(sqlite_identity_store)
+    await get_stores()
+    from fourqa.db.postgres import postgres_identity_store
+
+    return _StoreProxy(postgres_identity_store)
+
+
 async def get_durable_azure_snapshot() -> AzureSnapshotStore:
     await get_stores()
     if not _cached:
         raise PersistenceProviderError("stores indisponíveis")
-    return _cached["durable_snapshot"]  # type: ignore[return-value]
+    return cast(AzureSnapshotStore, _cached["durable_snapshot"])
 
 
 async def persistence_ready() -> bool:

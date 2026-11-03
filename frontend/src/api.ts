@@ -1,3 +1,5 @@
+import { connectionHeaders, type ActiveConnection, type Role } from "./auth/connectionStore";
+
 export class ApiError extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
@@ -47,44 +49,70 @@ async function fail(res: Response): Promise<never> {
   throw new ApiError(res.status, apiMessage(body, res.statusText));
 }
 
+function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(path, {
+    ...init,
+    credentials: "include",
+    headers: { ...connectionHeaders(), ...(init.headers as Record<string, string> | undefined) },
+  });
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: authHeaders() });
+  const res = await apiFetch(path);
   if (!res.ok) await fail(res);
   return res.json() as Promise<T>;
 }
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("fourqa_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export async function saveAccessToken(token: string): Promise<void> {
+  const res = await fetch("/api/session", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) await fail(res);
+}
+
+export async function clearAccessToken(): Promise<void> {
+  const res = await fetch("/api/session", { method: "DELETE", credentials: "include" });
+  if (!res.ok) await fail(res);
+}
+
+export async function accessTokenActive(): Promise<boolean> {
+  const res = await fetch("/api/session", { credentials: "include" });
+  if (!res.ok) return false;
+  const body = (await res.json().catch(() => ({}))) as { active?: boolean };
+  return body.active === true;
 }
 
 async function post<T>(path: string): Promise<T> {
-  const res = await fetch(path, { method: "POST", headers: authHeaders() });
+  const res = await apiFetch(path, { method: "POST" });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, apiMessage(body, res.statusText));
   return body as T;
 }
 
-async function postJson<T>(path: string, data: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(data),
+async function sendJson<T>(method: "POST" | "PUT" | "DELETE", path: string, data?: unknown): Promise<T> {
+  const res = await apiFetch(path, {
+    method,
+    headers: data === undefined ? undefined : { "Content-Type": "application/json" },
+    body: data === undefined ? undefined : JSON.stringify(data),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, apiMessage(body, res.statusText));
   return body as T;
 }
 
-async function put<T>(path: string, data: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(data),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, apiMessage(body, res.statusText));
-  return body as T;
+function postJson<T>(path: string, data: unknown): Promise<T> {
+  return sendJson<T>("POST", path, data);
+}
+
+function put<T>(path: string, data: unknown): Promise<T> {
+  return sendJson<T>("PUT", path, data);
+}
+
+function del<T>(path: string): Promise<T> {
+  return sendJson<T>("DELETE", path);
 }
 
 export type SyncState = import("./types").SyncState;
@@ -233,6 +261,59 @@ export const api = {
     get<Page<import("./types").ExecucaoRow>>(`/api/execucoes${pageQuery(params)}`),
   falhas: (params: { limit?: number; offset?: number; q?: string; planKey?: string } = {}) =>
     get<Page<import("./types").FalhaRow>>(`/api/falhas${pageQuery(params)}`),
+  me: () => get<AuthState>("/api/auth/me"),
+  login: (pat: string, organization?: string) =>
+    postJson<{ user: AuthUser }>("/api/auth/login", { pat, organization: organization || undefined }),
+  logout: () => postJson<{ ok: boolean }>("/api/auth/logout", {}),
+  azureOrgs: () => get<{ organizations: string[] }>("/api/azure/orgs"),
+  azureProjects: (org: string) =>
+    get<{ projects: { id: string; name: string }[] }>(`/api/azure/orgs/${encodeURIComponent(org)}/projects`),
+  azureTestPlans: (org: string, project: string) =>
+    get<{ testPlans: { id: number; name: string }[] }>(
+      `/api/azure/orgs/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/test-plans`,
+    ),
+  connections: () => get<{ connections: ActiveConnection[] }>("/api/connections"),
+  connect: (body: { organization: string; project: string; testPlanId: number; title?: string }) =>
+    postJson<{ created: boolean; connection: ActiveConnection }>("/api/connections", body),
+  members: (connectionId: number) => get<MembersView>(`/api/connections/${connectionId}/members`),
+  setMemberRole: (connectionId: number, userId: number, role: Role | null) =>
+    put<MembersView>(`/api/connections/${connectionId}/members/${userId}`, { role }),
+  removeMember: (connectionId: number, userId: number) =>
+    del<MembersView>(`/api/connections/${connectionId}/members/${userId}`),
+  adminUsers: () => get<{ users: AuthUser[]; roles: Role[] }>("/api/admin/users"),
+  setGlobalRole: (userId: number, globalRole: Role) =>
+    put<{ users: AuthUser[]; roles: Role[] }>(`/api/admin/users/${userId}`, { globalRole }),
+  evolucaoQa: (planKey?: string, range?: { from?: string; to?: string }) =>
+    get<import("./types").EvolucaoQaDto>(`/api/evolucao-qa${planQuery(planKey, range)}`),
+};
+
+export type AuthUser = {
+  id: number;
+  name: string;
+  email: string | null;
+  globalRole: Role;
+  globalRoleLabel: string;
+};
+
+export type AuthState = {
+  authenticated: boolean;
+  user: AuthUser | null;
+  loginEnabled: boolean;
+  entraEnabled?: boolean;
+  patEnabled?: boolean;
+};
+
+export type MemberRow = AuthUser & {
+  memberRole: Role | null;
+  effectiveRole: Role | null;
+  effectiveRoleLabel: string | null;
+};
+
+export type MembersView = {
+  connection: ActiveConnection;
+  canManage: boolean;
+  members: MemberRow[];
+  roles: Role[];
 };
 
 export function pct(n: number): string {

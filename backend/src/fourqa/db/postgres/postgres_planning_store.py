@@ -5,19 +5,30 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from psycopg import AsyncConnection
-
 from fourqa.db.postgres.migrate import PLANNING_CHANGE_LOG_VERSION
-from fourqa.db.postgres.pool import as_flag, as_number, as_number_or_null, as_text, bind, query, with_transaction
+from fourqa.db.postgres.pool import (
+    PgConnection,
+    as_flag,
+    as_int_or_null,
+    as_number,
+    as_number_or_null,
+    as_text,
+    bind,
+    query,
+    trusted_sql,
+    with_transaction,
+)
 from fourqa.domain.planning import normalize_suite_fill
 from fourqa.persistence.contracts import (
     CommitRevisionInput,
     PlanningChangeLogEntry,
+    PlanningAllocationWrite,
     PlanningChangeLogWrite,
     PlanningRevisionRecord,
     PlanningScheduleItem,
     PlanningScopeWrite,
 )
+from fourqa.persistence.meta_scope import current_actor_name
 from fourqa.persistence.planning_conflict import PlanningConflictError
 
 REVISION_SQL = """
@@ -43,21 +54,20 @@ def _revision_of(row: dict[str, Any] | None) -> PlanningRevisionRecord | None:
     }
 
 
-async def _insert_returning_id(conn: AsyncConnection, sql: str, params: list[Any]) -> int:
-    cur = await conn.execute(sql, params)
+async def _insert_returning_id(conn: PgConnection, sql: str, params: list[Any]) -> int:
+    cur = await conn.execute(trusted_sql(sql), params)
     row = await cur.fetchone()
     if not row:
         raise RuntimeError("INSERT RETURNING id não retornou linha")
-    key = "id" if isinstance(row, dict) else 0
-    return int(as_number(row[key] if isinstance(row, dict) else row[0]))
+    return int(as_number(row["id"]))
 
 
-async def _planning_id_for_key_conn(conn: AsyncConnection, plan_key: str) -> int | None:
+async def _planning_id_for_key_conn(conn: PgConnection, plan_key: str) -> int | None:
     cur = await conn.execute("SELECT id FROM planning WHERE plan_key = $1", [plan_key])
     row = await cur.fetchone()
     if not row:
         return None
-    return int(as_number(row["id"] if isinstance(row, dict) else row[0]))
+    return int(as_number(row["id"]))
 
 
 async def latest_revision(plan_key: str) -> PlanningRevisionRecord | None:
@@ -70,7 +80,7 @@ async def revision_by_version(plan_key: str, version: int) -> PlanningRevisionRe
     return _revision_of(rows[0] if rows else None)
 
 
-async def list_revisions(plan_key: str) -> list[dict[str, object]]:
+async def list_revisions(plan_key: str) -> list[dict[str, Any]]:
     rows = await query(
         """
         SELECT r.version, r.created_at, r.reason
@@ -101,10 +111,10 @@ async def load_scope(revision_id: int) -> list[PlanningScopeWrite]:
     )
     return [
         {
-            "plan_id": as_number_or_null(row["plan_id"]),
-            "suite_id": as_number_or_null(row["suite_id"]),
-            "test_point_id": as_number_or_null(row["test_point_id"]),
-            "test_case_id": as_number_or_null(row["test_case_id"]),
+            "plan_id": as_int_or_null(row["plan_id"]),
+            "suite_id": as_int_or_null(row["suite_id"]),
+            "test_point_id": as_int_or_null(row["test_point_id"]),
+            "test_case_id": as_int_or_null(row["test_case_id"]),
             "label": as_text(row["label"]),
         }
         for row in rows
@@ -129,7 +139,7 @@ async def load_schedule(revision_id: int) -> list[PlanningScheduleItem]:
         """,
         [revision_id],
     )
-    by_item: dict[int, list[dict[str, object]]] = {}
+    by_item: dict[int, list[PlanningAllocationWrite]] = {}
     for row in allocs:
         item_id = int(as_number(row["item_id"]))
         by_item.setdefault(item_id, []).append(
@@ -141,10 +151,10 @@ async def load_schedule(revision_id: int) -> list[PlanningScheduleItem]:
         out.append(
             {
                 "id": item_id,
-                "suite_id": as_number_or_null(item.get("suite_id")),
+                "suite_id": as_int_or_null(item.get("suite_id")),
                 "suite_name": as_text(item.get("suite_name")),
-                "test_point_id": as_number_or_null(item.get("test_point_id")),
-                "test_case_id": as_number_or_null(item.get("test_case_id")),
+                "test_point_id": as_int_or_null(item.get("test_point_id")),
+                "test_case_id": as_int_or_null(item.get("test_case_id")),
                 "planned_start": as_text(item.get("planned_start")),
                 "planned_end": as_text(item.get("planned_end")),
                 "baseline_quantity": as_number_or_null(item.get("baseline_quantity")),
@@ -157,11 +167,11 @@ async def load_schedule(revision_id: int) -> list[PlanningScheduleItem]:
 
 
 async def commit_revision(input: CommitRevisionInput) -> int:
-    async def work(conn: AsyncConnection) -> int:
+    async def work(conn: PgConnection) -> int:
         cur = await conn.execute("SELECT id FROM planning WHERE plan_key = $1", [input["plan_key"]])
         existing = await cur.fetchone()
         if existing:
-            planning_id = int(as_number(existing["id"] if isinstance(existing, dict) else existing[0]))
+            planning_id = int(as_number(existing["id"]))
         else:
             planning_id = await _insert_returning_id(
                 conn,
@@ -230,7 +240,7 @@ async def commit_revision(input: CommitRevisionInput) -> int:
     return await with_transaction(work)
 
 
-async def _apply_cell_conn(conn: AsyncConnection, input: dict[str, object]) -> None:
+async def _apply_cell_conn(conn: PgConnection, input: dict[str, Any]) -> None:
     field = input["field"]
     item_id = input["item_id"]
     if field == "day":
@@ -267,7 +277,7 @@ async def _apply_cell_conn(conn: AsyncConnection, input: dict[str, object]) -> N
         raise ValueError(f"Campo de planejamento não suportado ({field!r})")
 
 
-async def _apply_cell_query(input: dict[str, object]) -> None:
+async def _apply_cell_query(input: dict[str, Any]) -> None:
     field = input["field"]
     item_id = input["item_id"]
     if field == "responsavel":
@@ -301,7 +311,7 @@ async def _planning_id_for_key(plan_key: str) -> int | None:
     return int(as_number(rows[0]["id"]))
 
 
-async def _insert_change_log_conn(conn: AsyncConnection, input: PlanningChangeLogWrite) -> None:
+async def _insert_change_log_conn(conn: PgConnection, input: PlanningChangeLogWrite) -> None:
     planning_id = await _planning_id_for_key_conn(conn, input["plan_key"])
     if planning_id is None:
         return
@@ -316,7 +326,7 @@ async def _insert_change_log_conn(conn: AsyncConnection, input: PlanningChangeLo
         [
             planning_id,
             created_at,
-            bind(input.get("actor")),
+            bind(input.get("actor") or current_actor_name()),
             bind(input.get("suite_id")),
             bind(input.get("test_point_id")),
             bind(input.get("suite_name")),
@@ -328,14 +338,14 @@ async def _insert_change_log_conn(conn: AsyncConnection, input: PlanningChangeLo
     )
 
 
-async def save_cell(input: dict[str, object]) -> None:
+async def save_cell(input: dict[str, Any]) -> None:
     field = input.get("field")
     transactional = field == "day" or input.get("change_log") is not None
     if not transactional:
         await _apply_cell_query(input)
         return
 
-    async def work(conn: AsyncConnection) -> None:
+    async def work(conn: PgConnection) -> None:
         await _apply_cell_conn(conn, input)
         if input.get("change_log"):
             await _insert_change_log_conn(conn, input["change_log"])  # type: ignore[arg-type]
@@ -343,7 +353,7 @@ async def save_cell(input: dict[str, object]) -> None:
     await with_transaction(work)
 
 
-async def _assert_batch_conn(conn: AsyncConnection, inputs: list[dict[str, object]]) -> None:
+async def _assert_batch_conn(conn: PgConnection, inputs: list[dict[str, Any]]) -> None:
     if any(inp.get("change_log") is None for inp in inputs):
         raise RuntimeError(BATCH_HISTORY_UNAVAILABLE)
     plan_key = next((str(inp["plan_key"]) for inp in inputs if inp.get("plan_key")), None)
@@ -384,11 +394,11 @@ async def _assert_batch_conn(conn: AsyncConnection, inputs: list[dict[str, objec
                 raise PlanningConflictError(PlanningConflictError.cell_changed)
 
 
-async def save_cells(inputs: list[dict[str, object]]) -> None:
+async def save_cells(inputs: list[dict[str, Any]]) -> None:
     if not inputs:
         return
 
-    async def work(conn: AsyncConnection) -> None:
+    async def work(conn: PgConnection) -> None:
         await _assert_batch_conn(conn, inputs)
         for inp in inputs:
             await _apply_cell_conn(conn, inp)
@@ -403,7 +413,7 @@ async def save_cells(inputs: list[dict[str, object]]) -> None:
 
 
 async def append_change_log(input: PlanningChangeLogWrite) -> None:
-    async def work(conn: AsyncConnection) -> None:
+    async def work(conn: PgConnection) -> None:
         await _insert_change_log_conn(conn, input)
 
     await with_transaction(work)
@@ -429,8 +439,8 @@ async def list_change_log(plan_key: str, limit: int = 300) -> list[PlanningChang
             "id": int(as_number(row["id"])),
             "created_at": as_text(row["created_at"]) or "",
             "actor": as_text(row.get("actor")),
-            "suite_id": as_number_or_null(row.get("suite_id")),
-            "test_point_id": as_number_or_null(row.get("test_point_id")),
+            "suite_id": as_int_or_null(row.get("suite_id")),
+            "test_point_id": as_int_or_null(row.get("test_point_id")),
             "suite_name": as_text(row.get("suite_name")),
             "field": as_text(row["field"]) or "",
             "alloc_date": as_text(row.get("alloc_date")),

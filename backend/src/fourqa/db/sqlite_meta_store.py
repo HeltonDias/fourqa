@@ -1,32 +1,37 @@
-"""SQLite meta store (mirrors backend/src/db/sqliteMetaStore.ts)."""
+"""SQLite meta store."""
 
 from __future__ import annotations
 
 from fourqa.db.db import get_db
+from fourqa.persistence.meta_scope import scoped_meta_key
 from fourqa.persistence.planning_conflict import PlanningConflictError
 
 
 def get(key: str) -> str | None:
-    row = get_db().execute("SELECT value FROM workbook_meta WHERE key = ?", (key,)).fetchone()
+    row = get_db().execute("SELECT value FROM workbook_meta WHERE key = ?", (scoped_meta_key(key),)).fetchone()
     return str(row[0]) if row else None
 
 
 def get_many(keys: list[str]) -> dict[str, str | None]:
     unique = list(dict.fromkeys(keys))
-    out = {key: None for key in unique}
+    out: dict[str, str | None] = {key: None for key in unique}
     if not unique:
         return out
-    placeholders = ", ".join("?" for _ in unique)
+    stored_to_key = {scoped_meta_key(key): key for key in unique}
+    stored = list(stored_to_key)
+    placeholders = ", ".join("?" for _ in stored)
     rows = get_db().execute(
-        f"SELECT key, value FROM workbook_meta WHERE key IN ({placeholders})", unique
+        f"SELECT key, value FROM workbook_meta WHERE key IN ({placeholders})", stored
     ).fetchall()
     for row in rows:
-        out[str(row[0])] = str(row[1]) if row[1] is not None else None
+        key = stored_to_key.get(str(row[0]))
+        if key is not None:
+            out[key] = str(row[1]) if row[1] is not None else None
     return out
 
 
 def set(key: str, value: str) -> None:
-    get_db().execute("INSERT OR REPLACE INTO workbook_meta (key, value) VALUES (?, ?)", (key, value))
+    get_db().execute("INSERT OR REPLACE INTO workbook_meta (key, value) VALUES (?, ?)", (scoped_meta_key(key), value))
     get_db().commit()
 
 
@@ -35,7 +40,7 @@ def set_many(entries: dict[str, str]) -> None:
     db.execute("BEGIN")
     try:
         for key, value in entries.items():
-            db.execute("INSERT OR REPLACE INTO workbook_meta (key, value) VALUES (?, ?)", (key, value))
+            db.execute("INSERT OR REPLACE INTO workbook_meta (key, value) VALUES (?, ?)", (scoped_meta_key(key), value))
         db.commit()
     except Exception:
         db.rollback()
