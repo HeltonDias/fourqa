@@ -143,10 +143,11 @@ def get_pool() -> AsyncConnectionPool[PgConnection]:
     ssl_flag = str(params.get("ssl", "")).lower()
     ca_file = postgres_ca_file(url)
     ssl = _ssl_config(parsed.hostname, mode, ssl_flag, ca_file)
-    max_size = 1 if os.environ.get("VERCEL") == "1" else 10
+    on_vercel = os.environ.get("VERCEL") == "1"
     kwargs: dict[str, Any] = {
         "conninfo": url,
-        "max_size": max_size,
+        "min_size": 1 if on_vercel else 4,
+        "max_size": 1 if on_vercel else 10,
         "timeout": 10,
         "reconnect_timeout": 5,
         "kwargs": {"row_factory": dict_row},
