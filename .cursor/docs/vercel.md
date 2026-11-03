@@ -48,7 +48,7 @@ O repositório GitHub não está ligado ao projeto. Ligá-lo publicaria a branch
 
 Testadores sem conta no Vercel entram pelo link compartilhável do deployment: Deployments > deployment > Share > "Anyone with the link". No Hobby, a conta tem um único link no total. Um Preview novo exige revogar o link antigo e gerar outro.
 
-O alias de homologação não foi reatribuído, por decisão do responsável. Ele ainda aponta para um deployment anterior que responde `FUNCTION_INVOCATION_FAILED` em `/api/*`.
+O alias `fourqa-homolog-heltonmarques-8008.vercel.app` aponta para `fourqa-iklzkc8x3` desde 2026-11-03, a pedido do responsável, para os testadores. A Vercel Authentication continua ligada. O acesso externo usa o link compartilhável desse deployment (`?_vercel_share=`). No Hobby existe um único link por conta. Quem entra ainda faz login no FourQA com o PAT.
 
 ## Rollback
 
