@@ -44,7 +44,9 @@ O repositório GitHub não está ligado ao projeto. Ligá-lo publicaria a branch
 
 ## Último Preview validado
 
-2026-11-03, commit `b66af70` (branch `feat/java-25-foundation`): `https://fourqa-39r7ntm08-heltonmarques-8008.vercel.app`. `/api/health` respondeu `{"ok":true,"database":"ready"}`, com a migration 005 aplicada no Supabase. `/api/auth/me` mostrou o login por PAT ligado (Entra desligado). `/api/home` sem sessão respondeu 401. `FOURQA_SESSION_SECRET` e `FOURQA_PAT_ENCRYPTION_KEY` estão no ambiente Preview como Sensitive. `FOURQA_BOOTSTRAP_HEADS` ainda não foi definido.
+2026-11-03, commit `b66af70` (branch `feat/java-25-foundation`): `https://fourqa-ja6vwatwl-heltonmarques-8008.vercel.app`. Substitui `fourqa-39r7ntm08`, do mesmo commit, que não tinha os Heads. `/api/health` respondeu `{"ok":true,"database":"ready"}`, com a migration 005 aplicada no Supabase. `/api/auth/me` mostrou o login por PAT ligado (Entra desligado). `/api/home` sem sessão respondeu 401. `FOURQA_SESSION_SECRET` e `FOURQA_PAT_ENCRYPTION_KEY` estão no ambiente Preview como Sensitive. `FOURQA_BOOTSTRAP_HEADS` (não sensível) lista os três Heads iniciais aprovados pelo responsável. No primeiro login, o usuário entra como Head se o e-mail do perfil Azure DevOps estiver na lista. Um usuário já cadastrado só é promovido se ainda não existir nenhum Head.
+
+Testadores sem conta no Vercel entram pelo link compartilhável do deployment: Deployments > deployment > Share > "Anyone with the link". No Hobby, a conta tem um único link no total. Um Preview novo exige revogar o link antigo e gerar outro.
 
 O alias de homologação não foi reatribuído, por decisão do responsável. Ele ainda aponta para um deployment anterior que responde `FUNCTION_INVOCATION_FAILED` em `/api/*`.
 
