@@ -1,10 +1,12 @@
-"""Pool PostgreSQL na Vercel: PEM inline fora do bundle e limites do pool."""
+"""Pool e migrador PostgreSQL na Vercel."""
 
+import re
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from fourqa.db.postgres.migrate import applied_at_now
 from fourqa.db.postgres.pool import get_pool, postgres_ca_file
 
 PEM = "-----BEGIN CERTIFICATE-----\nTESTE\n-----END CERTIFICATE-----\n"
@@ -29,6 +31,11 @@ def test_vercel_pool_holds_a_single_connection(monkeypatch: pytest.MonkeyPatch):
         assert (pool.min_size, pool.max_size) == (1, 1)
     finally:
         get_pool.cache_clear()
+
+
+def test_migration_ledger_timestamp_matches_node_format():
+    stamp = applied_at_now()
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", stamp)
 
 
 def test_inline_ca_must_be_pem(monkeypatch: pytest.MonkeyPatch):
