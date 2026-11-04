@@ -1,7 +1,7 @@
 # FourQA — Arquitetura do produto
 
-> **Referência arquitetural | 20/10/2026 | v1.0 | Escopo: auditoria estática do ZIP recebido nesta conversa.**
-> **Leitura rápida:** o FourQA é hoje uma aplicação web com frontend React, API Express em TypeScript e banco PostgreSQL. Recebe resultados do Azure DevOps, calcula indicadores e mantém o planejamento no próprio FourQA. As capacidades para vários clientes e perfis de acesso são **objetivo**, não infraestrutura já pronta.
+> **Referência arquitetural | atualizado 04/11/2026 | base v1.0 (auditoria ZIP) + working tree.**
+> **Leitura rápida:** o FourQA é hoje uma aplicação web com frontend React/Vite, **API Python 3.12+ / FastAPI** (`backend/src/fourqa/`, Vercel `api/index.py`) e banco PostgreSQL. Recebe resultados do Azure DevOps, calcula indicadores e mantém o planejamento no próprio FourQA. Express/TypeScript, ASP.NET e Java são **históricos** (`DEC-032`/`DEC-033`). Capacidades multiempresa e perfis de acesso são **objetivo**, não infraestrutura já pronta.
 
 ## 1. Como utilizar este documento
 
@@ -16,7 +16,7 @@
 ```mermaid
 flowchart LR
   QA[QA e coordenação] --> UI[Frontend React 19 / Vite]
-  UI --> API[API Express 5 / TypeScript]
+  UI --> API[API FastAPI / Python 3.12+]
   API --> DOM[Domínio e serviços]
   DOM --> PG[(PostgreSQL / Supabase)]
   DOM --> AZ[Azure DevOps REST]
@@ -31,16 +31,16 @@ flowchart LR
 
 | Peça | Evidência no repositório | Comportamento identificado |
 |---|---|---|
-| Workspaces | `package.json` | npm workspaces `backend`, `frontend`; scripts `test`, `typecheck`, `build`, `dev`. |
+| Tooling / UI | `package.json` | npm workspace `frontend` (Node 22); scripts raiz `test`, `typecheck`, `build`, `dev` orquestram API Python + SPA. |
 | Frontend | `frontend/src/App.tsx`, `frontend/src/api.ts`, `frontend/src/pages/` | React 19 / Vite / React Router. Rotas `/`, `/planejamento`, `/status-frente`, `/execucoes`, `/falhas`. |
-| Backend | `backend/src/fourqa/app.py`, `backend/src/fourqa/api/routes.py` | FastAPI, Python 3.12+ e endpoints `/api/*`. |
-| Entrada Vercel | `api/index.py`, `vercel.json` | Função Python reexporta `fourqa.app`; SPA servida de `frontend/dist`. |
-| Domínio | `backend/src/domain/formulas.ts`, `graficos.ts`, `evolucaoStatus.ts`, `dimensions.ts`, `planning.ts` | Cálculos, status, hierarquia e identidade de planejamento. |
-| Serviços | `backend/src/services/{reportService,planningService,syncService,syncJob}.ts` | Agregação de Report, planejamento, sync e status de job. |
-| Persistência | `backend/src/persistence/`, `backend/src/db/postgres/` | Stores por contrato; PostgreSQL operacional, SQLite para testes/legado. |
-| Azure | `backend/src/azure/{client,execucoes,falhas,kpis,config}.ts` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
-| Testes | `backend/package.json`, `backend/src/**/*.test.ts` | Testes de domínio, store, migração, report, auth, deploy; existência verificada, não executados nesta análise. |
-| Fundação Java | — | Removida (`DEC-033`). API operacional: Python (`backend/src/fourqa/`). |
+| Backend | `backend/src/fourqa/app.py`, `backend/src/fourqa/api/routes.py`, `backend/pyproject.toml` | FastAPI, Python 3.12+ e endpoints `/api/*`. |
+| Entrada Vercel | `api/index.py`, `vercel.json`, `requirements.txt` | Função Python reexporta `fourqa.app`; SPA servida de `frontend/dist`. |
+| Domínio | `backend/src/fourqa/domain/` (`formulas.py`, `dimensions.py`, …) | Cálculos, status, hierarquia e identidade de planejamento. |
+| Serviços | `backend/src/fourqa/services/` (`report_service.py`, `planning_service.py`, `sync_service.py`, `sync_job.py`) | Agregação de Report, planejamento, sync e status de job. |
+| Persistência | `backend/src/fourqa/persistence/`, `backend/src/fourqa/db/postgres/` | Stores por contrato; PostgreSQL operacional, SQLite para testes/legado. |
+| Azure | `backend/src/fourqa/azure/` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
+| Testes | `backend/tests/`, `backend/pyproject.toml` | pytest (+ pyright via `typecheck:backend`); frontend smoke em `frontend/test/`. |
+| Stacks legadas | — | Express/TS, ASP.NET (`DEC-032`) e Java (`DEC-033`) **ausentes** do working tree. |
 | Segurança transitória | `backend/src/fourqa/http/write_auth.py`, `frontend/src/api.ts` | Bearer compartilhado; browser guarda cookie HttpOnly `fourqa_session`; Vercel Authentication é proteção de hospedagem. |
 
 ### 3.1 Contratos HTTP existentes
@@ -64,7 +64,7 @@ flowchart LR
 1. `backend/src/azure/config.ts` lê parâmetros de organização, projeto, PAT, planos e mapeamentos por ambiente. Esses parâmetros **não** constituem uma configuração administrável por usuário.
 2. `backend/src/services/syncService.ts` inicia a sincronização; `azure/client.ts` faz chamadas HTTP, retentativas e paginação pelos coletores; `execucoes.ts` lê Test Points e resultados atuais; `falhas.ts` relaciona bugs aos resultados.
 3. O snapshot operativo persiste em `execucoes` e `falhas` com metadados do refresh. Na Vercel, o trabalho é assíncrono via `waitUntil` e o progresso fica no metadado `sync_job`. `postgresAzureSnapshotStore.ts` substitui o lote, preservando planejamento.
-4. `reportService.ts` calcula os KPIs e `planningService.ts` calcula as visões do planejamento. Os cálculos de Home e Planejamento coexistem por decisão de legado — **não uniformizar sem revisar o ADR 003**.
+4. `report_service.py` calcula os KPIs e `planning_service.py` calcula as visões do planejamento. Os cálculos de Home e Planejamento coexistem por decisão de legado — **não uniformizar sem revisar o ADR 003**.
 5. O frontend recebe DTOs e renderiza; não deve criar fórmulas de negócio paralelas.
 
 **Limite importante:** `execucoes` representa o estado corrente por Test Point, não o histórico completo de movimentações. Um refresh não basta para reconstruir retrospectivamente quem fez cada transição ou a produção por dia/por QA. `run_by` existe em registros, mas não define o proprietário FourQA da meta.
@@ -126,7 +126,7 @@ flowchart TB
   STO --> DB[(PostgreSQL com isolamento verificável)]
 ```
 
-**Diretriz:** evoluir o Express e TypeScript já existentes; **não** reescrever por framework nem migrar para microserviços sem motivo mensurável. Interfaces compartilhadas entre backend/frontend devem ser introduzidas quando reduzirem divergência real; contratos de API externos exigem validação em runtime. Encapsular conectores evita nomes específicos do Azure no domínio de KPI. A definição de uma fórmula configurável precisa ser segura: **não permitir `eval`, SQL arbitrário ou JavaScript enviado pelo usuário**. Preferir operações e filtros declarativos auditáveis. Ainda falta decidir se o catálogo será fechado ou haverá expressões de domínio validadas.
+**Diretriz:** evoluir o **FastAPI/Python** e o frontend React já existentes; **não** reintroduzir Express/Node como API, ASP.NET ou Java, nem migrar para microserviços sem motivo mensurável. Interfaces compartilhadas entre backend/frontend devem ser introduzidas quando reduzirem divergência real; contratos de API externos exigem validação em runtime. Encapsular conectores evita nomes específicos do Azure no domínio de KPI. A definição de uma fórmula configurável precisa ser segura: **não permitir `eval`, SQL arbitrário ou código enviado pelo usuário**. Preferir operações e filtros declarativos auditáveis. Ainda falta decidir se o catálogo será fechado ou haverá expressões de domínio validadas.
 
 ### 6.1 Componentes e responsabilidades sugeridos
 
@@ -159,7 +159,7 @@ Entrada: plano/revisão, período restante, quantidades pendentes verificadas po
 
 **Ambientes observados:** execução local (`npm run dev`) e Vercel Preview, backend com PostgreSQL/Supabase; Vercel Authentication e bearer transitório. Não há produto de login institucional nem plataforma multiempresa pronta. O PostgreSQL usa migrations controladas; a RLS foi ajustada fora das migrations, exigindo validação/integração futura ao processo de infra.
 
-**Vercel:** `vercel.json` compila backend/frontend, API serverless com `maxDuration: 300`; `.vercelignore` do ZIP **já exclui** `data/`, bancos `.db*`, planilhas e artefatos de análise e preserva `fonte/util/`. `backend/src/vercel/deployShape.test.ts` contém teste das regras. O ZIP inclui alterações locais potencialmente não commitadas: o HEAD embutido aponta para `fa4e336`, mas alguns arquivos refletem trabalho posterior; **não assumir que o GitHub/Preview já contém cada byte desse ZIP**.
+**Vercel:** `vercel.json` serve SPA (`frontend/dist`) e Function Python `api/index.py` com `maxDuration` elevado para sync; `.vercelignore` exclui `data/`, bancos `.db*`, planilhas e artefatos sensíveis. Confirmar `vercel.json` e testes de deploy no working tree — trechos de auditoria ZIP (Express/`deployShape.test.ts`) são históricos.
 
 **Contrato de publicação aprovado:** projeto Vercel `fourqa`; URL **única para compartilhar**: `https://fourqa-homolog-heltonmarques-8008.vercel.app`. É alias manual que deve ser reapontado ao **novo deployment Preview** após validação. Cada deployment técnico cria URL imutável nova; **não equivale a novo ambiente de negócio**. Link antigo `fourqa-lo0k9m2zh-...` é URL imutável e não deve ser divulgado como atual. Não executar `--prod`, não criar novo projeto, não comprar domínio, não acionar deploy sem aprovação. A atualização do alias exige confirmar o destino e a permissão do usuário. Proteção de Preview pode impedir acesso externo mesmo com link.
 

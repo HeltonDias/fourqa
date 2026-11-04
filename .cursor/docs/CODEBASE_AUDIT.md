@@ -1,8 +1,10 @@
 # FourQA — auditoria da implementação
 
+> **Histórico (15/10/2026).** Stack abaixo (Express/TS) **não** é a vigente. Estado atual: Python/FastAPI — `ARCHITECTURE.md`, `context/PROJECT_MAP.md`, ADR 007 / `DEC-033`.
+
 Auditoria somente leitura em 15/10/2026. Não executou testes, sync, migração nem deploy. Não lê `.env`.
 
-## Arquitetura real
+## Arquitetura real *(na data da auditoria)*
 
 Monorepo npm (`package.json` na raiz), workspaces `backend` e `frontend`. Não há pacote compartilhado.
 

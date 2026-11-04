@@ -16,7 +16,7 @@ O Maestro é o Cursor Agent principal. Esta skill é a partitura. Não é um age
 
 - Não criar `.cursor/agents/maestro.md`, líderes de naipe, pastas `cordas/`, `madeiras/`, `metais/` ou `percussao/`, nem alias musical como nome de agente ou ferramenta.
 - Não substituir `01-squad-orchestration.mdc`, `02-context-engine.mdc` nem `.cursor/docs/AGENT_PROTOCOL.md`.
-- Não editar código de negócio para “provar” orquestração. Não marcar homologação, hospedagem (ADR 005, status OPEN), cutover da API Node ou migração de banco operacional como concluídos.
+- Não editar código de negócio para “provar” orquestração. Não marcar homologação/alias Preview, hospedagem remota ou migração de banco operacional como concluídos sem evidência e autorização. API vigente: Python/FastAPI (ADR 007); ADR 005/006 históricos.
 - Implementação de produto continua no protocolo: estados, `npm run agent:gates` quando houver código de produto, ledger. Esta skill não dispensa gate nem autoriza `agent:delivery-verify`, commit, push ou deploy.
 - Máximo de dois subagentes custom por tarefa, salvo pedido do usuário ou bloqueio concreto. Não delegar para cumprir ritual.
 

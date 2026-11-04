@@ -40,6 +40,6 @@ Falha → registrar `failure_retries` (máx. 2 por assinatura) → classificar c
 
 Assinatura esgotada → `BLOQUEADO` com evidência.
 
-## Fundação Java (`backend-java/`)
+## Backend Python (`backend/src/fourqa/`)
 
-Gates Node permanecem obrigatórios para produto. Job CI `java-foundation` executa `./mvnw verify` em `backend-java/` quando o módulo existir; não substitui deploy Vercel (Express).
+API operacional: FastAPI + Vercel `api/index.py` (`DEC-033`, ADR 007). Gates de produto: `typecheck` (frontend), `pytest` via `npm test`, `formulas:parity` (Python), `build`. Node 22 é tooling/SPA — **não** runtime da API. `backend-java/` e Express/`api/index.mjs` estão **ausentes** do working tree (históricos).

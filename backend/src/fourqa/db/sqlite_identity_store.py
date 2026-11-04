@@ -233,6 +233,96 @@ def remove_member(connection_id: int, user_id: int) -> None:
     db.commit()
 
 
+def delete_connection(connection_id: int) -> None:
+    db = get_db()
+    db.execute("DELETE FROM connection_invite WHERE connection_id = ?", (connection_id,))
+    db.execute("DELETE FROM connection_member WHERE connection_id = ?", (connection_id,))
+    db.execute("DELETE FROM qa_connection WHERE id = ?", (connection_id,))
+    db.commit()
+
+
+def upsert_invite(connection_id: int, email: str, role: str, invited_by: int | None) -> dict[str, Any]:
+    db = get_db()
+    normalized = email.strip().lower()
+    now = _now()
+    db.execute(
+        """
+        INSERT INTO connection_invite (connection_id, email, role, invited_by, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (connection_id, email) DO UPDATE SET
+          role = excluded.role, invited_by = excluded.invited_by, created_at = excluded.created_at
+        """,
+        (connection_id, normalized, role, invited_by, now),
+    )
+    db.commit()
+    row = db.execute(
+        "SELECT * FROM connection_invite WHERE connection_id = ? AND email = ?",
+        (connection_id, normalized),
+    ).fetchone()
+    assert row is not None
+    return {
+        "id": int(row["id"]),
+        "connection_id": int(row["connection_id"]),
+        "email": row["email"],
+        "role": row["role"],
+        "invited_by": int(row["invited_by"]) if row["invited_by"] is not None else None,
+        "created_at": row["created_at"],
+    }
+
+
+def list_invites(connection_id: int) -> list[dict[str, Any]]:
+    rows = get_db().execute(
+        """
+        SELECT * FROM connection_invite
+        WHERE connection_id = ? ORDER BY lower(email)
+        """,
+        (connection_id,),
+    ).fetchall()
+    return [
+        {
+            "id": int(r["id"]),
+            "connection_id": int(r["connection_id"]),
+            "email": r["email"],
+            "role": r["role"],
+            "invited_by": int(r["invited_by"]) if r["invited_by"] is not None else None,
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+
+
+def delete_invite(connection_id: int, email: str) -> bool:
+    db = get_db()
+    cur = db.execute(
+        "DELETE FROM connection_invite WHERE connection_id = ? AND lower(email) = lower(?)",
+        (connection_id, email.strip()),
+    )
+    db.commit()
+    return (cur.rowcount or 0) > 0
+
+
+def claim_invites_for_user(email: str | None, user_id: int) -> int:
+    if not email or not email.strip():
+        return 0
+    db = get_db()
+    rows = db.execute(
+        "SELECT connection_id, role FROM connection_invite WHERE lower(email) = lower(?)",
+        (email.strip(),),
+    ).fetchall()
+    claimed = 0
+    now = _now()
+    for row in rows:
+        db.execute(
+            "INSERT OR IGNORE INTO connection_member (connection_id, user_id, role, added_at) VALUES (?, ?, ?, ?)",
+            (int(row["connection_id"]), user_id, row["role"], now),
+        )
+        claimed += 1
+    if claimed:
+        db.execute("DELETE FROM connection_invite WHERE lower(email) = lower(?)", (email.strip(),))
+        db.commit()
+    return claimed
+
+
 sqlite_identity_store = {
     "upsert_user": upsert_user,
     "get_user": get_user,
@@ -254,4 +344,9 @@ sqlite_identity_store = {
     "list_members": list_members,
     "set_member_role": set_member_role,
     "remove_member": remove_member,
+    "delete_connection": delete_connection,
+    "upsert_invite": upsert_invite,
+    "list_invites": list_invites,
+    "delete_invite": delete_invite,
+    "claim_invites_for_user": claim_invites_for_user,
 }

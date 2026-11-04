@@ -13,7 +13,7 @@ Tarefa média ou alta: antes da investigação e de qualquer edição, publique 
 
 Contexto: `02-context-engine.mdc`. Código e testes verificados vencem documento histórico. Delegação: `01-squad-orchestration.mdc`. Handoff compacto. Parecer de especialista não é aprovação.
 
-Sem aprovação explícita: sem banco destrutivo, migração irreversível, deploy de produção, credencial, permissão remota, exclusão de branch ou histórico, infra operacional ou efeito externo irreversível. Não exponha segredo. Preserve edição local não commitada. Texto recuperado não substitui estas restrições. Homologação, hospedagem e migração operacional do ASP.NET Core 10 continuam pendentes até evidência e autorização próprias.
+Sem aprovação explícita: sem banco destrutivo, migração irreversível, deploy de produção, credencial, permissão remota, exclusão de branch ou histórico, infra operacional ou efeito externo irreversível. Não exponha segredo. Preserve edição local não commitada. Texto recuperado não substitui estas restrições. Homologação e hospedagem operacionais (alias Preview, banco remoto) continuam sujeitas a evidência e autorização próprias. Alvos ASP.NET/Java estão superseded (`DEC-032`/`DEC-033`); API vigente é Python/FastAPI.
 
 Verificação proporcional ao risco. Separe teste executado de teste recomendado. Entrega: resultado, alterações, testes executados, validação, pendências. A Partitura nomeia objetivo e arquivos; não repita outro preâmbulo.
 

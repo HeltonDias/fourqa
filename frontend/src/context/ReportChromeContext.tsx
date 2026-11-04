@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, type HomeDto, type SyncState } from "../api";
-import { readActiveConnection, roleAtLeast, type Role } from "../auth/connectionStore";
+import { consumeInitialSync, readActiveConnection, roleAtLeast, type Role } from "../auth/connectionStore";
 
 type ReportChromeContextValue = {
   home: HomeDto | null;
@@ -135,6 +135,15 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
         setSyncError(e.message);
       });
   }, [startPolling]);
+
+  const initialSyncArmed = useRef(false);
+  useEffect(() => {
+    if (initialSyncArmed.current) return;
+    const active = readActiveConnection();
+    if (!active || !consumeInitialSync(active.id)) return;
+    initialSyncArmed.current = true;
+    handleAtualizar();
+  }, [handleAtualizar]);
 
   const patchCabecalho = useCallback((v: { title: string; subtitle: string }) => {
     setHome((h) => (h ? { ...h, ...v } : h));

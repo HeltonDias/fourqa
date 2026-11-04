@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
-import { writeActiveConnection } from "../../auth/connectionStore";
+import { roleAtLeast, writeActiveConnection } from "../../auth/connectionStore";
 import { useSession } from "../../auth/session";
 import { PageHeader } from "../../components/PageHeader";
 import { useFetch } from "../../hooks/useFetch";
@@ -64,7 +64,7 @@ export function HomePage() {
         {!loading && !error ? (
           <div className="hub-grid">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} onDisconnected={reload} />
             ))}
             {authenticated ? <ConnectCard /> : null}
           </div>
@@ -74,11 +74,31 @@ export function HomePage() {
   );
 }
 
-function ProjectCard({ project }: { project: ConnectedProject }) {
+function ProjectCard({ project, onDisconnected }: { project: ConnectedProject; onDisconnected: () => void }) {
   const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const open = () => {
     writeActiveConnection(project.connection);
     navigate("/visao-geral");
+  };
+  const closeConfirm = () => {
+    if (disconnecting) return;
+    setConfirming(false);
+    setDisconnectError(null);
+  };
+  const confirmDisconnect = () => {
+    if (!project.connection || disconnecting) return;
+    setDisconnecting(true);
+    setDisconnectError(null);
+    api
+      .disconnect(project.connection.id)
+      .then(onDisconnected)
+      .catch((err: Error) => {
+        setDisconnecting(false);
+        setDisconnectError(err.message);
+      });
   };
 
   return (
@@ -114,11 +134,63 @@ function ProjectCard({ project }: { project: ConnectedProject }) {
       </dl>
 
       <footer className="hub-card-foot">
+        {project.connection && roleAtLeast(project.connection.role, "lider") ? (
+          <button type="button" className="hub-btn-disconnect" onClick={() => setConfirming(true)} disabled={disconnecting}>
+            Desconectar
+          </button>
+        ) : null}
         <button type="button" className="btn-primary" onClick={open}>
           Abrir relatório
         </button>
       </footer>
+      {confirming ? <DisconnectModal projectName={project.name} busy={disconnecting} error={disconnectError} onCancel={closeConfirm} onConfirm={confirmDisconnect} /> : null}
     </article>
+  );
+}
+
+function DisconnectModal({
+  projectName,
+  busy,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  projectName: string;
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !busy) onCancel();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  return (
+    <div className="plan-modal-backdrop" onMouseDown={() => { if (!busy) onCancel(); }}>
+      <div
+        className="plan-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hub-disconnect-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h2 id="hub-disconnect-title">Desconectar projeto</h2>
+        <p className="plan-modal-lead">Desconectar “{projectName}”? O projeto sai da Página inicial.</p>
+        {error ? <p className="plan-error">{error}</p> : null}
+        <div className="plan-modal-actions">
+          <button type="button" className="plan-modal-cancel" onClick={onCancel} disabled={busy}>
+            Cancelar
+          </button>
+          <button type="button" className="plan-filter-primary" onClick={onConfirm} disabled={busy}>
+            {busy ? "Desconectando…" : "Desconectar"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -238,3 +238,87 @@ async def set_member_role(connection_id: int, user_id: int, role: str | None) ->
 
 async def remove_member(connection_id: int, user_id: int) -> None:
     await _exec("DELETE FROM connection_member WHERE connection_id = $1 AND user_id = $2", [connection_id, user_id])
+
+
+async def delete_connection(connection_id: int) -> None:
+    await _exec("DELETE FROM connection_invite WHERE connection_id = $1", [connection_id])
+    await _exec("DELETE FROM connection_member WHERE connection_id = $1", [connection_id])
+    await _exec("DELETE FROM qa_connection WHERE id = $1", [connection_id])
+
+
+async def upsert_invite(connection_id: int, email: str, role: str, invited_by: int | None) -> dict[str, Any]:
+    normalized = email.strip().lower()
+    row = await _one(
+        """
+        INSERT INTO connection_invite (connection_id, email, role, invited_by)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (connection_id, email) DO UPDATE SET
+          role = EXCLUDED.role, invited_by = EXCLUDED.invited_by, created_at = now()
+        RETURNING *
+        """,
+        [connection_id, normalized, role, invited_by],
+    )
+    assert row is not None
+    return {
+        "id": int(row["id"]),
+        "connection_id": int(row["connection_id"]),
+        "email": row["email"],
+        "role": row["role"],
+        "invited_by": int(row["invited_by"]) if row.get("invited_by") is not None else None,
+        "created_at": _iso(row.get("created_at")),
+    }
+
+
+async def list_invites(connection_id: int) -> list[dict[str, Any]]:
+    rows = await query(
+        """
+        SELECT * FROM connection_invite
+        WHERE connection_id = $1 ORDER BY lower(email)
+        """,
+        [connection_id],
+    )
+    return [
+        {
+            "id": int(r["id"]),
+            "connection_id": int(r["connection_id"]),
+            "email": r["email"],
+            "role": r["role"],
+            "invited_by": int(r["invited_by"]) if r.get("invited_by") is not None else None,
+            "created_at": _iso(r.get("created_at")),
+        }
+        for r in rows
+    ]
+
+
+async def delete_invite(connection_id: int, email: str) -> bool:
+    pool = get_pool()
+    if pool.closed:
+        await pool.open()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                trusted_sql(
+                    "DELETE FROM connection_invite WHERE connection_id = $1 AND lower(email) = lower($2)"
+                ),
+                [connection_id, email.strip()],
+            )
+            return (cur.rowcount or 0) > 0
+
+
+async def claim_invites_for_user(email: str | None, user_id: int) -> int:
+    if not email or not email.strip():
+        return 0
+    rows = await query(
+        "SELECT connection_id, role FROM connection_invite WHERE lower(email) = lower($1)",
+        [email.strip()],
+    )
+    claimed = 0
+    for row in rows:
+        await _exec(
+            "INSERT INTO connection_member (connection_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+            [int(row["connection_id"]), user_id, row["role"]],
+        )
+        claimed += 1
+    if claimed:
+        await _exec("DELETE FROM connection_invite WHERE lower(email) = lower($1)", [email.strip()])
+    return claimed

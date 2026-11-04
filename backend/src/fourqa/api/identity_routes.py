@@ -116,12 +116,26 @@ async def _upsert_identity(profile: dict[str, Any]) -> dict[str, Any]:
         same_email = await store.find_user_by_email(email)
         if same_email is not None:
             profile_id = same_email["ado_profile_id"]
-    return await store.upsert_user(
+    user = await store.upsert_user(
         profile_id,
         email,
         profile.get("displayName"),
         bool(email and email.lower() in _bootstrap_heads()),
     )
+    await store.claim_invites_for_user(email, user["id"])
+    return user
+
+
+def _normalize_invite_email(raw: object) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    email = raw.strip().lower()
+    if "@" not in email or email.startswith("@") or email.endswith("@") or " " in email:
+        return None
+    local, _, domain = email.partition("@")
+    if not local or "." not in domain:
+        return None
+    return email
 
 
 # --- Sessão ---------------------------------------------------------------
@@ -314,6 +328,16 @@ async def list_connections(user: dict = Depends(require_user)):
     return {"connections": out}
 
 
+@router.delete("/connections/{connection_id}")
+async def delete_connection(connection_id: int, user: dict = Depends(require_user)):
+    conn, role = await _connection_access(connection_id, user)
+    if not at_least(role, "lider"):
+        raise HTTPException(status_code=403, detail="Só Líder ou Head desconecta o projeto.")
+    store = await get_identity_store()
+    await store.delete_connection(conn["id"])
+    return {"ok": True}
+
+
 @router.get("/connections/{connection_id}")
 async def get_connection(connection_id: int, user: dict = Depends(require_user)):
     conn, role = await _connection_access(connection_id, user)
@@ -428,6 +452,77 @@ async def remove_member(connection_id: int, user_id: int, user: dict = Depends(r
     store = await get_identity_store()
     await store.remove_member(conn["id"], user_id)
     return await list_members(connection_id, user)
+
+
+# --- Convites por e-mail (OPEN-013 parcial) ---------------------------------
+
+
+async def _guard_invite_manage(connection_id: int, actor: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    conn, role = await _connection_access(connection_id, actor)
+    if not at_least(role, "lider"):
+        raise HTTPException(status_code=403, detail="Só Líder ou Head convida usuários neste projeto.")
+    return conn, role
+
+
+def _present_invite(invite: dict[str, Any]) -> dict[str, Any]:
+    role = normalize_role(invite.get("role")) or "qa"
+    return {
+        "id": invite["id"],
+        "email": invite["email"],
+        "role": role,
+        "roleLabel": ROLE_LABEL[role],
+        "invitedBy": invite.get("invited_by"),
+        "createdAt": invite.get("created_at"),
+    }
+
+
+@router.get("/connections/{connection_id}/invites")
+async def list_invites(connection_id: int, user: dict = Depends(require_user)):
+    conn, role = await _guard_invite_manage(connection_id, user)
+    store = await get_identity_store()
+    invites = await store.list_invites(conn["id"])
+    return {
+        "connection": present_connection(conn, role),
+        "canManage": True,
+        "invites": [_present_invite(i) for i in invites],
+        "roles": list(ROLES),
+    }
+
+
+@router.post("/connections/{connection_id}/invites")
+async def create_invite(connection_id: int, body: dict[str, Any], user: dict = Depends(require_user)):
+    conn, actor_role = await _guard_invite_manage(connection_id, user)
+    email = _normalize_invite_email(body.get("email"))
+    if email is None:
+        raise HTTPException(status_code=400, detail="Informe um e-mail válido.")
+    role = normalize_role(body.get("role"))
+    if role is None:
+        raise HTTPException(status_code=400, detail="Papel inválido.")
+    if role == "head" and actor_role != "head":
+        raise HTTPException(status_code=403, detail="Só Head concede o papel Head.")
+    store = await get_identity_store()
+    existing = await store.find_user_by_email(email)
+    if existing is not None:
+        member = await store.get_member(conn["id"], existing["id"])
+        if member is None:
+            await store.add_member(conn["id"], existing["id"], role)
+        await store.delete_invite(conn["id"], email)
+        return {"addedMember": True, "invited": False, "user": present_user(existing)}
+    invite = await store.upsert_invite(conn["id"], email, role, user["id"])
+    return {"invited": True, "addedMember": False, "invite": _present_invite(invite)}
+
+
+@router.delete("/connections/{connection_id}/invites/{email}")
+async def cancel_invite(connection_id: int, email: str, user: dict = Depends(require_user)):
+    conn, _ = await _guard_invite_manage(connection_id, user)
+    normalized = _normalize_invite_email(email)
+    if normalized is None:
+        raise HTTPException(status_code=400, detail="Informe um e-mail válido.")
+    store = await get_identity_store()
+    deleted = await store.delete_invite(conn["id"], normalized)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Convite não encontrado.")
+    return await list_invites(connection_id, user)
 
 
 # --- Papéis globais (só Head) -----------------------------------------------

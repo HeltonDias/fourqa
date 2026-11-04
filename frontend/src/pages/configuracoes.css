@@ -175,7 +175,8 @@ html[data-theme="dark"] .cfg-tool-mark {
   font-weight: 600;
 }
 
-.cfg-field input {
+.cfg-field input,
+.cfg-field select {
   width: 100%;
   border: 1px solid var(--border, #e4e7ef);
   background: var(--surface, #fff);
@@ -186,6 +187,7 @@ html[data-theme="dark"] .cfg-tool-mark {
 }
 
 .cfg-field input:focus-visible,
+.cfg-field select:focus-visible,
 .cfg-panel a:focus-visible,
 .cfg-panel button:focus-visible {
   outline: 2px solid var(--accent);

@@ -1,8 +1,10 @@
 # FourQA — estado atual do backend
 
+> **Snapshot histórico 2026-10-28.** Não usar como stack vigente. API atual: Python/FastAPI — `ARCHITECTURE.md` / `context/PROJECT_MAP.md`.
+
 **Auditoria:** 2026-10-28. Somente leitura. Nenhum código de produto foi alterado.
 
-**Alvo dos percentuais:** API operacional Node/Express em `backend/`, empacotada por `api/index.mjs`. Java em `backend-java/` é código local, fora do pacote Vercel. Não há `.csproj` nem `.sln`. ASP.NET Core não está no repositório (`DEC-032`, `.cursor/docs/NET-DOTNET-REMOVAL.md`).
+**Alvo dos percentuais *(na data):*** API operacional Node/Express em `backend/`, empacotada por `api/index.mjs`. Java em `backend-java/` é código local, fora do pacote Vercel. Não há `.csproj` nem `.sln`. ASP.NET Core não está no repositório (`DEC-032`, `.cursor/docs/NET-DOTNET-REMOVAL.md`).
 
 **Hierarquia usada:** código e testes desta sessão, contratos HTTP, decisões/ADR, requisitos v1.2, auditoria histórica por último. `ARCHITECTURE.md` (20/10/2026) ainda descreve a fundação Java como só `GET /api/health`. O working tree Java já tem controllers de Report, Planejamento, Sync e snapshot. Essa frase da arquitetura está desatualizada. O Java continua não operacional: a Vercel não o publica.
 

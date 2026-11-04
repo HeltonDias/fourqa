@@ -275,11 +275,17 @@ export const api = {
   connections: () => get<{ connections: ActiveConnection[] }>("/api/connections"),
   connect: (body: { organization: string; project: string; testPlanId: number; title?: string }) =>
     postJson<{ created: boolean; connection: ActiveConnection }>("/api/connections", body),
+  disconnect: (connectionId: number) => del<{ ok: boolean }>(`/api/connections/${connectionId}`),
   members: (connectionId: number) => get<MembersView>(`/api/connections/${connectionId}/members`),
   setMemberRole: (connectionId: number, userId: number, role: Role | null) =>
     put<MembersView>(`/api/connections/${connectionId}/members/${userId}`, { role }),
   removeMember: (connectionId: number, userId: number) =>
     del<MembersView>(`/api/connections/${connectionId}/members/${userId}`),
+  invites: (connectionId: number) => get<InvitesView>(`/api/connections/${connectionId}/invites`),
+  invite: (connectionId: number, body: { email: string; role: Role }) =>
+    postJson<InviteResult>(`/api/connections/${connectionId}/invites`, body),
+  cancelInvite: (connectionId: number, email: string) =>
+    del<InvitesView>(`/api/connections/${connectionId}/invites/${encodeURIComponent(email)}`),
   adminUsers: () => get<{ users: AuthUser[]; roles: Role[] }>("/api/admin/users"),
   setGlobalRole: (userId: number, globalRole: Role) =>
     put<{ users: AuthUser[]; roles: Role[] }>(`/api/admin/users/${userId}`, { globalRole }),
@@ -315,6 +321,26 @@ export type MembersView = {
   members: MemberRow[];
   roles: Role[];
 };
+
+export type ConnectionInvite = {
+  id: number;
+  email: string;
+  role: Role;
+  roleLabel: string;
+  invitedBy: number | null;
+  createdAt: string | null;
+};
+
+export type InvitesView = {
+  connection: ActiveConnection;
+  canManage: boolean;
+  invites: ConnectionInvite[];
+  roles: Role[];
+};
+
+export type InviteResult =
+  | { invited: true; addedMember: false; invite: ConnectionInvite }
+  | { invited: false; addedMember: true; user: AuthUser };
 
 export function pct(n: number): string {
   if (!Number.isFinite(n)) return "—";

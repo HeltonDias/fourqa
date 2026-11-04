@@ -52,21 +52,22 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | DEC-037 | Aprovada | Evolução QA MVP só com dados atribuíveis: suíte com responsável único no FourQA; demais em "não atribuível". | Realizado = último estado do Azure (`date_completed`), com aviso; respeita OPEN-001/OPEN-007. US-036/037/039. |
 | DEC-038 | Aprovada | Revisa DEC-004: escrita = Líder ou Head do projeto; QA autenticado consulta; Visitante vê só Report. | Backend valida papel efetivo por conexão. US-069/US-070. |
 | DEC-039 | Aprovada | Revisa DEC-035: login padrão por **Microsoft Entra ID** (conta institucional); PAT só para dev/teste. | Organizações listadas pela conta; refresh token criptografado. Pendente: App Registration da TI. |
+| DEC-040 | Aprovada | Convite por e-mail no projeto: Head/Líder adiciona e-mail + cargo; no login o projeto já aparece conectado. | Tabela `connection_invite`; claim no login; só Head concede Head. Fecha parte do OPEN-013. |
 
 ## 2. Decisões de arquitetura vigentes no repositório
 
 | Base | Situação | Conteúdo | Evidência |
 |---|---|---|---|
-| ADR 001 | Vigente | Hierarquia de Test Plans dinâmica; não fixar “Frente” em nível universal. | `.cursor/docs/adr/001-hierarquia-dinamica.md`; `backend/src/domain/dimensions.ts`. |
-| ADR 002 | Vigente | Apenas `classifyExecution` classifica Test Point. Sete estados somam o total. | `.cursor/docs/adr/002-status.md`; `backend/src/domain/formulas.ts`. |
-| ADR 003 | Vigente | O Report/Home calcula planejado por regra de datas legadas; não igualar automaticamente com Planejamento. | `.cursor/docs/adr/003-planejamento.md`; `reportService.ts`. |
-| ADR 004 | Vigente | Escopo e baseline congelados em revisão, planejamento por data independente da ordem de coluna. | `.cursor/docs/adr/004-planejamento-baseline.md`; `planningService.ts`. |
+| ADR 001 | Vigente | Hierarquia de Test Plans dinâmica; não fixar “Frente” em nível universal. | `.cursor/docs/adr/001-hierarquia-dinamica.md`; `backend/src/fourqa/domain/dimensions.py`. |
+| ADR 002 | Vigente | Apenas `classifyExecution` classifica Test Point. Sete estados somam o total. | `.cursor/docs/adr/002-status.md`; `backend/src/fourqa/domain/formulas.py`. |
+| ADR 003 | Vigente | O Report/Home calcula planejado por regra de datas legadas; não igualar automaticamente com Planejamento. | `.cursor/docs/adr/003-planejamento.md`; `report_service.py`. |
+| ADR 004 | Vigente | Escopo e baseline congelados em revisão, planejamento por data independente da ordem de coluna. | `.cursor/docs/adr/004-planejamento-baseline.md`; `planning_service.py`. |
 | ADR 005 | Superseded | Direção ASP.NET Core 10 abandonada. Histórico. | `.cursor/docs/adr/005-dotnet-incremental-migration.md`; `DEC-032`. |
 | ADR 006 | Superseded | Backend futuro Java abandonado em favor de Python (`DEC-033`, ADR 007). | `.cursor/docs/adr/006-java-incremental-migration.md`. |
-| ADR 007 | Direcionamento aprovado; cutover pendente | Backend definitivo: Python 3.12+ / FastAPI em `backend/`. Vercel unificado SPA + `/api`. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
-| DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. Exceção aprovada em 2026-11-03: dev local com `FOURQA_LOCAL_SQLITE=1` (`npm run dev:auth`), recusada quando `VERCEL=1`. | `backend/src/persistence/provider.ts`; migrações `001`–`003`. |
-| DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/http/writeAuth.ts`, `frontend/src/api.ts`. |
-| DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `syncService.ts`, `postgresAzureSnapshotStore.ts`; `.cursor/docs/vercel.md`. |
+| ADR 007 | Vigente (cutover no working tree) | Backend definitivo: Python 3.12+ / FastAPI em `backend/src/fourqa/`. Vercel SPA + `api/index.py`. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
+| DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. Exceção aprovada em 2026-11-03: dev local com `FOURQA_LOCAL_SQLITE=1` (`npm run dev:auth`), recusada quando `VERCEL=1`. | `backend/src/fourqa/persistence/`; migrações Postgres sob `db/postgres`. |
+| DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/fourqa/http/write_auth.py`, `frontend/src/api.ts`. |
+| DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `sync_service.py`; stores Azure snapshot; `.cursor/docs/vercel.md`. |
 | DEC-T04 | Vigente transitório | Últimos registros de Test Point não constituem histórico completo de execução. | `execucoes` e coletores Azure; nenhum event store. |
 | DEC-T05 | Vigente | `.vercelignore` bloqueia artefatos locais, preservando ícones; há teste de formato. | `.vercelignore`; `backend/src/vercel/deployShape.test.ts` no ZIP de 20/10. |
 
@@ -88,7 +89,7 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | OPEN-010 | Como será a configuração multiempresa (tenant compartilhado ou instâncias independentes), migração, cobrança e retenção? | Impacta banco, chaves, segurança e contratos. | ADR de tenancy e análise de ameaça antes de expandir. |
 | OPEN-011 | Usuário com link sem login terá acesso protegido apesar do Vercel Authentication atual? | Proteção do host pode bloquear a promessa comercial de link read-only. | Planejar arquitetura de acesso antes do lançamento; não desativar proteção hoje. |
 | OPEN-012 | Efeito exato de desativar fins de semana com alocações já existentes, e disponibilidade/feriados por QA? | Pode apagar planejamento ou criar metas inexequíveis. | Definir preservação/avisos e adiar férias/feriados avançados. |
-| OPEN-013 | Qual estratégia de autenticação empresarial Microsoft/Google e gerenciamento de organização? | SSO e isolamento exigem identidades reais e consentimento. | Discovery de provedores, política de convite/conta e ADR. |
+| OPEN-013 | Qual estratégia de autenticação empresarial Microsoft/Google e gerenciamento de organização? | SSO e isolamento exigem identidades reais e consentimento. | Entra (DEC-039) + convite por e-mail no projeto (DEC-040) parcialmente; falta vínculo por `oid`/`tid` em produção e política de domínio. |
 | OPEN-014 | Escopo e governança das futuras integrações (Jira/Xray/Zephyr/Octane) variam por fornecedor/edição. | APIs, termos e entidades diferentes. | Spikes independentes sem prometer equivalência automática. |
 | OPEN-015 | Quais critérios tornam um Report “compartilhável e executivo” e quais dados devem ser ocultados? | Protege dados empresariais e evita acesso ampliado por link. | Story de segurança/UX com matriz de campos e aceite. |
 
@@ -224,3 +225,15 @@ Escolha: login padrão por Microsoft Entra ID (authorization code + PKCE, client
 Rastreabilidade: DEC-035, DEC-036; `PLANO_MULTIQA.md`.
 Aprovador e evidência: responsável do produto, escolha nesta conversa em 2026-11-03 (organizações no tenant Foursys; App Registration pedido à TI).
 Validação: `backend/tests/test_entra_login.py` (PKCE, state, callback, renovação, bloqueio do PAT). Login real pendente do App Registration.
+
+ID: DEC-040
+Data: 2026-11-04
+Estado: Aprovada
+Problema: Head/Líder precisava adicionar pessoas ao projeto antes delas entrarem; sem isso, cada um só via o que conectasse sozinho.
+Escolha: Configurações > Usuários permite convidar por e-mail com cargo (`visitante`/`qa`/`lider`; `head` só Head). Se o usuário já existe, vira membro na hora; senão, fica em `connection_invite` até o login (PAT ou Entra), quando o e-mail do perfil aplica o cargo e remove o convite. Membro existente não é rebaixado. Convite concede só papel no projeto, nunca Head global.
+Risco: vínculo depende do e-mail do perfil Azure DevOps/vssps; em produção com Entra, preferir `oid`/`tid` (OPEN-013 restante).
+Alternativas rejeitadas: criar usuário provisório sem tabela de convite; só Head convidar.
+Impacto: migração SQLite v10 / Postgres 006; rotas `GET|POST|DELETE /api/connections/{id}/invites`; claim em `_upsert_identity`.
+Rastreabilidade: DEC-036, DEC-038, DEC-039; OPEN-013 (parcial).
+Aprovador e evidência: responsável do produto, plano aprovado nesta conversa em 2026-11-04.
+Validação: `backend/tests/test_auth_connections.py` (convite, claim, 403, cancelamento, sem rebaixamento); typecheck e build do frontend.

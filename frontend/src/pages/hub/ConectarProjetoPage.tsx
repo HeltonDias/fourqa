@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
-import { writeActiveConnection } from "../../auth/connectionStore";
+import { markInitialSync, writeActiveConnection } from "../../auth/connectionStore";
 import { PageHeader } from "../../components/PageHeader";
 import { PROVIDER_LABEL, type ProjectProvider } from "./projects";
 import { ProviderLogo } from "./ProviderLogo";
@@ -70,6 +70,7 @@ export function ConectarProjetoPage() {
         title: title.trim() || undefined,
       });
       writeActiveConnection(connection);
+      markInitialSync(connection.id);
       navigate("/visao-geral");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível conectar o projeto.");

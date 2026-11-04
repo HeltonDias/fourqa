@@ -50,6 +50,7 @@ def test_single_sql_tree():
         "003_plan_suite_fill.sql",
         "004_planning_change_log.sql",
         "005_users_connections.sql",
+        "006_connection_invite.sql",
     ]
     assert not ghost.exists()
     from fourqa.db.postgres.migrate import _MIGRATIONS_DIR

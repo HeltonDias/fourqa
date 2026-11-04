@@ -3,7 +3,7 @@
 **Status:** **Superseded** — alvo Java abandonado (`DEC-033`, ADR 007). Fundação `backend-java/` removida no cutover Python. Texto abaixo é histórico.
 **Data:** 2026-10-27
 **Supera:** o alvo ASP.NET Core 10 do ADR 005. O ADR 005 permanece como histórico (`DEC-032`, `PROP-008`).
-**Não altera:** ADR 001, 002, 003 e 004. Node/Express em `backend/` continua a API operacional na Vercel (`api/index.mjs`).
+**Não altera:** ADR 001, 002, 003 e 004. *(Pré-cutover:)* Node/Express em `backend/` era a API operacional na Vercel (`api/index.mjs`). **Atual:** Python/FastAPI (`api/index.py`).
 
 ## Contexto
 

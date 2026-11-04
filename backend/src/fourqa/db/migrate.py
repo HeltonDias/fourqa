@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Callable
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 def _index_if(db: sqlite3.Connection, name: str, table: str, columns: list[str]) -> None:
@@ -191,6 +191,23 @@ def _migration_v9(db: sqlite3.Connection) -> None:
     db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_qa_connection_plan_key_lower ON qa_connection (lower(plan_key))")
 
 
+def _migration_v10(db: sqlite3.Connection) -> None:
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS connection_invite (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          connection_id INTEGER NOT NULL REFERENCES qa_connection(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          role TEXT NOT NULL,
+          invited_by INTEGER REFERENCES app_user(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE (connection_id, email)
+        );
+        """
+    )
+    _index_if(db, "idx_connection_invite_email", "connection_invite", ["email"])
+
+
 MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (1, _migration_v1),
     (2, _migration_v2),
@@ -201,6 +218,7 @@ MIGRATIONS: list[tuple[int, Callable[[sqlite3.Connection], None]]] = [
     (7, _migration_v7),
     (8, _migration_v8),
     (9, _migration_v9),
+    (10, _migration_v10),
 ]
 
 

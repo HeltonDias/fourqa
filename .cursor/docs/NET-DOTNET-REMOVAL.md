@@ -1,6 +1,8 @@
 # Remoção do backend C# / ASP.NET Core (2026-10-27)
 
-**Estado:** `backend/dotnet/` eliminado do repositório ativo. API operacional permanece **Node/Express** (`backend/src/`, Vercel `api/index.mjs`). ADR 005 permanece como histórico; supersessão em `DEC-032` e `PROP-008` (adotada).
+> **Obsolescência de runtime (2026-11-04):** este documento descreve o estado **pós-remoção .NET**, quando a API ainda era Node/Express. A API vigente no working tree é **Python/FastAPI** (`backend/src/fourqa/`, `api/index.py`; `DEC-033` / ADR 007). Manter o texto abaixo como histórico de paridade C#→Node.
+
+**Estado (2026-10-27):** `backend/dotnet/` eliminado do repositório ativo. Naquela data a API operacional era **Node/Express** (`backend/src/`, Vercel `api/index.mjs`). ADR 005 permanece como histórico; supersessão em `DEC-032` e `PROP-008` (adotada).
 
 ## O que foi removido
 
@@ -22,8 +24,8 @@
 | Paridade API end-to-end (golden) | Perdida com `ParityTests` | Futuro: contratos HTTP no Node ou fundação Java |
 | Worker sync in-process / recuperação startup | Era C# `SyncWorker` | Node: modelo durable/Vercel; documentar se portar para Java |
 
-Nenhuma destas pendências altera runtime Vercel atual (Express).
+Nenhuma destas pendências alterava o runtime Vercel **da época** (Express). Pós-`DEC-033`, a API vigente é Python/FastAPI.
 
-## Fundação Java (não substitui o Node)
+## Fundação Java *(histórico; removida)*
 
-`backend-java/` é bootstrap Spring Boot 4.0.5 (JDK 25, Maven Wrapper 3.9.16) com `GET /api/health` local. Não porta Report, Planejamento, Sync nem contratos HTTP. ADR dedicado ainda não existe. CI: job `java-foundation` no workflow local; execução remota deste estado não ocorreu.
+`backend-java/` foi bootstrap Spring Boot 4.0.5 com `GET /api/health` local; removida no cutover Python (`DEC-033`). Não substituiu o Node nem o Python.

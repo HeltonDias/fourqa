@@ -40,4 +40,4 @@ async def get_evolucao_qa(plan_key: str, start: str | None = None, end: str | No
     if (date.fromisoformat(last) - date.fromisoformat(first)).days > MAX_RANGE_DAYS:
         raise ValueError(f"Intervalo máximo de {MAX_RANGE_DAYS} dias.")
     out = build_evolucao_qa(items, exec_rows, first, last, as_of)
-    return {"planKey": plan_key, **out}
+    return {"planKey": plan_key, "dimensions": view.get("dimensions") or [], **out}

@@ -30,6 +30,24 @@ export function writeActiveConnection(connection: ActiveConnection | null): void
   else sessionStorage.removeItem(CONNECTION_KEY);
 }
 
+const INITIAL_SYNC_KEY = "fourqa_initial_sync";
+
+/** Marca o plano recém-conectado para o Relatório disparar um sync, uma vez. */
+export function markInitialSync(connectionId: number): void {
+  sessionStorage.setItem(INITIAL_SYNC_KEY, String(connectionId));
+}
+
+/** Consome a marca só se for desta conexão. Some no primeiro uso. */
+export function consumeInitialSync(connectionId: number): boolean {
+  try {
+    if (sessionStorage.getItem(INITIAL_SYNC_KEY) !== String(connectionId)) return false;
+    sessionStorage.removeItem(INITIAL_SYNC_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function connectionHeaders(): Record<string, string> {
   const active = readActiveConnection();
   return active ? { "X-FourQA-Connection": String(active.id) } : {};

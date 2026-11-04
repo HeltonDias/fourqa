@@ -1,5 +1,7 @@
 # FourQA — estado atual de deploy e infraestrutura
 
+> **Snapshot histórico 2026-10-28.** Runtime Node/Java desta auditoria **não** é o vigente; API atual = Python/`api/index.py`.
+
 **Auditoria:** 2026-10-28. Nenhuma publicação foi executada. A Vercel CLI não está instalada neste ambiente. O alias de Preview **não** foi consultado por HTTP nesta sessão. Configuração no Git não prova o que está no ar.
 
 ## 1. O que está implementado no repositório

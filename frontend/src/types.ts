@@ -361,7 +361,13 @@ export type EvolucaoQaBucket = {
   name: string;
   attributable: boolean;
   suiteCount: number;
-  suites: { suiteId: number | null; testPointId: number | null; suiteName: string | null; responsavel: string | null }[];
+  suites: {
+    suiteId: number | null;
+    testPointId: number | null;
+    suiteName: string | null;
+    responsavel: string | null;
+    dimensions?: Record<string, string>;
+  }[];
   baseline: number;
   planned: number;
   plannedToDate: number;
@@ -371,6 +377,9 @@ export type EvolucaoQaBucket = {
   na: number;
   failed: number;
   blocked: number;
+  released: number;
+  design: number;
+  notReleased: number;
   finalizedInRange: number;
   gap: number;
   status: EvolucaoQaStatus | null;
@@ -381,6 +390,7 @@ export type EvolucaoQaBucket = {
 export type EvolucaoQaDto = {
   planKey: string;
   range: { from: string; to: string; asOf: string };
+  dimensions?: DetectedDimension[];
   qas: EvolucaoQaBucket[];
   unattributed: EvolucaoQaBucket | null;
 };

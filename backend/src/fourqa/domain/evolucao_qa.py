@@ -73,6 +73,9 @@ def _empty_bucket(key: str, name: str, attributable: bool) -> dict[str, Any]:
         "na": 0.0,
         "failed": 0.0,
         "blocked": 0.0,
+        "released": 0.0,
+        "design": 0.0,
+        "notReleased": 0.0,
         "finalizedInRange": 0.0,
         "reasons": {"sem_responsavel": 0, "compartilhada": 0},
         "_planned_by_day": {},
@@ -139,10 +142,16 @@ def build_evolucao_qa(
         if key:
             owner_by_key[key] = bucket["key"]
         bucket["suites"].append(
-            {"suiteId": item.get("suiteId"), "testPointId": item.get("testPointId"), "suiteName": item.get("suiteName"), "responsavel": item.get("responsavel")}
+            {
+                "suiteId": item.get("suiteId"),
+                "testPointId": item.get("testPointId"),
+                "suiteName": item.get("suiteName"),
+                "responsavel": item.get("responsavel"),
+                "dimensions": item.get("dimensions") or {},
+            }
         )
         bucket["baseline"] += float(item.get("baselineCount") or 0)
-        for metric in ("passed", "na", "failed", "blocked"):
+        for metric in ("passed", "na", "failed", "blocked", "released", "design", "notReleased"):
             bucket[metric] += float(item.get(metric) or 0)
         for raw_day, qty in (item.get("allocations") or {}).items():
             d = _day(raw_day)

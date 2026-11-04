@@ -1,6 +1,6 @@
 # ADR 005 — Migração incremental Node → ASP.NET Core 10
 
-**Status:** **Superseded / histórico** — direção ASP.NET abandonada (`PROP-008` adotada, `DEC-032` 2026-10-27). `backend/dotnet/` removido. API definitiva: Node/Express; fundação futura: `backend-java/` (não descrita neste ADR). Cutover .NET e remoção da API Node **nunca** ocorreram.  
+**Status:** **Superseded / histórico** — direção ASP.NET abandonada (`PROP-008` adotada, `DEC-032` 2026-10-27). `backend/dotnet/` removido. Cutover .NET **nunca** ocorreu. Após `DEC-033`/ADR 007 a API vigente é Python/FastAPI (não Node/Express nem Java). Texto abaixo descreve o plano Node→.NET da época.  
 **Data:** 2026-10-20  
 **Contexto:** `AGENTS.md`; backend operacional em `backend/` (Express); domínio em `backend/src/domain/`.
 

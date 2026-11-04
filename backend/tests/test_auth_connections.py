@@ -321,3 +321,88 @@ def test_malformed_cookie_is_ignored(env):
     res = client.get("/api/auth/me", headers={"cookie": "fourqa_user=ção.abc".encode("latin-1")})  # type: ignore[dict-item]
     assert res.status_code == 200
     assert res.json()["authenticated"] is False
+
+
+def test_invite_claim_on_login_and_permissions(env):
+    lider = _login(env, "pat-lider-xxxxxxxxxxxxxxxxxxx")
+    qa = _login(env, "pat-qa-xxxxxxxxxxxxxxxxxxxxxx")
+    cid = _connect(lider)["connection"]["id"]
+
+    assert qa.post(f"/api/connections/{cid}/invites", json={"email": "novo@x.com", "role": "qa"}).status_code == 403
+    assert lider.post(f"/api/connections/{cid}/invites", json={"email": "novo@x.com", "role": "head"}).status_code == 403
+
+    invited = lider.post(f"/api/connections/{cid}/invites", json={"email": "Novo@X.com", "role": "qa"})
+    assert invited.status_code == 200, invited.text
+    body = invited.json()
+    assert body["invited"] is True and body["addedMember"] is False
+    assert body["invite"]["email"] == "novo@x.com"
+
+    pending = lider.get(f"/api/connections/{cid}/invites")
+    assert pending.status_code == 200
+    assert [i["email"] for i in pending.json()["invites"]] == ["novo@x.com"]
+
+    PROFILES["pat-novo-xxxxxxxxxxxxxxxxxxxxx"] = {
+        "id": "p-novo",
+        "email": "NOVO@x.com",
+        "displayName": "Novo",
+    }
+    novo = _login(env, "pat-novo-xxxxxxxxxxxxxxxxxxxxx")
+    connections = novo.get("/api/connections").json()["connections"]
+    assert any(c["id"] == cid for c in connections)
+    member = next(m for m in lider.get(f"/api/connections/{cid}/members").json()["members"] if m["email"] == "NOVO@x.com")
+    assert member["memberRole"] == "qa"
+    assert lider.get(f"/api/connections/{cid}/invites").json()["invites"] == []
+
+
+def test_invite_existing_user_adds_member_immediately(env):
+    lider = _login(env, "pat-lider-xxxxxxxxxxxxxxxxxxx")
+    qa = _login(env, "pat-qa-xxxxxxxxxxxxxxxxxxxxxx")
+    cid = _connect(lider)["connection"]["id"]
+    # QA ainda não é membro deste projeto (conectou outro escopo ou só login).
+    assert all(m["email"] != "qa@x.com" for m in lider.get(f"/api/connections/{cid}/members").json()["members"])
+
+    added = lider.post(f"/api/connections/{cid}/invites", json={"email": "qa@x.com", "role": "visitante"})
+    assert added.status_code == 200, added.text
+    assert added.json()["addedMember"] is True
+    assert added.json()["invited"] is False
+    member = next(m for m in lider.get(f"/api/connections/{cid}/members").json()["members"] if m["email"] == "qa@x.com")
+    assert member["memberRole"] == "visitante"
+    assert lider.get(f"/api/connections/{cid}/invites").json()["invites"] == []
+    assert qa.get("/api/connections").json()["connections"]
+
+
+def test_invite_cancel_and_no_demote_existing_member(env):
+    lider = _login(env, "pat-lider-xxxxxxxxxxxxxxxxxxx")
+    cid = _connect(lider)["connection"]["id"]
+
+    created = lider.post(f"/api/connections/{cid}/invites", json={"email": "pendente@x.com", "role": "lider"})
+    assert created.status_code == 200
+    cancelled = lider.delete(f"/api/connections/{cid}/invites/pendente%40x.com")
+    assert cancelled.status_code == 200
+    assert cancelled.json()["invites"] == []
+
+    # Sem convite, login não adiciona projeto.
+    PROFILES["pat-pend-xxxxxxxxxxxxxxxxxxxxx"] = {
+        "id": "p-pend",
+        "email": "pendente@x.com",
+        "displayName": "Pendente",
+    }
+    pend = _login(env, "pat-pend-xxxxxxxxxxxxxxxxxxxxx")
+    assert all(c["id"] != cid for c in pend.get("/api/connections").json()["connections"])
+
+    # Membro existente não é rebaixado por convite posterior.
+    qa = _login(env, "pat-qa-xxxxxxxxxxxxxxxxxxxxxx")
+    lider.post(f"/api/connections/{cid}/invites", json={"email": "qa@x.com", "role": "lider"})
+    qa_id = next(m["id"] for m in lider.get(f"/api/connections/{cid}/members").json()["members"] if m["email"] == "qa@x.com")
+    assert lider.put(f"/api/connections/{cid}/members/{qa_id}", json={"role": "lider"}).status_code == 200
+    again = lider.post(f"/api/connections/{cid}/invites", json={"email": "qa@x.com", "role": "visitante"})
+    assert again.status_code == 200 and again.json()["addedMember"] is True
+    member = next(m for m in lider.get(f"/api/connections/{cid}/members").json()["members"] if m["id"] == qa_id)
+    assert member["memberRole"] == "lider"
+
+    # Excluir projeto remove convites pendentes em cascata.
+    lider.post(f"/api/connections/{cid}/invites", json={"email": "outro@x.com", "role": "qa"})
+    assert lider.delete(f"/api/connections/{cid}").status_code == 200
+    # Novo projeto com mesmo org/plan não herda convites.
+    cid2 = _connect(lider)["connection"]["id"]
+    assert lider.get(f"/api/connections/{cid2}/invites").json()["invites"] == []
