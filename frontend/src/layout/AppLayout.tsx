@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { ReportChrome } from "../components/ReportChrome";
 import { ReportChromeProvider } from "../context/ReportChromeContext";
 import { TopAppBar } from "./TopAppBar";
@@ -23,6 +23,8 @@ const nav = [
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+  const showReportChrome = location.pathname !== "/configuracoes";
 
   return (
     <div className={`app ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -55,15 +57,15 @@ export function AppLayout() {
             >
               <IconChevron flipped={collapsed} />
             </button>
-            <button type="button" className="icon-btn" aria-label="Configurações">
+            <NavLink to="/configuracoes" className="icon-btn" title="Configurações" aria-label="Configurações">
               <IconSettings />
-            </button>
+            </NavLink>
           </div>
         </aside>
 
         <ReportChromeProvider>
           <div className="main-area">
-            <ReportChrome />
+            {showReportChrome ? <ReportChrome /> : null}
             <div className="main-content">
               <Outlet />
             </div>

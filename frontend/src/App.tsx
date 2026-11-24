@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layout/AppLayout";
+import { ConfiguracoesPage } from "./pages/ConfiguracoesPage";
 import { ExecucoesPage } from "./pages/ExecucoesPage";
 import { FalhasPage } from "./pages/FalhasPage";
 import { PlanejamentoPage } from "./pages/PlanejamentoPage";
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="status-frente" element={<StatusPage />} />
         <Route path="execucoes" element={<ExecucoesPage />} />
         <Route path="falhas" element={<FalhasPage />} />
+        <Route path="configuracoes" element={<ConfiguracoesPage />} />
       </Route>
     </Routes>
   );

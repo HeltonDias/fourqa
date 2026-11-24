@@ -1,0 +1,474 @@
+.cfg {
+  color: var(--text, #1e293b);
+}
+
+.cfg h1,
+.cfg h2,
+.cfg p {
+  margin: 0;
+}
+
+.cfg h1 {
+  font-size: 1.65rem;
+  letter-spacing: -0.02em;
+}
+
+.cfg h2 {
+  font-size: 1.05rem;
+}
+
+.cfg-top,
+.cfg-top-tools {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.cfg-top {
+  margin-bottom: 0.75rem;
+}
+
+.cfg-top-tools {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: min(100%, 22rem);
+}
+
+.cfg-top p,
+.cfg-block-head p,
+.cfg-note,
+.cfg-help,
+.cfg-tip p,
+.cfg-empty p,
+.cfg-pending p {
+  color: var(--muted, #64748b);
+  line-height: 1.45;
+}
+
+.cfg-top p {
+  max-width: 42rem;
+  margin-top: 0.35rem;
+}
+
+.cfg-search {
+  display: grid;
+  gap: 0.3rem;
+  min-width: min(100%, 18rem);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.cfg input,
+.cfg select,
+.cfg textarea {
+  width: 100%;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+}
+
+.cfg input:focus-visible,
+.cfg select:focus-visible,
+.cfg button:focus-visible,
+.cfg summary:focus-visible {
+  outline: 2px solid var(--tertiary, #ff5315);
+  outline-offset: 2px;
+}
+
+.cfg-pending {
+  border: 1px solid var(--tertiary-soft-border, #ffc9b0);
+  background: var(--tertiary-soft, #fff1eb);
+  border-radius: var(--radius, 12px);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.cfg-pending summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cfg-pending p {
+  margin-top: 0.45rem;
+}
+
+.cfg-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.cfg-nav {
+  display: grid;
+  gap: 0.35rem;
+  position: sticky;
+  top: 0;
+}
+
+.cfg-nav button {
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+}
+
+.cfg-nav button small,
+.cfg-nav button em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
+.cfg-nav button[aria-current="page"] {
+  background: var(--card-bg, #fff);
+  border-color: var(--border, #e2e8f0);
+  box-shadow: inset 3px 0 0 var(--tertiary, #ff5315);
+}
+
+.cfg-nav button[data-dim="true"] {
+  opacity: 0.45;
+}
+
+.cfg-nav em[data-status="ok"] {
+  color: #1e7a3c;
+}
+
+.cfg-nav em[data-status="pendente"] {
+  color: #9a6412;
+}
+
+.cfg-nav em[data-status="erro"] {
+  color: #b42318;
+}
+
+.cfg-stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.cfg-block,
+.cfg-empty {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 12px);
+  padding: 1rem;
+}
+
+.cfg-block-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.cfg-block-head p,
+.cfg-help,
+.cfg-note,
+.cfg-tip p {
+  font-size: 0.86rem;
+}
+
+.cfg-help {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.cfg-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.cfg-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.cfg-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.cfg-label-row label,
+.cfg-toggle {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cfg-toggle input {
+  width: auto;
+}
+
+.cfg-tip summary {
+  cursor: pointer;
+  color: var(--tertiary-ink, #c43d0f);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cfg-tip p {
+  margin-top: 0.35rem;
+}
+
+.cfg-table-wrap {
+  overflow-x: auto;
+}
+
+.cfg-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cfg-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.cfg-table td {
+  padding: 0.7rem 0.5rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  vertical-align: top;
+}
+
+.cfg-table tbody tr:hover {
+  background: color-mix(in srgb, var(--tertiary, #ff5315) 6%, transparent);
+}
+
+.cfg-row-actions,
+.cfg-actions,
+.cfg-jump,
+.cfg-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.cfg-btn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cfg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cfg-btn-primary {
+  background: var(--tertiary, #ff5315);
+  border-color: transparent;
+  color: #fff;
+}
+
+.cfg-btn-primary:hover:not(:disabled) {
+  background: var(--tertiary-hover, #e64910);
+}
+
+.cfg-btn-danger {
+  color: #b42318;
+  border-color: #f3c1bc;
+}
+
+.cfg-filters,
+.cfg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.cfg-chip,
+.cfg-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.cfg-chip {
+  cursor: pointer;
+}
+
+.cfg-chip.active {
+  background: var(--tertiary-soft, #fff1eb);
+  border-color: var(--tertiary-soft-border, #ffc9b0);
+  color: var(--tertiary-ink, #c43d0f);
+}
+
+.cfg-chips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cfg-chips button {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.cfg-more {
+  margin-top: 0.8rem;
+}
+
+.cfg-more summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.cfg-issues,
+.cfg-pending-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.cfg-issues li[data-severity="erro"] {
+  color: #b42318;
+}
+
+.cfg-issues li[data-severity="pendente"] {
+  color: #9a6412;
+}
+
+.cfg-note-error {
+  color: #b42318;
+}
+
+.cfg-empty {
+  text-align: left;
+}
+
+.cfg-empty strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.cfg-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.cfg-metrics article {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cfg-metrics span {
+  color: var(--muted, #64748b);
+  font-size: 0.75rem;
+}
+
+.cfg-notice {
+  color: #1e7a3c;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.cfg-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cfg-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.35);
+  cursor: pointer;
+}
+
+.cfg-drawer {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow: auto;
+  background: var(--card-bg, #fff);
+  color: inherit;
+  padding: 1.1rem;
+  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.15);
+}
+
+.cfg-inline input {
+  flex: 1;
+}
+
+a.icon-btn[aria-current="page"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+@media (max-width: 860px) {
+  .cfg-top,
+  .cfg-layout,
+  .cfg-block-head {
+    display: grid;
+  }
+
+  .cfg-nav {
+    position: static;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 70%);
+    overflow-x: auto;
+  }
+
+  .cfg-table .cfg-help {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cfg * {
+    scroll-behavior: auto;
+  }
+}
