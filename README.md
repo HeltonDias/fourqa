@@ -19,19 +19,18 @@ Se a validação falhar (lote vazio, TestPointId ou BugId duplicado, suíte sem 
 
 ## Como executar
 
-Requisitos: Node.js 22 (frontend) e Python 3.12+ (API FastAPI).
+Requisitos: Node.js 22 (frontend) e JDK 25 (API Java / Spring Boot 4; Maven vem pelo Wrapper em `backend/`).
 
 ```bash
 npm install
-pip install -r requirements.txt
 cp .env.example .env   # preencha org, projeto, PAT, DATABASE_URL e SYNC_TEST_PLANS
 npm run dev
 ```
 
 - UI: http://localhost:5173
-- API: http://localhost:3001 (`python -m fourqa`)
+- API: http://localhost:3001 (`npm run dev:api`, Spring Boot)
 
-A API só sobe com `DB_PROVIDER=postgres` e `DATABASE_URL`. A única árvore SQL é `backend/src/db/postgres/migrations` (001 a 005). A primeira abertura dos stores Postgres aplica o que ainda falta. Não existe workspace npm `backend` nem `npm run db:postgres:*`.
+A API só sobe com `DB_PROVIDER=postgres` e `DATABASE_URL`. A única árvore SQL é `backend/src/main/resources/db/postgres` (001 a 006). A primeira abertura dos stores Postgres aplica o que ainda falta. Não existe workspace npm `backend` nem `npm run db:postgres:*`.
 
 SQLite fica nos testes e na importação histórica (`data/fourqa.db`, alterável com `FOURQA_DB`). `npm run import:planilha` traz o snapshot da planilha. A URL fica só no `.env`, que o Git ignora.
 
@@ -60,6 +59,6 @@ npm run build
 
 ## Vercel
 
-O Preview usa o frontend Vite em `frontend/dist` e a Function Python `api/index.py`. Na Vercel o snapshot Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção: [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
+A Vercel serve o frontend Vite em `frontend/dist` e faz rewrite de `/api/*` para o host Java (ainda não homologado; destino marcador em `vercel.json`). No host o snapshot Azure fica no PostgreSQL (`execucoes` e `falhas`); o cache em memória continua só no desenvolvimento local. Variáveis, pooler, sync e proteção: [`.cursor/docs/vercel.md`](.cursor/docs/vercel.md). Não faça deploy sem a autorização explícita do projeto.
 
 Não empacote `.env`, `data/*.db`, `node_modules`, `dist` nem as planilhas de `fonte/`.

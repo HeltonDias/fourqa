@@ -53,6 +53,8 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | DEC-038 | Aprovada | Revisa DEC-004: escrita = Líder ou Head do projeto; QA autenticado consulta; Visitante vê só Report. | Backend valida papel efetivo por conexão. US-069/US-070. |
 | DEC-039 | Aprovada | Revisa DEC-035: login padrão por **Microsoft Entra ID** (conta institucional); PAT só para dev/teste. | Organizações listadas pela conta; refresh token criptografado. Pendente: App Registration da TI. |
 | DEC-040 | Aprovada | Convite por e-mail no projeto: Head/Líder adiciona e-mail + cargo; no login o projeto já aparece conectado. | Tabela `connection_invite`; claim no login; só Head concede Head. Fecha parte do OPEN-013. |
+| DEC-041 | Aprovada (revoga DEC-033) | Backend definitivo passa a ser **Java 25 + Spring Boot 4 + Maven** (ADR 008). Cutover local em 2026-11-04 (sem commit): Python removido; API em `backend/`. | SPA na Vercel; `/api` por rewrite para host Java separado (host pendente). Schema e contratos congelados. |
+| DEC-042 | Proposta técnica (aceite no cutover) | Decisões de runtime do port Java: `FOURQA_HOSTED`, cache Azure opt-in, sync durável no Postgres, sem Spring Security. | Sem mudança de contrato HTTP; golden 34/34. |
 
 ## 2. Decisões de arquitetura vigentes no repositório
 
@@ -64,7 +66,8 @@ IDs `DEC-*` são estáveis. ADRs 001–004 em `.cursor/docs/adr/` permanecem ind
 | ADR 004 | Vigente | Escopo e baseline congelados em revisão, planejamento por data independente da ordem de coluna. | `.cursor/docs/adr/004-planejamento-baseline.md`; `planning_service.py`. |
 | ADR 005 | Superseded | Direção ASP.NET Core 10 abandonada. Histórico. | `.cursor/docs/adr/005-dotnet-incremental-migration.md`; `DEC-032`. |
 | ADR 006 | Superseded | Backend futuro Java abandonado em favor de Python (`DEC-033`, ADR 007). | `.cursor/docs/adr/006-java-incremental-migration.md`. |
-| ADR 007 | Vigente (cutover no working tree) | Backend definitivo: Python 3.12+ / FastAPI em `backend/src/fourqa/`. Vercel SPA + `api/index.py`. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
+| ADR 007 | Superseded (cutover Java 2026-11-04) | Backend Python 3.12+ / FastAPI (`api/index.py`), removido do working tree. Último deployment Python serve de rollback. | `.cursor/docs/adr/007-python-incremental-migration.md`. |
+| ADR 008 | Vigente (cutover local; homologação do host pendente) | Backend Java 25 + Spring Boot 4 + Maven em `backend/`; host Java separado com rewrite `/api` da Vercel. | `.cursor/docs/adr/008-java-spring-boot-migration.md`; `DEC-041`. |
 | DEC-T01 | Vigente transitório | PostgreSQL é operacional; SQLite sustenta testes e importação histórica. Exceção aprovada em 2026-11-03: dev local com `FOURQA_LOCAL_SQLITE=1` (`npm run dev:auth`), recusada quando `VERCEL=1`. | `backend/src/fourqa/persistence/`; migrações Postgres sob `db/postgres`. |
 | DEC-T02 | Vigente transitório | Token bearer compartilhado + Vercel Authentication; **não é autenticação comercial**. | `backend/src/fourqa/http/write_auth.py`, `frontend/src/api.ts`. |
 | DEC-T03 | Vigente transitório | Atualizar inicia sync manual; snapshot novo substitui dados Azure e mantém planejamento. | `sync_service.py`; stores Azure snapshot; `.cursor/docs/vercel.md`. |
@@ -155,7 +158,7 @@ Validação: `npm run typecheck`, `npm test`, `npm run formulas:parity`, `npm ru
 
 ID: DEC-033
 Data: 2026-10-29
-Estado: Aprovada
+Estado: Revogada por DEC-041 (2026-11-04); Python segue operacional até o cutover Java
 Problema: alvo Java (ADR 006) e duplicidade Node + fundações paralelas (`backend-java/`) aumentam custo; produto opta por um único backend Python como se nativo desde o início, sem segundo runtime permanente no repositório.
 Escolha: adotar ADR 007; port incremental na branch até paridade; cutover único remove Express/TypeScript de `backend/` e `api/index.mjs`; função Vercel Python em `/api`; superseder ADR 006; remover `backend-java/` no cutover; manter frontend React, contratos `HTTP-CONTRACTS.md`, vetores `formulas-parity-vectors.json` e migrações SQL Postgres existentes.
 Alternativas rejeitadas: manter Java como alvo (DEC-033 substitui); dois backends permanentes no repo; API em host separado nesta fase (permanece Vercel unificado).
@@ -237,3 +240,25 @@ Impacto: migração SQLite v10 / Postgres 006; rotas `GET|POST|DELETE /api/conne
 Rastreabilidade: DEC-036, DEC-038, DEC-039; OPEN-013 (parcial).
 Aprovador e evidência: responsável do produto, plano aprovado nesta conversa em 2026-11-04.
 Validação: `backend/tests/test_auth_connections.py` (convite, claim, 403, cancelamento, sem rebaixamento); typecheck e build do frontend.
+
+ID: DEC-041
+Data: 2026-11-04
+Estado: Aprovada (revoga DEC-033). Cutover local executado em 2026-11-04 por autorização do responsável, sem commit e sem host Java homologado.
+Problema: o responsável do produto avalia que Python tende a ficar fraco a longo prazo para um produto do tamanho do FourQA (tipagem, ecossistema corporativo, Spring Security, manutenção por equipe Java).
+Escolha: adotar ADR 008. Backend alvo Java 25 LTS + Spring Boot 4 + Maven Wrapper, em `backend-java/` durante o port. Python/FastAPI continua operacional e é o oráculo de comportamento até o cutover. Hospedagem opção A da ADR 006: SPA permanece na Vercel; `/api/*` passa por rewrite externo para host Java separado (Azure App Service ou Container Apps), mantendo mesma origem para cookie. Contratos HTTP, `formulas-parity-vectors.json`, DEC-031, HTTP 409 e migrações SQL `001`..`006` permanecem.
+Alternativas rejeitadas: manter Python (DEC-033); Java 21 + Spring Boot 3.5 (escolhida a mesma base da ADR 006); Spring Boot servindo o SPA fora da Vercel (opção B).
+Impacto: segunda implementação até o cutover, sem dual-write; gates passam a incluir `./mvnw verify`; provisionamento do host Java exige autorização de custo/infra/segredos; cutover remove Python, `api/index.py` e `requirements.txt`.
+Rastreabilidade: ADR 006 (critérios de conclusão), ADR 007, ADR 008; `JAVA-PARITY.md`, `JAVA-IDENTITY.md`.
+Aprovador e evidência: responsável do produto, plano "Migração Java Spring Boot" aprovado nesta conversa em 2026-11-04 (host opção A; Java 25 + Spring Boot 4).
+Validação: `./mvnw verify` em `backend-java/`; `npm run formulas:parity` contra Python e Java; golden Python x Java; homologação Preview sem `--prod`.
+
+ID: DEC-042
+Data: 2026-11-04
+Estado: Proposta técnica do port (aplicada em `backend/`; aceite do responsável na homologação)
+Problema: o host Java não é uma função Vercel. Algumas escolhas do Python dependem de `VERCEL=1` ou de processo único, e o port precisou de decisões de runtime sem mudar contrato HTTP.
+Escolha: (1) `FOURQA_HOSTED=1` equivale a `VERCEL=1` para as travas de produção (SQLite recusado, leitura protegida, escrita fechada). (2) Leitura Azure do cache em memória só com `AZURE_CACHE_READ=1`, recusada no host operacional; o snapshot operacional é o PostgreSQL. (3) Job de sync durável (claim, heartbeat, publicação transacional em `workbook_meta`) sempre que o banco for PostgreSQL, não só na Vercel, porque o host pode ter mais de uma instância. (4) Sem Spring Security; identidade portada 1:1 (ADR 008). (5) Clientes HTTP do JDK e JDBC/Hikari puro. (6) Mensagens de validação e de data seguem o texto exato do Python 3.14/FastAPI; `planKey` repetido na query usa o último valor. (7) `Dimensions` aceita overrides em snake_case e camelCase, como o Python faz na prática.
+Alternativas rejeitadas: Spring Security já no port (mudaria ordem de 401/422 e mensagens); cache em memória como fonte no host (inconsistente com várias instâncias).
+Impacto: nenhuma mudança de contrato HTTP; golden 34/34. O host Java precisa de `FOURQA_HOSTED=1` e de `DB_PROVIDER=postgres`.
+Rastreabilidade: ADR 008 (Desvios); `JAVA-PARITY.md`; `Env.hosted`, `AzureCacheRead`, `SyncJob.isDurableSyncRuntime`.
+Aprovador e evidência: pendente; registrar aceite do responsável junto com a homologação.
+Validação: `./mvnw verify` (88 testes); `GoldenParityTest`.

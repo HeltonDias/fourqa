@@ -1,5 +1,5 @@
 /**
- * Gates do workspace (frontend Node + backend Python).
+ * Gates do workspace (frontend Node + backend Java).
  */
 export const MODULE_GATES = {
   product: ["typecheck", "test", "build", "test_agents"],

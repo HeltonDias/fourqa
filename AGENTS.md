@@ -1,10 +1,10 @@
 # FourQA — instruções para agentes (Cursor / Cloud)
 
-Monorepo **Node 22** (frontend/tooling) + **Python 3.12+** (API): FastAPI em `backend/src/fourqa/` + SPA React/Vite. Planejamento de produto e requisitos ficam em `.cursor/docs/`; regras obrigatórias em `.cursor/rules/` (não repetir aqui).
+Monorepo **Node 22** (frontend/tooling) + **Java 25** (API): Spring Boot 4 + Maven em `backend/` + SPA React/Vite. Planejamento de produto e requisitos ficam em `.cursor/docs/`; regras obrigatórias em `.cursor/rules/` (não repetir aqui).
 
 ## Executor
 
-O **agente principal** no Cursor (incl. Cloud Agent) é o Maestro: implementa, testa e abre PR. Não criar orquestrador paralelo. Essencial em `.cursor/rules/00-maestro.mdc`; procedimento em `.cursor/skills/maestro-orchestration/SKILL.md`. Os gates abaixo continuam obrigatórios quando houver código de produto. **Backend primário:** API Python/FastAPI em `backend/src/fourqa/` (Vercel `api/index.py`). Migração ASP.NET Core removida (`DEC-032`); alvo Java superseded (`DEC-033`, ADR 007).
+O **agente principal** no Cursor (incl. Cloud Agent) é o Maestro: implementa, testa e abre PR. Não criar orquestrador paralelo. Essencial em `.cursor/rules/00-maestro.mdc`; procedimento em `.cursor/skills/maestro-orchestration/SKILL.md`. Os gates abaixo continuam obrigatórios quando houver código de produto. **Backend:** API Java 25 + Spring Boot 4 + Maven em `backend/` (`DEC-041`, ADR 008), servida por host separado; a Vercel serve o SPA e faz rewrite de `/api/*`. Python/FastAPI removido no cutover; ASP.NET Core removido (`DEC-032`). Homologação do host Java pendente de autorização.
 
 | Quando | Quem |
 |--------|------|
@@ -52,7 +52,7 @@ Explorar código: preferir `graphify query` se `graphify-out/graph.json` existir
 ```bash
 npm install
 npm run typecheck
-npm test              # produto (backend)
+npm test              # produto: backend ./mvnw verify (JDK 25) + frontend
 npm run test:agents   # smoke BMAD / _bmad
 npm run build
 npm run dev           # API :3001 + Vite :5173
@@ -64,8 +64,8 @@ Preview oficial (alias manual após validação): `https://fourqa-homolog-helton
 
 Não ler `.env`, PAT, dumps ou planilhas `fonte/**/*.xlsx` sem necessidade. Não commitar segredos. Não alterar dados de produção neste fluxo.
 
-## Backend (Python)
+## Backend (Java)
 
-**Operacional:** FastAPI + Vercel (`api/index.py`). **Removido:** `backend/dotnet/` (`DEC-032`), `backend-java/` (`DEC-033`).
+**Operacional:** Spring Boot 4 em `backend/` (`DEC-041`, ADR 008, `DEC-042`; paridade com o Python removido em `.cursor/docs/JAVA-PARITY.md`). Host Java com `FOURQA_HOSTED=1` e `DB_PROVIDER=postgres`. **Removidos:** Python/FastAPI (cutover 2026-11-04), `backend/dotnet/` (`DEC-032`).
 
-**Gates de domínio:** `npm run formulas:parity` valida `fourqa/domain/formulas.py` contra `backend/shared/formulas-parity-vectors.json`. **Contratos:** leituras com fallback de PlanKey; escritas `revisao`/`celula` exigem `planKey` explícito (DEC-031); HTTP 409 quando `DB_PROVIDER=postgres`.
+**Gates de domínio:** `npm run formulas:parity` roda `FormulasParityTest` contra `backend/shared/formulas-parity-vectors.json`. **Contratos:** leituras com fallback de PlanKey; escritas `revisao`/`celula` exigem `planKey` explícito (DEC-031); HTTP 409 quando `DB_PROVIDER=postgres`.

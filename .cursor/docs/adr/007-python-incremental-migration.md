@@ -1,6 +1,6 @@
 # ADR 007 — Migração incremental do backend Node.js para Python 3.12+ (FastAPI)
 
-**Status:** Direcionamento aprovado via `DEC-033`. **Working tree (2026-11-04):** cutover de código refletido — API em `backend/src/fourqa/` + `api/index.py`; Express/`api/index.mjs` e `backend-java/` ausentes. Homologação/alias e evidência operacional de Preview continuam sujeitas a autorização (`DEC-027`).  
+**Status:** Superseded pela ADR 008 (`DEC-041`). Cutover Java local em 2026-11-04: `backend/src/fourqa/`, `api/index.py` e `requirements.txt` removidos. Histórico. Direcionamento original aprovado via `DEC-033`.  
 **Data:** 2026-10-29 (texto de plano); nota de cutover no tree: 2026-11-04.  
 **Supera:** ADR 006 (Java 25 + Spring Boot como alvo definitivo). ADR 006 permanece histórico após `DEC-033`.  
 **Não altera:** ADR 001, 002, 003 e 004.

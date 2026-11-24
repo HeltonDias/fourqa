@@ -40,6 +40,6 @@ Falha → registrar `failure_retries` (máx. 2 por assinatura) → classificar c
 
 Assinatura esgotada → `BLOQUEADO` com evidência.
 
-## Backend Python (`backend/src/fourqa/`)
+## Backend Java (`backend/`)
 
-API operacional: FastAPI + Vercel `api/index.py` (`DEC-033`, ADR 007). Gates de produto: `typecheck` (frontend), `pytest` via `npm test`, `formulas:parity` (Python), `build`. Node 22 é tooling/SPA — **não** runtime da API. `backend-java/` e Express/`api/index.mjs` estão **ausentes** do working tree (históricos).
+API: Java 25 + Spring Boot 4 + Maven (`DEC-041`, ADR 008), host separado com rewrite `/api` da Vercel. Gates de produto: `typecheck` (frontend), `npm test` (`./mvnw verify` via `scripts/mvnw.mjs` + teste do frontend; exige JDK 25), `formulas:parity` (`FormulasParityTest`), `build`. Node 22 é tooling/SPA — **não** runtime da API. Python/FastAPI (`api/index.py`) e Express/`api/index.mjs` estão **ausentes** do working tree (históricos).

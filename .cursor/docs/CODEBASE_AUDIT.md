@@ -1,6 +1,6 @@
 # FourQA — auditoria da implementação
 
-> **Histórico (15/10/2026).** Stack abaixo (Express/TS) **não** é a vigente. Estado atual: Python/FastAPI — `ARCHITECTURE.md`, `context/PROJECT_MAP.md`, ADR 007 / `DEC-033`.
+> **Histórico (15/10/2026).** Stack abaixo (Express/TS) **não** é a vigente. Estado atual: Java 25 / Spring Boot 4 em `backend/` — `ARCHITECTURE.md`, `context/PROJECT_MAP.md`, ADR 008 / `DEC-041`.
 
 Auditoria somente leitura em 15/10/2026. Não executou testes, sync, migração nem deploy. Não lê `.env`.
 

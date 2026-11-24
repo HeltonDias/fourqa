@@ -1,0 +1,1455 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "status": 200,
+    "response": {
+      "ok": true,
+      "database": "ready"
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/periodo",
+    "body": {
+      "inicio": "2026-10-01",
+      "fim": "2026-10-30"
+    },
+    "status": 200,
+    "response": {
+      "inicio": "2026-10-01",
+      "fim": "2026-10-30",
+      "referencia": ""
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cabecalho",
+    "body": {
+      "title": "Título Ação",
+      "subtitle": "Sub ç"
+    },
+    "status": 200,
+    "response": {
+      "title": "Título Ação",
+      "subtitle": "Sub ç"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/meta",
+    "status": 200,
+    "response": {
+      "inicio": "2026-10-01",
+      "fim": "2026-10-30",
+      "referencia": ""
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/planejamento/revisao?planKey=Plano",
+    "body": {
+      "reason": "primeira"
+    },
+    "status": 200,
+    "response": {
+      "planning": {
+        "planKey": "Plano"
+      },
+      "revision": {
+        "version": 1,
+        "reason": "primeira",
+        "createdAt": "2026-11-04T18:46:00.838759Z",
+        "baselineOrigin": "motor",
+        "scopeSnapshotAvailable": true
+      },
+      "summary": {
+        "baselineCount": 3,
+        "sourceCount": 3,
+        "addedCount": 0,
+        "removedCount": 0,
+        "scopeDelta": 0,
+        "distributedCount": 0,
+        "distributionGap": -3,
+        "plannedToDate": 0,
+        "finalizedCount": 1.0,
+        "backlog": 0,
+        "aheadOfPlan": 1.0,
+        "classifiedCount": 3,
+        "unclassifiedCount": 0,
+        "inconsistentCount": 0,
+        "scopeCheck": null
+      },
+      "dimensions": [],
+      "dates": [],
+      "items": [
+        {
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 2,
+          "sourceCount": 2,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 0,
+          "distributionGap": -2,
+          "plannedToDate": 0,
+          "finalizedCount": 1,
+          "failed": 1,
+          "blocked": 0,
+          "passed": 1,
+          "na": 0,
+          "released": 0,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 0,
+          "aheadOfPlan": 1,
+          "allocations": {},
+          "warnings": [
+            "2 cenários ainda não distribuídos no cronograma"
+          ]
+        },
+        {
+          "suiteId": 20,
+          "testPointId": null,
+          "suiteName": "Pagamento",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 1,
+          "sourceCount": 1,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 0,
+          "distributionGap": -1,
+          "plannedToDate": 0,
+          "finalizedCount": 0,
+          "failed": 0,
+          "blocked": 0,
+          "passed": 0,
+          "na": 0,
+          "released": 1,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 0,
+          "aheadOfPlan": 0,
+          "allocations": {},
+          "warnings": [
+            "1 cenário ainda não distribuído no cronograma"
+          ]
+        }
+      ],
+      "integrity": {
+        "scope": null,
+        "classification": null,
+        "schedule": "3 cenários ainda não distribuídos no cronograma"
+      },
+      "executionHistory": {
+        "reconstructed": false,
+        "note": "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas."
+      },
+      "revisions": [
+        {
+          "version": 1,
+          "createdAt": "2026-11-04T18:46:00.838759Z",
+          "reason": "primeira"
+        }
+      ],
+      "editable": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/planejamento?planKey=Plano",
+    "status": 200,
+    "response": {
+      "planning": {
+        "planKey": "Plano"
+      },
+      "revision": {
+        "version": 1,
+        "reason": "primeira",
+        "createdAt": "2026-11-04T18:46:00.838759Z",
+        "baselineOrigin": "motor",
+        "scopeSnapshotAvailable": true
+      },
+      "summary": {
+        "baselineCount": 3,
+        "sourceCount": 3,
+        "addedCount": 0,
+        "removedCount": 0,
+        "scopeDelta": 0,
+        "distributedCount": 0,
+        "distributionGap": -3,
+        "plannedToDate": 0,
+        "finalizedCount": 1.0,
+        "backlog": 0,
+        "aheadOfPlan": 1.0,
+        "classifiedCount": 3,
+        "unclassifiedCount": 0,
+        "inconsistentCount": 0,
+        "scopeCheck": null
+      },
+      "dimensions": [],
+      "dates": [],
+      "items": [
+        {
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 2,
+          "sourceCount": 2,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 0,
+          "distributionGap": -2,
+          "plannedToDate": 0,
+          "finalizedCount": 1,
+          "failed": 1,
+          "blocked": 0,
+          "passed": 1,
+          "na": 0,
+          "released": 0,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 0,
+          "aheadOfPlan": 1,
+          "allocations": {},
+          "warnings": [
+            "2 cenários ainda não distribuídos no cronograma"
+          ]
+        },
+        {
+          "suiteId": 20,
+          "testPointId": null,
+          "suiteName": "Pagamento",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 1,
+          "sourceCount": 1,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 0,
+          "distributionGap": -1,
+          "plannedToDate": 0,
+          "finalizedCount": 0,
+          "failed": 0,
+          "blocked": 0,
+          "passed": 0,
+          "na": 0,
+          "released": 1,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 0,
+          "aheadOfPlan": 0,
+          "allocations": {},
+          "warnings": [
+            "1 cenário ainda não distribuído no cronograma"
+          ]
+        }
+      ],
+      "integrity": {
+        "scope": null,
+        "classification": null,
+        "schedule": "3 cenários ainda não distribuídos no cronograma"
+      },
+      "executionHistory": {
+        "reconstructed": false,
+        "note": "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas."
+      },
+      "revisions": [
+        {
+          "version": 1,
+          "createdAt": "2026-11-04T18:46:00.838759Z",
+          "reason": "primeira"
+        }
+      ],
+      "editable": true
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/distribuir?planKey=Plano",
+    "body": {
+      "strategy": "uniforme",
+      "start": "2026-10-05",
+      "end": "2026-10-09",
+      "resguardo": 0,
+      "enabledWeekendDays": [],
+      "preview": true
+    },
+    "status": 200,
+    "response": {
+      "preview": true,
+      "mode": "completo",
+      "cut": null,
+      "suiteCount": 2,
+      "finalized": 0,
+      "pending": 0,
+      "unchanged": false,
+      "days": []
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/distribuir?planKey=Plano",
+    "body": {
+      "strategy": "crescente",
+      "start": "2026-10-05",
+      "end": "2026-10-16",
+      "resguardo": 1,
+      "enabledWeekendDays": [],
+      "replace": true
+    },
+    "status": 200,
+    "response": {
+      "planning": {
+        "planKey": "Plano"
+      },
+      "revision": {
+        "version": 1,
+        "reason": "primeira",
+        "createdAt": "2026-11-04T18:46:00.838759Z",
+        "baselineOrigin": "motor",
+        "scopeSnapshotAvailable": true
+      },
+      "summary": {
+        "baselineCount": 3,
+        "sourceCount": 3,
+        "addedCount": 0,
+        "removedCount": 0,
+        "scopeDelta": 0,
+        "distributedCount": 3,
+        "distributionGap": 0,
+        "plannedToDate": 3,
+        "finalizedCount": 1.0,
+        "backlog": 2.0,
+        "aheadOfPlan": 0,
+        "classifiedCount": 3,
+        "unclassifiedCount": 0,
+        "inconsistentCount": 0,
+        "scopeCheck": null
+      },
+      "dimensions": [],
+      "dates": [
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15"
+      ],
+      "items": [
+        {
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 2,
+          "sourceCount": 2,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 2,
+          "distributionGap": 0,
+          "plannedToDate": 2,
+          "finalizedCount": 1,
+          "failed": 1,
+          "blocked": 0,
+          "passed": 1,
+          "na": 0,
+          "released": 0,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 1,
+          "aheadOfPlan": 0,
+          "allocations": {
+            "2026-10-13": 1.0,
+            "2026-10-14": 1.0
+          },
+          "warnings": []
+        },
+        {
+          "suiteId": 20,
+          "testPointId": null,
+          "suiteName": "Pagamento",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 1,
+          "sourceCount": 1,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 1,
+          "distributionGap": 0,
+          "plannedToDate": 1,
+          "finalizedCount": 0,
+          "failed": 0,
+          "blocked": 0,
+          "passed": 0,
+          "na": 0,
+          "released": 1,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 1,
+          "aheadOfPlan": 0,
+          "allocations": {
+            "2026-10-15": 1.0
+          },
+          "warnings": []
+        }
+      ],
+      "integrity": {
+        "scope": null,
+        "classification": null,
+        "schedule": null
+      },
+      "executionHistory": {
+        "reconstructed": false,
+        "note": "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas."
+      },
+      "revisions": [
+        {
+          "version": 1,
+          "createdAt": "2026-11-04T18:46:00.838759Z",
+          "reason": "primeira"
+        }
+      ],
+      "editable": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/planejamento?planKey=Plano",
+    "status": 200,
+    "response": {
+      "planning": {
+        "planKey": "Plano"
+      },
+      "revision": {
+        "version": 1,
+        "reason": "primeira",
+        "createdAt": "2026-11-04T18:46:00.838759Z",
+        "baselineOrigin": "motor",
+        "scopeSnapshotAvailable": true
+      },
+      "summary": {
+        "baselineCount": 3,
+        "sourceCount": 3,
+        "addedCount": 0,
+        "removedCount": 0,
+        "scopeDelta": 0,
+        "distributedCount": 3,
+        "distributionGap": 0,
+        "plannedToDate": 3,
+        "finalizedCount": 1.0,
+        "backlog": 2.0,
+        "aheadOfPlan": 0,
+        "classifiedCount": 3,
+        "unclassifiedCount": 0,
+        "inconsistentCount": 0,
+        "scopeCheck": null
+      },
+      "dimensions": [],
+      "dates": [
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15"
+      ],
+      "items": [
+        {
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 2,
+          "sourceCount": 2,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 2,
+          "distributionGap": 0,
+          "plannedToDate": 2,
+          "finalizedCount": 1,
+          "failed": 1,
+          "blocked": 0,
+          "passed": 1,
+          "na": 0,
+          "released": 0,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 1,
+          "aheadOfPlan": 0,
+          "allocations": {
+            "2026-10-13": 1.0,
+            "2026-10-14": 1.0
+          },
+          "warnings": []
+        },
+        {
+          "suiteId": 20,
+          "testPointId": null,
+          "suiteName": "Pagamento",
+          "responsavel": null,
+          "prioridade": null,
+          "dimensions": {},
+          "plannedStart": null,
+          "plannedEnd": null,
+          "baselineCount": 1,
+          "sourceCount": 1,
+          "addedCount": 0,
+          "removedCount": 0,
+          "distributedCount": 1,
+          "distributionGap": 0,
+          "plannedToDate": 1,
+          "finalizedCount": 0,
+          "failed": 0,
+          "blocked": 0,
+          "passed": 0,
+          "na": 0,
+          "released": 1,
+          "design": 0,
+          "notReleased": 0,
+          "unclassifiedCount": 0,
+          "inconsistentCount": 0,
+          "backlog": 1,
+          "aheadOfPlan": 0,
+          "allocations": {
+            "2026-10-15": 1.0
+          },
+          "warnings": []
+        }
+      ],
+      "integrity": {
+        "scope": null,
+        "classification": null,
+        "schedule": null
+      },
+      "executionHistory": {
+        "reconstructed": false,
+        "note": "O histórico de execução passa a ser observável a partir das sincronizações do FourQA. O estado atual do Test Point não reconstrói execuções antigas."
+      },
+      "revisions": [
+        {
+          "version": 1,
+          "createdAt": "2026-11-04T18:46:00.838759Z",
+          "reason": "primeira"
+        }
+      ],
+      "editable": true
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/planejamento/alteracoes?planKey=Plano",
+    "status": 200,
+    "response": {
+      "supported": true,
+      "entries": [
+        {
+          "id": 3,
+          "createdAt": "2026-11-04T18:46:00.919957+00:00",
+          "actor": null,
+          "suiteId": 20,
+          "testPointId": null,
+          "suiteName": "Pagamento",
+          "field": "day",
+          "allocDate": "2026-10-15",
+          "oldValue": "0",
+          "newValue": "1"
+        },
+        {
+          "id": 2,
+          "createdAt": "2026-11-04T18:46:00.917164+00:00",
+          "actor": null,
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "field": "day",
+          "allocDate": "2026-10-14",
+          "oldValue": "0",
+          "newValue": "1"
+        },
+        {
+          "id": 1,
+          "createdAt": "2026-11-04T18:46:00.911877+00:00",
+          "actor": null,
+          "suiteId": 10,
+          "testPointId": null,
+          "suiteName": "Login",
+          "field": "day",
+          "allocDate": "2026-10-13",
+          "oldValue": "0",
+          "newValue": "1"
+        }
+      ]
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/limpar?planKey=Plano",
+    "body": {
+      "preview": true
+    },
+    "status": 200,
+    "response": {
+      "preview": true,
+      "action": "limpar",
+      "suiteCount": 2,
+      "finalized": 0,
+      "kept": 0,
+      "removed": 2,
+      "unchanged": false
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/execucoes?planKey=Plano&limit=2",
+    "status": 200,
+    "response": {
+      "total": 3,
+      "limit": 2,
+      "offset": 0,
+      "rows": [
+        {
+          "plan_key": "Plano",
+          "plan_id": 1,
+          "plan_name": "Plano",
+          "suite_id": 10,
+          "suite_name": "Login",
+          "test_point_id": 1,
+          "test_case_id": 1001,
+          "test_case_title": "Caso 1",
+          "test_case_state": "Ready",
+          "test_point_state": "Ready",
+          "outcome": "Passed",
+          "dimensions_json": null,
+          "id": 1
+        },
+        {
+          "plan_key": "Plano",
+          "plan_id": 1,
+          "plan_name": "Plano",
+          "suite_id": 10,
+          "suite_name": "Login",
+          "test_point_id": 2,
+          "test_case_id": 1002,
+          "test_case_title": "Caso 2",
+          "test_case_state": "Ready",
+          "test_point_state": "Ready",
+          "outcome": "Failed",
+          "dimensions_json": null,
+          "id": 2
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/execucoes?planKey=Plano&q=Login&offset=1",
+    "status": 200,
+    "response": {
+      "total": 2,
+      "limit": 50,
+      "offset": 1,
+      "rows": [
+        {
+          "plan_key": "Plano",
+          "plan_id": 1,
+          "plan_name": "Plano",
+          "suite_id": 10,
+          "suite_name": "Login",
+          "test_point_id": 2,
+          "test_case_id": 1002,
+          "test_case_title": "Caso 2",
+          "test_case_state": "Ready",
+          "test_point_state": "Ready",
+          "outcome": "Failed",
+          "dimensions_json": null,
+          "id": 2
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/falhas?planKey=Plano",
+    "status": 200,
+    "response": {
+      "total": 0,
+      "limit": 50,
+      "offset": 0,
+      "rows": []
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/status-frente?planKey=Plano",
+    "status": 200,
+    "response": {
+      "planKey": "Plano",
+      "blocos": [],
+      "total": {
+        "cenarios": {},
+        "bugs": {},
+        "indicadores": {
+          "planAteHoje": 0.0,
+          "na": 0.0,
+          "passeds": 0.0,
+          "gap": 0.0,
+          "pctPlan": 0,
+          "pctReal": 0,
+          "pctBugsDev": 0,
+          "pctBugsCliente": 0,
+          "bugsAbertos": 0,
+          "status": "ok"
+        }
+      },
+      "sobreposicao": false
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/home?planKey=Plano",
+    "status": 200,
+    "response": {
+      "title": "Título Ação",
+      "subtitle": "Sub ç",
+      "planKey": "Plano",
+      "periodo": {
+        "inicio": "2026-10-01",
+        "fim": "2026-10-30",
+        "referencia": ""
+      },
+      "atualizadoEm": "2026-11-04T18:46:01.065225+00:00",
+      "ultimaImportacao": null,
+      "replanejamentoTotal": 0.0,
+      "ttlCts": 3.0,
+      "gap": 2.0,
+      "statusTotais": "warn",
+      "percentBugsDev": 0.0,
+      "percentBugsCliente": 0.0,
+      "percentTotalImpactados": 0.0,
+      "statusGeral": "warn",
+      "totais": {
+        "ctsPlan": 3.0,
+        "ctsPlanAteHoje": 3.0,
+        "totalRealizado": 1.0,
+        "passeds": 1.0,
+        "na": 0.0,
+        "cancelados": 0.0,
+        "falhados": 1.0,
+        "bloqueados": 0.0,
+        "liberados": 1.0,
+        "design": 0.0,
+        "naoLiberados": 0.0
+      },
+      "percentuais": {
+        "plan": 1.0,
+        "real": 0.3333333333333333
+      },
+      "impactos": {
+        "totalTestPointFailedBlocked": 1,
+        "foursys": 0,
+        "cliente": 0,
+        "reteste": 1
+      },
+      "suites": [
+        {
+          "rows": [
+            {
+              "plan_key": "Plano",
+              "plan_id": 1,
+              "plan_name": "Plano",
+              "suite_id": 10,
+              "suite_name": "Login",
+              "test_point_id": 1,
+              "test_case_id": 1001,
+              "test_case_title": "Caso 1",
+              "test_case_state": "Ready",
+              "test_point_state": "Ready",
+              "outcome": "Passed",
+              "dimensions_json": null,
+              "id": 1
+            },
+            {
+              "plan_key": "Plano",
+              "plan_id": 1,
+              "plan_name": "Plano",
+              "suite_id": 10,
+              "suite_name": "Login",
+              "test_point_id": 2,
+              "test_case_id": 1002,
+              "test_case_title": "Caso 2",
+              "test_case_state": "Ready",
+              "test_point_state": "Ready",
+              "outcome": "Failed",
+              "dimensions_json": null,
+              "id": 2
+            }
+          ],
+          "classificacao": {},
+          "frente": null,
+          "processo": "Login",
+          "row_num": 1,
+          "qa": null,
+          "prioridades": null,
+          "data_inicio": "2026-10-01",
+          "data_fim": "2026-10-30",
+          "replanejamento": 0,
+          "qtd_cts_plan": 2,
+          "cts_plan_dia": 2,
+          "cts_cancelados": 0,
+          "cts_passeds": 1,
+          "cts_na": 0,
+          "cts_falhados": 1,
+          "cts_bloqueados": 0,
+          "cts_design": 0,
+          "cts_nao_liberados": 0,
+          "cts_liberados": 0,
+          "total_realizado": 1,
+          "planejamentoOrigem": "periodo_plano",
+          "suiteLabel": "Login",
+          "ttlCts": 2.0,
+          "gap": 1.0,
+          "aprovUatPct": 0.5,
+          "conclusaoE2ePct": 0.5,
+          "status": "warn"
+        },
+        {
+          "rows": [
+            {
+              "plan_key": "Plano",
+              "plan_id": 1,
+              "plan_name": "Plano",
+              "suite_id": 20,
+              "suite_name": "Pagamento",
+              "test_point_id": 3,
+              "test_case_id": 1003,
+              "test_case_title": "Caso 3",
+              "test_case_state": "Ready",
+              "test_point_state": "Ready",
+              "outcome": "Active",
+              "dimensions_json": null,
+              "id": 3
+            }
+          ],
+          "classificacao": {},
+          "frente": null,
+          "processo": "Pagamento",
+          "row_num": 2,
+          "qa": null,
+          "prioridades": null,
+          "data_inicio": "2026-10-01",
+          "data_fim": "2026-10-30",
+          "replanejamento": 0,
+          "qtd_cts_plan": 1,
+          "cts_plan_dia": 1,
+          "cts_cancelados": 0,
+          "cts_passeds": 0,
+          "cts_na": 0,
+          "cts_falhados": 0,
+          "cts_bloqueados": 0,
+          "cts_design": 0,
+          "cts_nao_liberados": 0,
+          "cts_liberados": 1,
+          "total_realizado": 0,
+          "planejamentoOrigem": "periodo_plano",
+          "suiteLabel": "Pagamento",
+          "ttlCts": 1.0,
+          "gap": 1.0,
+          "aprovUatPct": 0.0,
+          "conclusaoE2ePct": 0.0,
+          "status": "warn"
+        }
+      ],
+      "dimensoes": [],
+      "bugs": {
+        "total": 0,
+        "fechados": 0,
+        "abertosDev": 0,
+        "fechadosDev": 0,
+        "abertosCliente": 0,
+        "fechadosCliente": 0,
+        "retesteResolved": 0,
+        "outros": 0
+      },
+      "graficos": {
+        "planejadoVsRealizado": [
+          {
+            "data": "2026-10-01",
+            "planejado": 0.1,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-02",
+            "planejado": 0.3,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-05",
+            "planejado": 0.4,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-06",
+            "planejado": 0.5,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-07",
+            "planejado": 0.7,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-08",
+            "planejado": 0.8,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-09",
+            "planejado": 1.0,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-12",
+            "planejado": 1.1,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-13",
+            "planejado": 1.2,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-14",
+            "planejado": 1.4,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-15",
+            "planejado": 1.5,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-16",
+            "planejado": 1.6,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-19",
+            "planejado": 1.8,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-20",
+            "planejado": 1.9,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-21",
+            "planejado": 2.0,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-22",
+            "planejado": 2.2,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-23",
+            "planejado": 2.3,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-26",
+            "planejado": 2.5,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-27",
+            "planejado": 2.6,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-28",
+            "planejado": 2.7,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-29",
+            "planejado": 2.9,
+            "realizado": 0
+          },
+          {
+            "data": "2026-10-30",
+            "planejado": 3.0,
+            "realizado": 0
+          }
+        ],
+        "statusExecucoes": [
+          {
+            "key": "passeds",
+            "label": "CTS Passeds",
+            "value": 1.0
+          },
+          {
+            "key": "na",
+            "label": "CTS N/A",
+            "value": 0.0
+          },
+          {
+            "key": "cancelados",
+            "label": "CTS Cancelados",
+            "value": 0.0
+          },
+          {
+            "key": "falhados",
+            "label": "CTS Falhados",
+            "value": 1.0
+          },
+          {
+            "key": "bloqueados",
+            "label": "CTS Bloqueados",
+            "value": 0.0
+          },
+          {
+            "key": "liberados",
+            "label": "CTS Liberados",
+            "value": 1.0
+          },
+          {
+            "key": "design",
+            "label": "CTS Design",
+            "value": 0.0
+          },
+          {
+            "key": "naoLiberados",
+            "label": "CTS Não Liberados",
+            "value": 0.0
+          }
+        ]
+      },
+      "gestaoImpactos": {
+        "cards": {
+          "total": 0,
+          "fechados": 0,
+          "pendentes": 0,
+          "emRetestes": 0,
+          "abertosDev": 0,
+          "abertosCliente": 0,
+          "abertosOutros": 0
+        },
+        "frentes": [],
+        "status": [],
+        "categoria": []
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/evolucao-qa?planKey=Plano&from=2026-10-01&to=2026-10-10",
+    "status": 200,
+    "response": {
+      "planKey": "Plano",
+      "dimensions": [],
+      "range": {
+        "from": "2026-10-01",
+        "to": "2026-10-10",
+        "asOf": "2026-11-04"
+      },
+      "qas": [],
+      "unattributed": {
+        "key": "__nao_atribuivel__",
+        "name": "Não atribuível",
+        "attributable": false,
+        "suites": [
+          {
+            "suiteId": 10,
+            "testPointId": null,
+            "suiteName": "Login",
+            "responsavel": null,
+            "dimensions": {}
+          },
+          {
+            "suiteId": 20,
+            "testPointId": null,
+            "suiteName": "Pagamento",
+            "responsavel": null,
+            "dimensions": {}
+          }
+        ],
+        "baseline": 3.0,
+        "planned": 0.0,
+        "plannedToDate": 0.0,
+        "finalized": 1.0,
+        "executed": 2.0,
+        "passed": 1.0,
+        "na": 0.0,
+        "failed": 1.0,
+        "blocked": 0.0,
+        "released": 1.0,
+        "design": 0.0,
+        "notReleased": 0.0,
+        "finalizedInRange": 0.0,
+        "reasons": {
+          "sem_responsavel": 2,
+          "compartilhada": 0
+        },
+        "gap": 0.0,
+        "status": null,
+        "suiteCount": 2,
+        "daily": [
+          {
+            "date": "2026-10-01",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-02",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-03",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-04",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-05",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-06",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-07",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-08",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-09",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          },
+          {
+            "date": "2026-10-10",
+            "planned": 0.0,
+            "finalized": 0.0,
+            "executed": 0.0,
+            "plannedCumulative": 0.0,
+            "finalizedCumulative": 0.0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/sync/config",
+    "status": 200,
+    "response": {
+      "organization": "",
+      "project": "",
+      "apiVersion": "7.1",
+      "credentialConfigured": false,
+      "kpiPlanKey": "",
+      "plans": [],
+      "hierarchy": [],
+      "responsibilities": [],
+      "executionFields": [],
+      "failureFields": [],
+      "warning": null,
+      "executionCatalog": [
+        "PlanKey",
+        "PlanId",
+        "PlanName",
+        "Frente",
+        "Atalho",
+        "SuiteId",
+        "SuiteName",
+        "TestPointId",
+        "TestCaseId",
+        "TestCaseTitle",
+        "Prioridade",
+        "Responsabilidade",
+        "TestCaseState",
+        "TestPointState",
+        "Outcome",
+        "DateCompleted",
+        "RunBy",
+        "LastUpdatedDate",
+        "LastTestRunId",
+        "LastResultId",
+        "TestCaseLink",
+        "TestCaseTags"
+      ],
+      "failureCatalog": [
+        "PlanKey",
+        "Responsavel",
+        "Ambiente",
+        "Categoria",
+        "ID",
+        "Impacto",
+        "Frente",
+        "Título",
+        "Status",
+        "Criada por",
+        "Criação",
+        "Fechada por",
+        "Fechamento",
+        "Links",
+        "Tags"
+      ],
+      "source": "environment"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/sync/status",
+    "status": 200,
+    "response": {
+      "status": "idle",
+      "startedAt": null,
+      "finishedAt": null,
+      "step": "",
+      "progress": null,
+      "summary": null,
+      "error": null
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/session",
+    "status": 200,
+    "response": {
+      "active": false
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/celula?planKey=Plano",
+    "body": {
+      "field": "x"
+    },
+    "status": 400,
+    "response": {
+      "detail": "Campo inválido."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/celula?planKey=Plano",
+    "body": {
+      "field": "day",
+      "baseQuantity": -1
+    },
+    "status": 400,
+    "response": {
+      "detail": "Base da célula inválida."
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/planejamento/revisao",
+    "body": {},
+    "status": 400,
+    "response": {
+      "detail": "Informe o planKey."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/lote?planKey=Plano",
+    "body": {
+      "changes": []
+    },
+    "status": 400,
+    "response": {
+      "detail": "Nenhuma alteração."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/distribuir?planKey=Plano",
+    "body": {
+      "enabledWeekendDays": [
+        1
+      ],
+      "resguardo": 0
+    },
+    "status": 400,
+    "response": {
+      "detail": "Dias de feriado/fim de semana inválidos."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/planejamento/distribuir?planKey=Plano",
+    "body": {
+      "enabledWeekendDays": [],
+      "resguardo": "x"
+    },
+    "status": 400,
+    "response": {
+      "detail": "Resguardo inválido."
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/evolucao-qa?planKey=Plano&from=2026-13-01",
+    "status": 400,
+    "response": {
+      "detail": "month must be in 1..12, not 13"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/evolucao-qa?planKey=Plano&from=2026-10-10&to=2026-10-01",
+    "status": 400,
+    "response": {
+      "detail": "A data final deve ser igual ou posterior à inicial."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cabecalho",
+    "body": {
+      "title": "",
+      "subtitle": ""
+    },
+    "status": 400,
+    "response": {
+      "detail": "Informe o título (obrigatório) e o subtítulo."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cabecalho",
+    "body": {
+      "title": "A",
+      "subtitle": "B",
+      "baseTitle": 1
+    },
+    "status": 400,
+    "response": {
+      "detail": "Informe a base do cabeçalho."
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/periodo",
+    "body": {
+      "inicio": 1
+    },
+    "status": 400,
+    "response": {
+      "detail": "Informe início e fim."
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/session",
+    "body": {
+      "token": 1
+    },
+    "status": 400,
+    "response": {
+      "detail": "Informe o token."
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "status": 200,
+    "response": {
+      "authenticated": false,
+      "user": null,
+      "loginEnabled": false,
+      "entraEnabled": false,
+      "patEnabled": false
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/connections",
+    "status": 401,
+    "response": {
+      "detail": "Entre para continuar."
+    }
+  }
+]

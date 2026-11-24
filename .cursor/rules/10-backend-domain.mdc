@@ -1,13 +1,13 @@
 ---
 description: FourQA — consistência de domínio, backend e persistência
-globs: backend/src/fourqa/**/*.py
+globs: backend/src/**/*.java
 alwaysApply: false
 ---
 # Backend — restrições verificáveis
-- Domínio em `backend/src/fourqa/domain`, orquestração em `services`, armazenamento atrás dos contratos de `persistence`, HTTP em `api` / `http`. Runtime: **Python 3.12+ / FastAPI** (`backend/pyproject.toml`, Vercel `api/index.py`). Não tratar Node/Express, C# ou Java como API vigente.
+- Pacotes em `backend/src/main/java/com/fourqa/api/`: domínio em `domain`, orquestração em `services`, armazenamento atrás das interfaces de `persistence`, HTTP em `web`, identidade em `auth`, Azure em `azure`. Runtime: **Java 25 + Spring Boot 4 + Maven** (`backend/pom.xml`, `DEC-041`, ADR 008), em host separado com rewrite `/api` da Vercel. Não tratar Node/Express, C# ou Python como API.
 - Para status: `.cursor/docs/adr/002-status.md`; preservar `classifyExecution`, sete estados e semântica de cada módulo. `REQUIREMENTS.md` RPT-003 e `DECISIONS.md` (incl. OPEN-006) descrevem diferenças entre Report e Status/Planejamento; não uniformizar automaticamente.
 - Para planejamento: `.cursor/docs/adr/003-planejamento.md` e `.cursor/docs/adr/004-planejamento-baseline.md`, se afetados; critérios PLN pertinentes. Nunca apagar execuções ou revisão de baseline para redistribuir pendentes.
 - Para hierarquia: `.cursor/docs/adr/001-hierarquia-dinamica.md`; não fixar categorias/frentes de contrato.
 - PostgreSQL operacional; SQLite serve também a testes/legado. Alterações de schema/migração/API exigem análise de compatibilidade e testes, **sem** aplicar no banco remoto por iniciativa própria.
 - Não presumir dados de API Azure não disponíveis. Conservar distinção Test Point × Test Case × Bug e metas quantitativas por QA. Não atribuir resultado individual fictício em suíte compartilhada (OPEN-001/007).
-- Teste focado primeiro, regressões de domínio conforme impacto; documentar testes ignorados e lacunas. Verificar que `npm test` (pytest em `backend/tests`) realmente cobre o módulo afetado.
+- Teste focado primeiro, regressões de domínio conforme impacto; documentar testes ignorados e lacunas. Verificar que `npm test` (JUnit em `backend/src/test/java`, via `./mvnw verify`) realmente cobre o módulo afetado.

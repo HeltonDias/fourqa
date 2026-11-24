@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm install && uv pip install --system -r requirements.txt",
+  "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index?rest=:path*" },
+    { "source": "/api/:path*", "destination": "https://fourqa-api.invalid/api/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -23,12 +23,6 @@
     "deploymentEnabled": {
       "main": false,
       "master": false
-    }
-  },
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 300,
-      "excludeFiles": "{.env,.env.*,certs/**,**/*.pem}"
     }
   }
 }

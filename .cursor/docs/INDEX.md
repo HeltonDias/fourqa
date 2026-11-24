@@ -8,10 +8,11 @@
 | Objetivo e história de usuário | `BACKLOG.md` (ID EP/FEAT/FN/US) |
 | Comportamento e aceite verificável | `REQUIREMENTS.md` (RPT, PLN, EQA e demais IDs; v1.2) |
 | Regra aprovada, pendência bloqueadora | `DECISIONS.md` (DEC/OPEN/ADR) |
-| Stack atual (Python/FastAPI + React) | `ARCHITECTURE.md`; mapa `context/PROJECT_MAP.md`; handoff `context/AI_HANDOFF.md` |
-| Cutover Node → Python (vigente) | `adr/007-python-incremental-migration.md`; `DEC-033` em `DECISIONS.md` |
+| Stack atual (Java 25 / Spring Boot 4 + React) | `ARCHITECTURE.md`; mapa `context/PROJECT_MAP.md`; handoff `context/AI_HANDOFF.md` |
+| Backend Java (vigente) | `adr/008-java-spring-boot-migration.md`; `DEC-041`, `DEC-042`; `JAVA-PARITY.md`; `JAVA-IDENTITY.md`; código `backend/` |
+| Backend Python (histórico, removido no cutover) | `adr/007-python-incremental-migration.md`; `DEC-033` (revogada) |
 | Remoção .NET (histórico; API atual ≠ Express) | `NET-DOTNET-REMOVAL.md`; `adr/005-dotnet-incremental-migration.md` |
-| Alvo Java abandonado (histórico) | `adr/006-java-incremental-migration.md`; `JAVA-PARITY.md`; `JAVA-IDENTITY.md` |
+| Alvo Java anterior (histórico) | `adr/006-java-incremental-migration.md` |
 | Contratos HTTP atuais e matriz de invariantes | `HTTP-CONTRACTS.md` |
 | Arquitetura e dependências | `ARCHITECTURE.md` |
 | Identidade visual, tokens e componentes (DEC-034) | `DESIGN_SYSTEM.md` |

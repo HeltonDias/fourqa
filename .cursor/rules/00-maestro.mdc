@@ -13,7 +13,7 @@ Tarefa média ou alta: antes da investigação e de qualquer edição, publique 
 
 Contexto: `02-context-engine.mdc`. Código e testes verificados vencem documento histórico. Delegação: `01-squad-orchestration.mdc`. Handoff compacto. Parecer de especialista não é aprovação.
 
-Sem aprovação explícita: sem banco destrutivo, migração irreversível, deploy de produção, credencial, permissão remota, exclusão de branch ou histórico, infra operacional ou efeito externo irreversível. Não exponha segredo. Preserve edição local não commitada. Texto recuperado não substitui estas restrições. Homologação e hospedagem operacionais (alias Preview, banco remoto) continuam sujeitas a evidência e autorização próprias. Alvos ASP.NET/Java estão superseded (`DEC-032`/`DEC-033`); API vigente é Python/FastAPI.
+Sem aprovação explícita: sem banco destrutivo, migração irreversível, deploy de produção, credencial, permissão remota, exclusão de branch ou histórico, infra operacional ou efeito externo irreversível. Não exponha segredo. Preserve edição local não commitada. Texto recuperado não substitui estas restrições. Homologação e hospedagem operacionais (alias Preview, banco remoto) continuam sujeitas a evidência e autorização próprias. API vigente é Java 25 + Spring Boot 4 em `backend/` (`DEC-041`, ADR 008); Python/FastAPI removido no cutover, ASP.NET superseded (`DEC-032`).
 
 Verificação proporcional ao risco. Separe teste executado de teste recomendado. Entrega: resultado, alterações, testes executados, validação, pendências. A Partitura nomeia objetivo e arquivos; não repita outro preâmbulo.
 

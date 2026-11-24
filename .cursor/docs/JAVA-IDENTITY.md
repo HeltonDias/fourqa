@@ -1,16 +1,20 @@
-# Identidade e segurança — especificação para a migração Java
+# Identidade e segurança — migração Java (ADR 008)
 
-**Estado:** proposta de arquitetura. Não há login Microsoft, registro de aplicativo, sessão nem Spring Security no repositório. Autenticação válida no futuro **não** concede acesso a todos os planos.
+**Estado (2026-11-04, após cutover local):** a identidade é a do Java em `backend/`, porte 1:1 do Python removido (`auth/`, `api/identity_routes.py`). Reproduz o mesmo comportamento (`auth.*`, `web.IdentityFilter`, `web.IdentityController`) e passa nos testes portados (`AuthConnectionsTest`, `EntraLoginTest`, `AuthUnitTest`) e no golden. Spring Security **não** foi adotado (ver ADR 008, Desvios). Autenticação válida **não** concede acesso a todos os planos.
 
-Documentação funcional por Epic, Feature, User Story e Scenario fica para depois da migração funcional. Esta página não inventaria histórias.
+## Situação atual (código Java; igual ao Python removido)
 
-## Situação atual (código)
+- **Sessão:** cookie `fourqa_session` (HttpOnly, `SameSite=Lax`, `Secure` em HTTPS), token HMAC com `FOURQA_SESSION_SECRET`, validade 12 h. Formato idêntico nos dois runtimes (vetor em `AuthUnitTest`), então o cutover não exige novo login se o segredo for o mesmo.
+- **Entra ID:** Authorization Code + PKCE no backend (`/api/auth/entra/start`, `/callback`), cookie transitório `fourqa_oauth` (10 min, path `/api/auth/entra`). Refresh token cifrado.
+- **PAT dev:** login por PAT só com `FOURQA_PAT_LOGIN` fora do runtime hospedado.
+- **Cifra:** Fernet com chave derivada de `FOURQA_PAT_ENCRYPTION_KEY`; compatível Python ↔ Java nos dois sentidos.
+- **RBAC:** Head > Líder > QA > Visitante (DEC-036, DEC-038). Head global vale em toda conexão; demais papéis vêm do vínculo de membro da conexão. Escrita exige Líder ou superior. `FOURQA_BOOTSTRAP_HEADS` promove e-mails listados.
+- **Conexões e convites:** conexão = projeto Azure DevOps + Test Plan; convites por e-mail (DEC-040). Escopo da requisição via header `x-fourqa-connection`.
+- **Bearer compartilhado (DEC-T02):** `FOURQA_API_TOKEN` continua aceito em `require_write_auth`; sem token configurado, escrita 503 salvo `FOURQA_ALLOW_OPEN_WRITES=1` fora da Vercel.
 
-Escrita (`requireWriteAuth` em `backend/src/routes/api.ts`): bearer compartilhado comparado em `backend/src/http/writeAuth.ts`. Sem token configurado, a escrita responde 503, salvo `FOURQA_ALLOW_OPEN_WRITES=1` fora da Vercel. Token ausente ou diferente: 401 `"Não autorizado."`. Não há 403 no código atual.
+Pendente na homologação: Entra real (registro do aplicativo, redirect URI do host Java), Postgres real e cookies atrás do rewrite da Vercel.
 
-Leitura GET, exceto `/api/health`, pode exigir o mesmo bearer quando a proteção de leitura está ligada. Sem token no servidor: 503. O browser guarda o token em `localStorage` (`ARCHITECTURE.md`). Isso não é identidade de usuário.
-
-O health Java (`{"ok":true,"service":"fourqa-java"}`) não protege o Express na Vercel. Enquanto os dois existirem, cada um autentica as próprias rotas. Login no Java não fecha o Node.
+O texto abaixo é a proposta original (ADR 006) e fica como referência de requisitos de segurança.
 
 ## Direção proposta
 
@@ -75,9 +79,9 @@ O servidor autoriza cada pedido. Esconder botão no React não autoriza.
 
 Autenticação não implica lista de planos. Provisionar vínculo usuário–PlanKey. Revogar o vínculo sem apagar histórico. Auditar quem alterou planejamento e quem disparou sync, quando a identidade existir. Até lá o bearer compartilhado não distingue pessoas.
 
-## Node durante a migração
+## Python durante a migração
 
-Não abrir endpoints. Não remover o bearer do Express porque o Java passou a ter login. A substituição é gradual e por corte de rota, com o Express ainda protegido até sair do ar. Exposição atual prioritária, sem mudança de produção nesta tarefa: o token compartilhado no `localStorage` não é identidade e vale para quem o possuir.
+Não abrir endpoints. O Java não protege a função Python da Vercel: são processos diferentes. Sem dual-write: só um backend atende `/api` por vez (troca pelo rewrite no cutover).
 
 ## Riscos
 

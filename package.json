@@ -11,20 +11,21 @@
     "import:planilha": "python tools/import_planilha.py",
     "sync:icons": "node tools/sync-icons.js",
     "typecheck": "npm run typecheck -w frontend",
-    "typecheck:backend": "python -m pyright -p backend",
-    "test": "python -m pytest -q backend/tests && npm run test:frontend",
+    "typecheck:backend": "node scripts/mvnw.mjs -q -B test-compile",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "node scripts/mvnw.mjs -q -B verify",
     "test:frontend": "node --experimental-strip-types --test frontend/test/distributionPreview.test.ts",
-    "formulas:parity": "python scripts/check-formulas-parity.py",
+    "formulas:parity": "node scripts/mvnw.mjs -q -B test -Dtest=FormulasParityTest -Dsurefire.failIfNoSpecifiedTests=false",
     "test:agents": "node scripts/agents-smoke.mjs && node scripts/agent-protocol-selftest.mjs",
     "agent:gates": "node scripts/agent-protocol-cli.mjs gates",
     "agent:verify": "node scripts/agent-protocol-cli.mjs verify",
     "agent:delivery-verify": "node scripts/agent-protocol-cli.mjs delivery-verify",
     "agent:ledger:validate": "node scripts/agent-protocol-cli.mjs ledger-validate",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev -w frontend\"",
-    "dev:api": "cd backend/src && python -m fourqa",
+    "dev:api": "node scripts/mvnw.mjs -q spring-boot:run",
     "dev:auth": "node scripts/dev-auth.mjs",
     "build": "npm run build -w frontend",
-    "start": "cd backend/src && python -m fourqa"
+    "start": "node scripts/mvnw.mjs -q spring-boot:run"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
