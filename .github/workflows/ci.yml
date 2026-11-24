@@ -13,7 +13,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm install
+      - run: pip install -r requirements.txt && pip install pytest pyright
       - name: arquivos sensíveis
         run: |
           if git ls-files | grep -E '(^|/)\.env$|\.pem$|\.dump$|(^|/)\.vercel/'; then
@@ -21,8 +25,9 @@ jobs:
             exit 1
           fi
       - run: npm run typecheck
+      - run: npm run typecheck:backend
       - run: npm test
-      - run: node --import tsx scripts/check-formulas-parity.mjs
+      - run: npm run formulas:parity
       - run: npm run build
 
   agents:
@@ -38,14 +43,3 @@ jobs:
           python-version: "3.12"
       - run: npm install
       - run: npm run test:agents
-
-  dotnet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.100"
-      - run: dotnet --version
-      - run: dotnet build backend/dotnet/FourQA.sln --configuration Release
-      - run: dotnet test backend/dotnet/FourQA.sln --configuration Release --no-build --verbosity minimal

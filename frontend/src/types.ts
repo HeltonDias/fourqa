@@ -173,6 +173,24 @@ export type PlanningItem = {
   warnings: string[];
 };
 
+export type PlanningChangeLogResponse = {
+  supported: boolean;
+  entries: PlanningChangeLogEntry[];
+};
+
+export type PlanningChangeLogEntry = {
+  id: number;
+  createdAt: string;
+  actor: string | null;
+  suiteId: number | null;
+  testPointId: number | null;
+  suiteName: string | null;
+  field: string;
+  allocDate: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+};
+
 export type PlanningView = {
   planning: { planKey: string };
   revision: {
@@ -319,8 +337,60 @@ export type FalhaRow = {
   frente: string | null;
   titulo: string | null;
   status: string | null;
+  criada_por?: string | { displayName?: string | null } | null;
   criacao: string | null;
+  fechada_por?: string | { displayName?: string | null } | null;
   fechamento: string | null;
   links: string | null;
   tags: string | null;
+};
+
+export type EvolucaoQaStatus = "done" | "ok" | "warn" | "risk" | "na";
+
+export type EvolucaoQaDay = {
+  date: string;
+  planned: number;
+  finalized: number;
+  executed: number;
+  plannedCumulative: number;
+  finalizedCumulative: number | null;
+};
+
+export type EvolucaoQaBucket = {
+  key: string;
+  name: string;
+  attributable: boolean;
+  suiteCount: number;
+  suites: {
+    suiteId: number | null;
+    testPointId: number | null;
+    suiteName: string | null;
+    responsavel: string | null;
+    dimensions?: Record<string, string>;
+  }[];
+  baseline: number;
+  planned: number;
+  plannedToDate: number;
+  finalized: number;
+  executed: number;
+  passed: number;
+  na: number;
+  failed: number;
+  blocked: number;
+  released: number;
+  design: number;
+  notReleased: number;
+  finalizedInRange: number;
+  gap: number;
+  status: EvolucaoQaStatus | null;
+  reasons: { sem_responsavel: number; compartilhada: number };
+  daily: EvolucaoQaDay[];
+};
+
+export type EvolucaoQaDto = {
+  planKey: string;
+  range: { from: string; to: string; asOf: string };
+  dimensions?: DetectedDimension[];
+  qas: EvolucaoQaBucket[];
+  unattributed: EvolucaoQaBucket | null;
 };

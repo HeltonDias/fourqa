@@ -8,9 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { api, type HomeDto, type SyncState } from "../api";
+import { consumeInitialSync, readActiveConnection, roleAtLeast, type Role } from "../auth/connectionStore";
 
 type ReportChromeContextValue = {
   home: HomeDto | null;
+  /** Plano resolvido na última Home. Vazio até a primeira leitura. */
+  planKey: string;
   homeLoading: boolean;
   homeError: string | null;
   refreshHome: (quiet?: boolean) => void;
@@ -23,12 +26,18 @@ type ReportChromeContextValue = {
   now: Date;
   /** Incrementa quando um sync termina com sucesso, para as outras abas buscarem de novo. */
   dataVersion: number;
+  /** Papel na conexão ativa; null no modo legado sem login. */
+  role: Role | null;
+  /** Líder ou Head na conexão ativa. No modo legado o servidor decide. */
+  canWrite: boolean;
 };
 
 const ReportChromeContext = createContext<ReportChromeContextValue | null>(null);
 
 export function ReportChromeProvider({ children }: { children: ReactNode }) {
   const [home, setHome] = useState<HomeDto | null>(null);
+  const [planKey, setPlanKey] = useState("");
+  const planKeyRef = useRef("");
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -51,13 +60,19 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
       setHomeError(null);
     }
     api
-      .home()
+      .home(planKeyRef.current || undefined)
       .then((d) => {
+        const key = d.planKey?.trim() ?? "";
+        planKeyRef.current = key;
+        setPlanKey(key);
         setHome(d);
         setHomeError(null);
         setNow(new Date());
       })
-      .catch((e: Error) => setHomeError(e.message))
+      .catch((e: Error) => {
+        setHomeError(e.message);
+        setHome(null);
+      })
       .finally(() => {
         if (!quiet) setHomeLoading(false);
       });
@@ -121,6 +136,15 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
       });
   }, [startPolling]);
 
+  const initialSyncArmed = useRef(false);
+  useEffect(() => {
+    if (initialSyncArmed.current) return;
+    const active = readActiveConnection();
+    if (!active || !consumeInitialSync(active.id)) return;
+    initialSyncArmed.current = true;
+    handleAtualizar();
+  }, [handleAtualizar]);
+
   const patchCabecalho = useCallback((v: { title: string; subtitle: string }) => {
     setHome((h) => (h ? { ...h, ...v } : h));
   }, []);
@@ -130,11 +154,15 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncing = sync?.status === "running";
+  const [connection] = useState(() => readActiveConnection());
+  const role = connection?.role ?? null;
+  const canWrite = connection ? roleAtLeast(role, "lider") : true;
 
   return (
     <ReportChromeContext.Provider
       value={{
         home,
+        planKey,
         homeLoading,
         homeError,
         refreshHome,
@@ -146,6 +174,8 @@ export function ReportChromeProvider({ children }: { children: ReactNode }) {
         syncing,
         now,
         dataVersion,
+        role,
+        canWrite,
       }}
     >
       {children}

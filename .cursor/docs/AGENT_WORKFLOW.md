@@ -18,6 +18,10 @@ Desenvolver o FourQA como produto, por **Epic → Feature → Function → User 
 - **`regras`**: legado preservado como revisor **opcional**, somente quando o usuário pedir auditoria do processo; não é orquestrador.
 - **Mudança local simples:** agente principal executa e testa; não delegar apenas para cumprir ritual.
 
+## Maestro
+
+O Cursor Agent principal é o Maestro. Comportamento essencial: `.cursor/rules/00-maestro.mdc`. Procedimento completo, só em tarefa média, alta ou com delegação: skill `maestro-orchestration`. Nomes de orquestra são apresentação. Invocação real: `impact-analyst`, `qa-verifier`; `regras` continua sob demanda. Graphify, se entrar, usa o CLI já instalado (`graphify update <path>`) apenas depois de mudança estrutural de código. `npm run agent:gates` continua obrigatório quando o diff inclui código de produto. Diff só de rule, skill, agent ou doc desta camada não dispara esses gates. Esta camada não conclui homologação, hospedagem nem migração operacional.
+
 ## Modelo de solicitação eficiente
 `Implementar US-XXX / RPT-YYY. Escopo: [página/componente]. Leia só as seções correspondentes de .cursor/docs/BACKLOG.md, REQUIREMENTS.md e DECISIONS.md/ADR se aplicáveis. Verifique código e git status. Não altere outros módulos. Execute testes relevantes e relate evidência/limites. Sem commit/push/deploy/banco. Aguarde aceite.`
 

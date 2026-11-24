@@ -1,10 +1,10 @@
 # FourQA — instruções para agentes (Cursor / Cloud)
 
-Monorepo **Node 22**: API Express + SPA React/Vite. Planejamento de produto e requisitos ficam em `.cursor/docs/`; regras obrigatórias em `.cursor/rules/` (não repetir aqui).
+Monorepo **Node 22** (frontend/tooling) + **Python 3.12+** (API): FastAPI em `backend/src/fourqa/` + SPA React/Vite. Planejamento de produto e requisitos ficam em `.cursor/docs/`; regras obrigatórias em `.cursor/rules/` (não repetir aqui).
 
 ## Executor
 
-O **agente principal** no Cursor (incl. Cloud Agent) implementa, testa e abre PR. Não criar orquestrador paralelo.
+O **agente principal** no Cursor (incl. Cloud Agent) é o Maestro: implementa, testa e abre PR. Não criar orquestrador paralelo. Essencial em `.cursor/rules/00-maestro.mdc`; procedimento em `.cursor/skills/maestro-orchestration/SKILL.md`. Os gates abaixo continuam obrigatórios quando houver código de produto. **Backend primário:** API Python/FastAPI em `backend/src/fourqa/` (Vercel `api/index.py`). Migração ASP.NET Core removida (`DEC-032`); alvo Java superseded (`DEC-033`, ADR 007).
 
 | Quando | Quem |
 |--------|------|
@@ -64,6 +64,8 @@ Preview oficial (alias manual após validação): `https://fourqa-homolog-helton
 
 Não ler `.env`, PAT, dumps ou planilhas `fonte/**/*.xlsx` sem necessidade. Não commitar segredos. Não alterar dados de produção neste fluxo.
 
-## Próxima onda
+## Backend (Python)
 
-Migração incremental para **ASP.NET Core 10** usará o mesmo protocolo; paridade de contratos `/api/*` e domínio (`backend/src/domain/`) antes de cortar Node.
+**Operacional:** FastAPI + Vercel (`api/index.py`). **Removido:** `backend/dotnet/` (`DEC-032`), `backend-java/` (`DEC-033`).
+
+**Gates de domínio:** `npm run formulas:parity` valida `fourqa/domain/formulas.py` contra `backend/shared/formulas-parity-vectors.json`. **Contratos:** leituras com fallback de PlanKey; escritas `revisao`/`celula` exigem `planKey` explícito (DEC-031); HTTP 409 quando `DB_PROVIDER=postgres`.

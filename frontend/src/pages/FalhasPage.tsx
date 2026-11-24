@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, fmtDateTime } from "../api";
+import { chosenColumns } from "../fieldColumns";
 import { LoadState } from "../components/LoadState";
 import { PageHeader } from "../components/PageHeader";
 import { useReportChrome } from "../context/ReportChromeContext";
@@ -16,7 +17,9 @@ const COLUNAS: { campo: string; render: (r: FalhaRow) => ReactNode; texto: (r: F
   col("Frente", (r) => r.frente),
   col("Título", (r) => r.titulo),
   col("Status", (r) => r.status),
+  col("Criada por", (r) => nomePessoa(r.criada_por)),
   col("Criação", (r) => (r.criacao ? fmtDateTime(r.criacao) : "")),
+  col("Fechada por", (r) => nomePessoa(r.fechada_por)),
   col("Fechamento", (r) => (r.fechamento ? fmtDateTime(r.fechamento) : "")),
   {
     campo: "Links",
@@ -31,6 +34,12 @@ const COLUNAS: { campo: string; render: (r: FalhaRow) => ReactNode; texto: (r: F
   col("Tags", (r) => r.tags),
 ];
 
+function nomePessoa(value: FalhaRow["criada_por"]): string {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  return value.displayName?.trim() ?? "";
+}
+
 function col(campo: string, get: (r: FalhaRow) => string | number | null) {
   const texto = (r: FalhaRow) => {
     const v = get(r);
@@ -42,13 +51,15 @@ function col(campo: string, get: (r: FalhaRow) => string | number | null) {
 const PAGE = 50;
 
 export function FalhasPage() {
-  const { dataVersion } = useReportChrome();
+  const { dataVersion, planKey } = useReportChrome();
   const [busca, setBusca] = useState("");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<{ total: number; rows: FalhaRow[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFields, setSelectedFields] = useState<string[] | null>(null);
+  const colunas = chosenColumns(COLUNAS, selectedFields);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -60,9 +71,24 @@ export function FalhasPage() {
 
   useEffect(() => {
     let cancel = false;
+    api
+      .syncSettings()
+      .then((settings) => {
+        if (!cancel) setSelectedFields(settings.source === "saved" ? settings.failureFields : null);
+      })
+      .catch(() => {
+        if (!cancel) setSelectedFields(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [dataVersion]);
+
+  useEffect(() => {
+    let cancel = false;
     setLoading(true);
     api
-      .falhas({ limit: PAGE, offset, q })
+      .falhas({ limit: PAGE, offset, q, planKey: planKey || undefined })
       .then((d) => {
         if (!cancel) setData(d);
       })
@@ -75,40 +101,40 @@ export function FalhasPage() {
     return () => {
       cancel = true;
     };
-  }, [offset, q, dataVersion]);
+  }, [offset, q, dataVersion, planKey]);
 
   const linhas = data?.rows ?? [];
   const total = data?.total ?? 0;
 
   return (
-    <LoadState loading={loading && !data} error={error}>
-      {data && (
-        <div className="exec-page">
-          <PageHeader
-            title="Falhas"
-            description={
-              <>
-                Bugs associados aos resultados do Test Plan no Azure DevOps na última atualização ·{" "}
-                <strong>{total}</strong> registros
-              </>
-            }
-            actions={
-              <input
-                type="search"
-                className="exec-search"
-                placeholder="Filtrar no servidor…"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                aria-label="Filtrar falhas"
-              />
-            }
+    <div className="exec-page module-page">
+      <PageHeader
+        title="Falhas"
+        description={
+          <>
+            Bugs associados aos resultados do Test Plan no Azure DevOps na última atualização
+            {data ? <> · <strong>{total}</strong> registros</> : null}
+          </>
+        }
+        actions={
+          <input
+            type="search"
+            className="exec-search"
+            placeholder="Filtrar no servidor…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Filtrar falhas"
           />
-
+        }
+      />
+      <LoadState loading={loading && !data} error={error}>
+        {data && (
+          <>
           <div className="card exec-table-wrap">
             <table className="exec-table">
               <thead>
                 <tr>
-                  {COLUNAS.map((c) => (
+                  {colunas.map((c) => (
                     <th key={c.campo}>{c.campo}</th>
                   ))}
                 </tr>
@@ -116,7 +142,7 @@ export function FalhasPage() {
               <tbody>
                 {linhas.map((r) => (
                   <tr key={r.id}>
-                    {COLUNAS.map((c) => (
+                    {colunas.map((c) => (
                       <td key={c.campo} title={c.texto(r)}>
                         {c.render(r)}
                       </td>
@@ -125,7 +151,7 @@ export function FalhasPage() {
                 ))}
                 {linhas.length === 0 && (
                   <tr>
-                    <td colSpan={COLUNAS.length} className="exec-empty">
+                    <td colSpan={colunas.length} className="exec-empty">
                       Nenhum registro.
                     </td>
                   </tr>
@@ -144,8 +170,9 @@ export function FalhasPage() {
               Próxima
             </button>
           </div>
-        </div>
-      )}
-    </LoadState>
+          </>
+        )}
+      </LoadState>
+    </div>
   );
 }

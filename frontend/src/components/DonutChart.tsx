@@ -66,7 +66,8 @@ export function DonutChart({
                   `${value} (${total ? Math.round((Number(value) / total) * 100) : 0}%)`,
                   String(name),
                 ]}
-                contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0" }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0", background: "#fff" }}
+                labelStyle={{ color: "#222239" }}
               />
             </PieChart>
           </ResponsiveContainer>

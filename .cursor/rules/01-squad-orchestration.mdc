@@ -3,7 +3,7 @@ description: FourQA Squad routing: main Cursor Agent coordinates selective read-
 alwaysApply: true
 ---
 # FourQA Squad — lightweight orchestration
-- The primary Cursor Agent is the orchestrator and sole implementation owner. Do not spawn an orchestration subagent.
+- The primary Cursor Agent is the Maestro (`00-maestro.mdc`) and sole implementation owner. Do not spawn an orchestration subagent. Full procedure, on demand: skill `maestro-orchestration`.
 - For localized edits and obvious fixes: implement directly without delegating.
 - For unknown code locations: prefer Cursor built-in Explore; do not add a custom explorer.
 - Before complex changes spanning domain/API/persistence/reporting: delegate once to `impact-analyst` for a bounded dependency/risk map, only when that information is not already known.

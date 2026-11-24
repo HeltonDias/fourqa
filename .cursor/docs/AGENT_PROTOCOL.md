@@ -40,6 +40,6 @@ Falha → registrar `failure_retries` (máx. 2 por assinatura) → classificar c
 
 Assinatura esgotada → `BLOQUEADO` com evidência.
 
-## Futuro ASP.NET Core 10
+## Backend Python (`backend/src/fourqa/`)
 
-Módulo `dotnet` reservado em `scripts/lib/agent-protocol/module-gates.mjs` (placeholder): `typecheck`/`test`/`build` por workspace sem alterar gates Node atuais.
+API operacional: FastAPI + Vercel `api/index.py` (`DEC-033`, ADR 007). Gates de produto: `typecheck` (frontend), `pytest` via `npm test`, `formulas:parity` (Python), `build`. Node 22 é tooling/SPA — **não** runtime da API. `backend-java/` e Express/`api/index.mjs` estão **ausentes** do working tree (históricos).

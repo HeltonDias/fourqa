@@ -116,6 +116,23 @@ npm.cmd run build
 # sem ela, registrar explicitamente que não foram executados.
 ```
 
+Homologação geral da migração C# (hospedagem, cutover e banco operacional continuam pendentes):
+
+| Teste | Status |
+|---|---|
+| `Escrita_sem_planKey_nao_cria_plano_no_postgres` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Dois_plan_keys_isolam_revisao_baseline_e_celula` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Celula_revisao_cabecalho_e_periodo_concorrentes_nao_perdem_gravacao` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Publish_obsoleto_nao_substitui_snapshot` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Publish_concorrente_grava_um_lote_inteiro` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Publish_com_falha_no_meio_preserva_snapshot_meta_e_planejamento` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Publish_completo_substitui_catalogo_e_preserva_periodo` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+| `Api_sobre_postgres_reproduz_golden_do_legado` | Aprovado em PostgreSQL isolado local, 2026-10-22 |
+
+**Node primário (2026-10-27, `DEC-032`):** API Express/Vercel única backend operacional; `backend/dotnet/` removido; homolog .NET cancelada. DEC-031 e HTTP 409 Postgres no Node. Fundação Java em `backend-java/` (health apenas) — sem cutover. Alias oficial permanece Node. Direcionamento futuro: ADR 006. Migração funcional não iniciada. Hospedagem, Entra ID e cutover pendentes.
+
+**Porte Python (2026-10-29, `DEC-033`):** a API operacional passou a ser FastAPI. ADR 006 e `backend-java/` ficaram superseded. Dois crashes do porte (regex em `detect_dimensions` e chaves camelCase lidas no domínio snake_case do planejamento) têm correção pontual no código. Isso não torna o porte seguro. **US-098** (P0) é a próxima fatia: teste de frente no nome da suíte, teste de planejamento com snapshot e alocação, e varredura da fronteira snake_case/camelCase. Sem essa regressão, o próximo desencontro continua aparecendo só na sincronização real, com banner genérico.
+
 Nenhum comando acima publica nem altera banco remotamente. Não rodar testes reais que escrevam em ambientes de desenvolvimento compartilhados sem conexão de teste isolada.
 
 ## 8. Procedimento controlado de publicação — apenas sob autorização

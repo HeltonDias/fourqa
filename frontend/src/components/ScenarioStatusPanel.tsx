@@ -15,7 +15,7 @@ function iconUrl(fileName: string): string | undefined {
 
 type Variant = "ttl" | "plan" | "final" | "pendentes" | "passed" | "na" | "falha" | "bloq" | "lib" | "design" | "naolib";
 
-function CircleMinusIcon() {
+export function CircleMinusIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
@@ -57,7 +57,7 @@ function StatusCard({
   );
 }
 
-function DetailStatusCard({
+export function DetailStatusCard({
   variant,
   label,
   iconFile,

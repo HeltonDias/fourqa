@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { DetectedDimension, PlanningItem, PlanningView } from "../../types";
+import { holidayName, isOffDay } from "./planningOffDays";
 
 export function planRem(px: number): string {
   return `${px / 16}rem`;
@@ -19,6 +20,48 @@ export const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 export const DEFAULT_PAGE_SIZE = 50;
 export const CHECK_W = 34;
 export const PERIOD_COL_W = 86;
+/** Largura das colunas Início/Fim na grade de acompanhamento (mais compacta que Planejar). */
+export const ACCOMPANHAMENTO_PERIOD_COL_W = 64;
+/** Suíte + Planejamento (3.25rem na folha de estilos). */
+export const ACCOMPANHAMENTO_PLAN_COL_W = 52;
+/** Status / Execução (4.125rem na folha de estilos). */
+export const ACCOMPANHAMENTO_EXEC_COL_W = 66;
+
+export function acompanhamentoTableBaseWidth(idCols: IdCol[]): number {
+  const idW = idCols.reduce((sum, col) => sum + col.width, 0);
+  return (
+    idW +
+    ACCOMPANHAMENTO_PERIOD_COL_W * 2 +
+    ACCOMPANHAMENTO_PLAN_COL_W * (1 + PLAN_TRACK_COLS.length) +
+    ACCOMPANHAMENTO_EXEC_COL_W * EXEC_COLS.length
+  );
+}
+
+/** Alturas base (px) da grade de acompanhamento: 1.625rem + 1.5rem por linha de dados/cabeçalho colunas/rodapé. */
+export const ACCOMPANHAMENTO_GROUP_HEAD_H = 26;
+export const ACCOMPANHAMENTO_ROW_H = 24;
+
+export function acompanhamentoTableBaseHeight(bodyRowCount: number): number {
+  const body = Math.max(0, bodyRowCount);
+  return ACCOMPANHAMENTO_GROUP_HEAD_H + ACCOMPANHAMENTO_ROW_H * (2 + body);
+}
+
+/** Colunas fixas em rem; `scale` estica todas proporcionalmente ao zoom/largura do container. */
+export function stickyStyleRemScaled(col: { left: number; width: number }, scale: number): CSSProperties {
+  const width = planRem(col.width * scale);
+  const left = planRem(col.left * scale);
+  return { left, width, minWidth: width, maxWidth: width };
+}
+
+const ACCOMPANHAMENTO_HIER_COL_WIDTH = {
+  plan: 68,
+  front: 88,
+  process: 156,
+  atalho: 62,
+  default: 68,
+  priority: 42,
+  onda: 62,
+} as const;
 
 export const DOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 export const MESES = [
@@ -66,6 +109,17 @@ export function isWeekendDay(iso: string): boolean {
   return partesDia(iso).weekend;
 }
 
+export function isPlanningOffDay(iso: string): boolean {
+  return isOffDay(iso, isWeekendDay(iso));
+}
+
+export function offDayLabel(iso: string): string {
+  const name = holidayName(iso);
+  if (name && isWeekendDay(iso)) return `${name} · fim de semana`;
+  if (name) return name;
+  return "fim de semana";
+}
+
 /** Dias úteis (seg–sex) para o calendário da aba Planejar. */
 export function onlyWeekdays(dates: string[]): string[] {
   return dates.filter((date) => !isWeekendDay(date));
@@ -111,8 +165,16 @@ export const HIER_COL_WIDTH = {
 
 export type HierColTier = "plan" | "front" | "process";
 
-export function dimWidth(dim: DetectedDimension): number {
+export function dimWidth(dim: DetectedDimension, compact = false): number {
   const blob = `${dim.key} ${dim.label} ${dim.role}`.toLowerCase();
+  if (compact) {
+    if (blob.includes("atalho")) return ACCOMPANHAMENTO_HIER_COL_WIDTH.atalho;
+    if (dim.role === "priority" || blob.includes("prior")) return ACCOMPANHAMENTO_HIER_COL_WIDTH.priority;
+    if (blob.includes("onda")) return ACCOMPANHAMENTO_HIER_COL_WIDTH.onda;
+    if (dim.role === "front" || blob.includes("frente")) return ACCOMPANHAMENTO_HIER_COL_WIDTH.front;
+    if (dim.role === "process" || blob.includes("process")) return ACCOMPANHAMENTO_HIER_COL_WIDTH.process;
+    return ACCOMPANHAMENTO_HIER_COL_WIDTH.default;
+  }
   if (blob.includes("atalho")) return 78;
   if (dim.role === "priority" || blob.includes("prior")) return 52;
   if (blob.includes("onda")) return 78;
@@ -142,6 +204,22 @@ export function shortDim(label: string): string {
 
 export function rowKey(item: PlanningItem): string {
   return `${item.suiteId ?? "s"}-${item.testPointId ?? "p"}-${item.suiteName}`;
+}
+
+/** Reaproveita os itens que não mudaram, para a grade memoizada não redesenhar linhas iguais. */
+export function shareUnchangedItems(prev: PlanningView | null, next: PlanningView | null): PlanningView | null {
+  if (!prev || !next || prev.planning.planKey !== next.planning.planKey) return next;
+  const previous = new Map(prev.items.map((item) => [rowKey(item), item]));
+  let reused = 0;
+  const items = next.items.map((item) => {
+    const old = previous.get(rowKey(item));
+    if (old && JSON.stringify(old) === JSON.stringify(item)) {
+      reused += 1;
+      return old;
+    }
+    return item;
+  });
+  return reused > 0 ? { ...next, items } : next;
 }
 
 export function isPriority(col: { kind: string; label: string; dimKey?: string }): boolean {
@@ -220,8 +298,11 @@ export const EXEC_COLS: MetricCol[] = [
 export function buildIdCols(
   dimensions: DetectedDimension[],
   items: PlanningItem[],
-  options?: { startLeft?: number; planKey?: string },
+  options?: { startLeft?: number; planKey?: string; compact?: boolean },
 ): IdCol[] {
+  const compact = options?.compact ?? false;
+  const hierPlan = compact ? ACCOMPANHAMENTO_HIER_COL_WIDTH.plan : HIER_COL_WIDTH.plan;
+  const hierProcess = compact ? ACCOMPANHAMENTO_HIER_COL_WIDTH.process : HIER_COL_WIDTH.process;
   const ordered = [...dimensions]
     .filter((dim) => dim.visible !== false)
     .sort((a, b) => dimensionRank(a) - dimensionRank(b) || a.level - b.level);
@@ -234,20 +315,28 @@ export function buildIdCols(
       key: "planKey",
       label: "Test Plan",
       short: "Test Plan",
-      width: HIER_COL_WIDTH.plan,
+      width: hierPlan,
       kind: "planKey",
       planKeyValue: planKey,
       hierTier: "plan",
     });
   }
-  if (showAtalho) cols.push({ key: "atalho", label: "Atalho", short: "Atalho", width: 78, kind: "atalho" });
+  if (showAtalho) {
+    cols.push({
+      key: "atalho",
+      label: "Atalho",
+      short: "Atalho",
+      width: compact ? ACCOMPANHAMENTO_HIER_COL_WIDTH.atalho : 78,
+      kind: "atalho",
+    });
+  }
   for (const dim of ordered) {
     const short = hierarchyColumnLabel(dim);
     cols.push({
       key: dim.key,
       label: hierarchyColumnLabel(dim),
       short,
-      width: dimWidth(dim),
+      width: dimWidth(dim, compact),
       kind: "dim",
       dimKey: dim.key,
       hierTier: hierarchyDimTier(dim),
@@ -258,7 +347,7 @@ export function buildIdCols(
       key: "suite",
       label: "Processo / Suíte",
       short: "Processo / Suíte",
-      width: HIER_COL_WIDTH.process,
+      width: hierProcess,
       kind: "suite",
       hierTier: "process",
     });

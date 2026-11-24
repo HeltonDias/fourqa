@@ -4,15 +4,23 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./styles.css";
 
-if (import.meta.env.DEV) {
-  void fetch("/__fourqa_local_token")
-    .then((res) => (res.ok ? res.text() : ""))
-    .then((token) => {
-      const value = token.trim();
-      if (value) localStorage.setItem("fourqa_token", value);
-    })
-    .catch(() => undefined);
+async function bootAccess(): Promise<void> {
+  const legacy = localStorage.getItem("fourqa_token")?.trim();
+  if (legacy) {
+    localStorage.removeItem("fourqa_token");
+    await fetch("/api/session", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: legacy }),
+    }).catch(() => undefined);
+  }
+  if (import.meta.env.DEV) {
+    await fetch("/__fourqa_local_token", { credentials: "same-origin" }).catch(() => undefined);
+  }
 }
+
+void bootAccess();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
