@@ -5,8 +5,6 @@ import com.fourqa.api.auth.Crypto;
 import com.fourqa.api.auth.Entra;
 import com.fourqa.api.auth.RequestIdentity;
 import com.fourqa.api.azure.AzureCacheRead;
-import com.fourqa.api.azure.AzureClient;
-import com.fourqa.api.azure.AzureDataRefresh;
 import com.fourqa.api.azure.AzureHttpError;
 import com.fourqa.api.azure.AzureUtil;
 import com.fourqa.api.azure.InMemoryAzureCache;
@@ -15,6 +13,8 @@ import com.fourqa.api.azure.SyncConfig;
 import com.fourqa.api.azure.SyncConfig.SyncConfigError;
 import com.fourqa.api.azure.SyncParameters;
 import com.fourqa.api.config.Env;
+import com.fourqa.api.connector.TestDataSource;
+import com.fourqa.api.connector.TestDataSources;
 import com.fourqa.api.domain.ValidateSync.SyncValidationError;
 import com.fourqa.api.persistence.MetaScope;
 import com.fourqa.api.persistence.PyTime;
@@ -198,7 +198,7 @@ public final class SyncService {
 
   @SuppressWarnings("unchecked")
   public static void runSync(Map<String, Object> cfg, OffsetDateTime startedAt, String durableJobId) {
-    AzureClient client = new AzureClient((Map<String, Object>) cfg.get("azure"));
+    TestDataSource source = TestDataSources.forConfig(cfg);
     boolean durable = SyncJob.isDurableSyncRuntime();
 
     java.util.function.Supplier<Map<String, Object>> storedJob = () -> {
@@ -226,7 +226,7 @@ public final class SyncService {
       locked = true;
     }
     try {
-      Map<String, Object>[] built = AzureDataRefresh.buildAzureRefreshDraft(client, cfg, report);
+      Map<String, Object>[] built = source.refresh(cfg, report);
       Map<String, Object> draft = built[0];
       Map<String, Object> artifacts = built[1];
       Map<String, Object> scopedMeta = new LinkedHashMap<>();

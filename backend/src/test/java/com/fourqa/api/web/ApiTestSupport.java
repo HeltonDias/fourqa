@@ -3,6 +3,7 @@ package com.fourqa.api.web;
 import com.fourqa.api.azure.InMemoryAzureCache;
 import com.fourqa.api.config.Env;
 import com.fourqa.api.persistence.Stores;
+import com.fourqa.api.services.PlanningService;
 import com.fourqa.api.services.SyncService;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,6 +54,7 @@ public abstract class ApiTestSupport {
     Stores.reset();
     InMemoryAzureCache.reset();
     SyncService.resetForTests();
+    PlanningService.resetTodayForTests();
   }
 
   protected TestClient client() {
