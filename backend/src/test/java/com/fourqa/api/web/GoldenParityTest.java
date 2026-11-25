@@ -1,13 +1,16 @@
 package com.fourqa.api.web;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fourqa.api.azure.InMemoryAzureCache;
 import com.fourqa.api.config.Env;
+import com.fourqa.api.services.PlanningService;
 import com.fourqa.api.util.Py;
 import com.fourqa.api.util.PyJson;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +23,8 @@ import org.junit.jupiter.api.Test;
  * and requires the same status and JSON, int/float kind included. Timestamps are masked.
  */
 class GoldenParityTest extends ApiTestSupport {
+  /** Data em que {@code golden/http-golden.json} foi capturado do Python (ver {@code range.asOf} do golden). */
+  private static final LocalDate GOLDEN_CAPTURE_DATE = LocalDate.of(2026, 11, 4);
   private static final Pattern TIMESTAMP = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}.*");
 
   static Object mask(Object value) {
@@ -41,6 +46,9 @@ class GoldenParityTest extends ApiTestSupport {
   @SuppressWarnings("unchecked")
   void javaMatchesPythonGolden() throws Exception {
     Env.override("FOURQA_ALLOW_OPEN_WRITES", "1");
+    // O golden Python foi capturado em GOLDEN_CAPTURE_DATE; "hoje" precisa ser a mesma data para o asOf e os
+    // indicadores dependentes de data serem comparáveis. O relógio é restaurado em ApiTestSupport.resetState().
+    PlanningService.setTodayForTests(GOLDEN_CAPTURE_DATE);
     InMemoryAzureCache.get().commitSuccessfulRefresh(
         Py.obj(
             "kpiPlanKey", "Plano",
@@ -61,6 +69,16 @@ class GoldenParityTest extends ApiTestSupport {
     try (InputStream in = getClass().getResourceAsStream("/golden/http-golden.json")) {
       scenarios = (List<Map<String, Object>>) PyJson.loads(new String(in.readAllBytes(), StandardCharsets.UTF_8));
     }
+    // Guarda: o golden precisa carregar a data de captura fixada; atualizar o golden para outra data exige
+    // alterar GOLDEN_CAPTURE_DATE de forma consciente.
+    int asOfChecked = 0;
+    for (Map<String, Object> s : scenarios) {
+      if (s.get("response") instanceof Map<?, ?> r && r.get("range") instanceof Map<?, ?> range && range.containsKey("asOf")) {
+        assertEquals(GOLDEN_CAPTURE_DATE.toString(), range.get("asOf"), "asOf do golden diverge da data de captura fixada");
+        asOfChecked++;
+      }
+    }
+    assertTrue(asOfChecked > 0, "o golden deve conter ao menos um asOf para validar a data de captura");
     TestClient client = client();
     List<String> mismatches = new ArrayList<>();
     for (Map<String, Object> s : scenarios) {

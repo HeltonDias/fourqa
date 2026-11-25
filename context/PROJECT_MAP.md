@@ -22,7 +22,7 @@ Pacotes Java abaixo ficam em `backend/src/main/java/com/fourqa/api/`.
 ## Outras fronteiras
 - `services/PlanningService.java`: orquestração do planejamento.
 - `persistence/` (`Database`, `Jdbc*Store`, `Migrations`) e `backend/src/main/resources/db/postgres/`: persistência; tratar alterações SQLite/PostgreSQL como críticas.
-- `azure/`: integração Azure DevOps; `auth/`: sessão, Entra, RBAC, Fernet.
+- `azure/`: integração Azure DevOps; `connector/`: porta `TestDataSource` consumida por `SyncService` (E1, DEC-043); `auth/`: sessão, Entra, RBAC, Fernet.
 - `backend/pom.xml`, `backend/mvnw`, `scripts/mvnw.mjs`, `vercel.json`: build Maven e rewrite Vercel.
 - `.cursor/docs/adr/`: decisões arquiteturais; consulte somente ADR relevante (005/006/007 históricos; 008 Java vigente).
 - `fonte/ENTENDIMENTO_ECOSISTEMA_PLANILHA.md`: legado Excel, apenas quando a tarefa envolver correspondência com planilha.

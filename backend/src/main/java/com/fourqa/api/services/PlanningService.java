@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /** Planning service (port of {@code fourqa.services.planning_service}). Validation errors are IllegalArgumentException (Python ValueError). */
@@ -36,8 +37,21 @@ public final class PlanningService {
     return stores().planning;
   }
 
+  private static final Supplier<LocalDate> SYSTEM_TODAY = LocalDate::now;
+  private static volatile Supplier<LocalDate> today = SYSTEM_TODAY;
+
   public static String hojeLocal() {
-    return LocalDate.now().toString();
+    return today.get().toString();
+  }
+
+  /** Apenas para testes: fixa a data de referência de {@link #hojeLocal()}. Chame {@link #resetTodayForTests()} ao final. */
+  public static void setTodayForTests(LocalDate fixed) {
+    today = () -> fixed;
+  }
+
+  /** Restaura o relógio do sistema. */
+  public static void resetTodayForTests() {
+    today = SYSTEM_TODAY;
   }
 
   static List<Map<String, Object>> legacyBase(String planKey, Map<String, String> bag) {

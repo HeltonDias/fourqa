@@ -38,6 +38,7 @@ flowchart LR
 | Domínio | `backend/src/main/java/com/fourqa/api/domain/` (`Formulas`, `Dimensions`, …) | Cálculos, status, hierarquia e identidade de planejamento. |
 | Serviços | `com.fourqa.api.services` (`ReportService`, `PlanningService`, `SyncService`, `SyncJob`) | Agregação de Report, planejamento, sync e status de job. |
 | Persistência | `com.fourqa.api.persistence` (`Database`, `Jdbc*Store`, `Migrations`) | Stores por contrato; PostgreSQL operacional, SQLite para testes/legado. |
+| Conector | `com.fourqa.api.connector` (`TestDataSource`, `TestDataSources`) | Porta mínima da fonte de dados de teste usada por `SyncService.runSync` (DEC-043, ADR 009 E1). Padrão: Azure; fábrica trocável só em testes. Único adapter: `azure.AzureTestDataSource`. ADR 009 segue proposto. |
 | Azure | `com.fourqa.api.azure` | Somente Azure DevOps, leitura de suites/pontos/results/bugs via REST com PAT. |
 | Testes | `backend/src/test/java/` | JUnit 5 + MockMvc via `./mvnw verify` (`npm test`), golden HTTP herdado do Python; frontend smoke em `frontend/test/`. |
 | Stacks legadas | — | Express/TS, ASP.NET (`DEC-032`) e Python/FastAPI (`DEC-041`) **ausentes** do working tree. |
